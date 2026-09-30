@@ -4,6 +4,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, Modal
 import { Search, Crown, ChevronRight, Plus, Camera, Scale, CalendarDays, MoreHorizontal, Home as HomeIcon, Bookmark, MessageSquare, X, Download, FolderPlus, CalendarPlus, Flame, User, Compass } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { useTheme } from '../../contexts/ThemeContext';
+import { supabase } from '../../lib/supabase';
 
 const { width } = Dimensions.get('window');
 
@@ -12,7 +13,32 @@ export default function HomeScreen() {
   const s = makeStyles(colors);
   const router = useRouter();
   const [showFeedbackTour, setShowFeedbackTour] = useState(true);
-  const [showAddModal, setShowAddModal] = useState(false);
+  const [profile, setProfile] = useState<any>(null);
+  const [activePlan, setActivePlan] = useState<any>(null);
+
+  React.useEffect(() => {
+    fetchHomeData();
+  }, []);
+
+  const fetchHomeData = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { data: profileData } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', user.id)
+      .single();
+    if (profileData) setProfile(profileData);
+
+    const { data: planData } = await supabase
+      .from('planner')
+      .select('*')
+      .eq('user_id', user.id)
+      .eq('status', 'active')
+      .single();
+    if (planData) setActivePlan(planData);
+  };
 
   return (
     <SafeAreaView style={[s.safeArea, { backgroundColor: colors.background }]}>
@@ -29,7 +55,9 @@ export default function HomeScreen() {
           
           <TouchableOpacity style={s.avatarContainer} onPress={() => router.push('/settings')}>
             <View style={s.avatar}>
-              <Text style={s.avatarText}>RG</Text>
+              <Text style={s.avatarText}>
+                {profile?.display_name ? profile.display_name.substring(0, 2).toUpperCase() : 'RG'}
+              </Text>
             </View>
             <View style={s.crownBadge}>
               <Crown size={12} color="#D97706" fill="#FBBF24" />
@@ -45,20 +73,37 @@ export default function HomeScreen() {
           
           {/* Active Planner Banner */}
           <View style={s.activePlanCard}>
-            <View style={s.activePlanTop}>
-              <Text style={s.activePlanSubtitle}>WEEK 2 • WEDNESDAY</Text>
-              <Text style={s.activePlanTitle}>Push Day 🔥</Text>
-            </View>
-            
-            <View style={s.activePlanExercises}>
-              <Text style={s.activePlanExerciseText}>• Barbell Bench Press (3 sets)</Text>
-              <Text style={s.activePlanExerciseText}>• Seated Overhead Press (3 sets)</Text>
-              <Text style={s.activePlanExerciseText}>• Overhead Tricep Extension (3 sets)</Text>
-            </View>
-            
-            <TouchableOpacity style={s.activePlanBtn} activeOpacity={0.8}>
-              <Text style={s.activePlanBtnText}>START WORKOUT</Text>
-            </TouchableOpacity>
+            {activePlan ? (
+              <>
+                <View style={s.activePlanTop}>
+                  <Text style={s.activePlanSubtitle}>ACTIVE PLAN</Text>
+                  <Text style={s.activePlanTitle}>{activePlan.title} 🔥</Text>
+                </View>
+                
+                <View style={s.activePlanExercises}>
+                  <Text style={s.activePlanExerciseText}>Your next session is ready.</Text>
+                </View>
+                
+                <TouchableOpacity style={s.activePlanBtn} activeOpacity={0.8} onPress={() => router.push('/workout/active')}>
+                  <Text style={s.activePlanBtnText}>START NEXT WORKOUT</Text>
+                </TouchableOpacity>
+              </>
+            ) : (
+              <>
+                <View style={s.activePlanTop}>
+                  <Text style={s.activePlanSubtitle}>NO ACTIVE PLAN</Text>
+                  <Text style={s.activePlanTitle}>Ready to start?</Text>
+                </View>
+                
+                <View style={s.activePlanExercises}>
+                  <Text style={s.activePlanExerciseText}>Create a new day-by-day plan or import a workout to get started.</Text>
+                </View>
+                
+                <TouchableOpacity style={s.activePlanBtn} activeOpacity={0.8} onPress={() => router.push('/plans')}>
+                  <Text style={s.activePlanBtnText}>BROWSE PLANS</Text>
+                </TouchableOpacity>
+              </>
+            )}
           </View>
 
           {/* Calendar Strip */}

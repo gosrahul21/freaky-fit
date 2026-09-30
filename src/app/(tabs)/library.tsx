@@ -4,12 +4,53 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions } from 'react-native';
 import { Search, Plus, Home as HomeIcon, Bookmark, User, CalendarDays, List, Edit3, ChevronRight, FolderPlus, Download, Zap, MessageSquare, Flame, Compass } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
+import { supabase } from '../../lib/supabase';
 
 export default function LibraryScreen() {
   const { colors } = useTheme();
   const s = makeStyles(colors);
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<'workouts' | 'collections' | 'plans'>('workouts');
+  const [workouts, setWorkouts] = useState<any[]>([]);
+  const [collections, setCollections] = useState<any[]>([]);
+  const [plans, setPlans] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  React.useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    setLoading(true);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    // Fetch Workouts
+    const { data: workoutsData } = await supabase
+      .from('workouts')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false });
+    
+    // Fetch Collections
+    const { data: collectionsData } = await supabase
+      .from('collections')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false });
+
+    // Fetch Plans
+    const { data: plansData } = await supabase
+      .from('planner')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false });
+
+    if (workoutsData) setWorkouts(workoutsData);
+    if (collectionsData) setCollections(collectionsData);
+    if (plansData) setPlans(plansData);
+    setLoading(false);
+  };
 
   return (
     <SafeAreaView style={s.safeArea}>
@@ -74,27 +115,46 @@ export default function LibraryScreen() {
         <ScrollView contentContainerStyle={s.contentArea} showsVerticalScrollIndicator={false}>
           
           {activeTab === 'workouts' && (
-            <View style={s.centeredState}>
-              <Text style={s.emptyTitle}>No workouts yet</Text>
-              <Text style={s.emptySubtitle}>Import your first workout to get started</Text>
-              
-              <TouchableOpacity style={s.primaryBtn} onPress={() => router.push('/streaks')}>
-                <Download size={20} color={colors.accent} />
-                <Text style={s.primaryBtnText}>Import a workout</Text>
-              </TouchableOpacity>
+            workouts.length > 0 ? (
+              <View style={{ gap: 12 }}>
+                {workouts.map(w => (
+                  <TouchableOpacity key={w.id} style={s.folderRow} activeOpacity={0.8} onPress={() => router.push(`/workout/${w.id}`)}>
+                    <View style={s.folderRowLeft}>
+                      <View style={s.folderIconBadge}>
+                        <Zap size={20} color={colors.accent} fill={colors.accent} />
+                      </View>
+                      <View>
+                        <Text style={s.folderName}>{w.title}</Text>
+                        <Text style={s.folderDesc}>{w.source_type}</Text>
+                      </View>
+                    </View>
+                    <ChevronRight size={20} color="#9CA3AF" />
+                  </TouchableOpacity>
+                ))}
+              </View>
+            ) : (
+              <View style={s.centeredState}>
+                <Text style={s.emptyTitle}>No workouts yet</Text>
+                <Text style={s.emptySubtitle}>Import your first workout to get started</Text>
+                
+                <TouchableOpacity style={s.primaryBtn} onPress={() => router.push('/importer')}>
+                  <Download size={20} color={colors.accent} />
+                  <Text style={s.primaryBtnText}>Import a workout</Text>
+                </TouchableOpacity>
 
-              <View style={s.quickStartContainer}>
-                <Text style={s.quickStartTitle}>QUICK START TEMPLATES</Text>
-                <View style={s.quickStartRow}>
-                  <TouchableOpacity style={s.templatePill}>
-                    <Text style={s.templatePillText}>Upper Power</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={s.templatePill}>
-                    <Text style={s.templatePillText}>Legs Hypertrophy</Text>
-                  </TouchableOpacity>
+                <View style={s.quickStartContainer}>
+                  <Text style={s.quickStartTitle}>QUICK START TEMPLATES</Text>
+                  <View style={s.quickStartRow}>
+                    <TouchableOpacity style={s.templatePill}>
+                      <Text style={s.templatePillText}>Upper Power</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={s.templatePill}>
+                      <Text style={s.templatePillText}>Legs Hypertrophy</Text>
+                    </TouchableOpacity>
+                  </View>
                 </View>
               </View>
-            </View>
+            )
           )}
 
           {activeTab === 'collections' && (
@@ -106,47 +166,88 @@ export default function LibraryScreen() {
                 <Text style={s.newCollectionText}>New collection</Text>
               </TouchableOpacity>
               
-              <Text style={s.collectionsSubtitle}>Create a collection to organise your workouts.</Text>
+              {collections.length === 0 && (
+                <Text style={s.collectionsSubtitle}>Create a collection to organise your workouts.</Text>
+              )}
 
-              <View style={s.suggestedContainer}>
-                <View style={s.suggestedHeader}>
-                  <Text style={s.suggestedTitle}>SUGGESTED FOLDERS</Text>
-                  <TouchableOpacity>
-                    <Text style={s.exploreText}>Explore</Text>
+              {collections.length > 0 && (
+                <View style={[s.suggestedContainer, { marginTop: 24 }]}>
+                  {collections.map(c => (
+                    <TouchableOpacity key={c.id} style={[s.folderRow, { marginBottom: 8 }]} activeOpacity={0.8}>
+                      <View style={s.folderRowLeft}>
+                        <View style={s.folderIconBadge}>
+                          <FolderPlus size={20} color={colors.accent} />
+                        </View>
+                        <View>
+                          <Text style={s.folderName}>{c.title}</Text>
+                        </View>
+                      </View>
+                      <ChevronRight size={20} color="#9CA3AF" />
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+
+              {collections.length === 0 && (
+                <View style={s.suggestedContainer}>
+                  <View style={s.suggestedHeader}>
+                    <Text style={s.suggestedTitle}>SUGGESTED FOLDERS</Text>
+                    <TouchableOpacity>
+                      <Text style={s.exploreText}>Explore</Text>
+                    </TouchableOpacity>
+                  </View>
+                  
+                  <TouchableOpacity style={s.folderRow} activeOpacity={0.8}>
+                    <View style={s.folderRowLeft}>
+                      <View style={s.folderIconBadge}>
+                        <Zap size={20} color={colors.accent} fill={colors.accent} />
+                      </View>
+                      <View>
+                        <Text style={s.folderName}>Hypertrophy Split</Text>
+                        <Text style={s.folderDesc}>4 scheduled routines</Text>
+                      </View>
+                    </View>
+                    <ChevronRight size={20} color="#9CA3AF" />
                   </TouchableOpacity>
                 </View>
-                
-                <TouchableOpacity style={s.folderRow} activeOpacity={0.8}>
-                  <View style={s.folderRowLeft}>
-                    <View style={s.folderIconBadge}>
-                      <Zap size={20} color={colors.accent} fill={colors.accent} />
-                    </View>
-                    <View>
-                      <Text style={s.folderName}>Hypertrophy Split</Text>
-                      <Text style={s.folderDesc}>4 scheduled routines</Text>
-                    </View>
-                  </View>
-                  <ChevronRight size={20} color="#9CA3AF" />
-                </TouchableOpacity>
-              </View>
+              )}
             </View>
           )}
 
           {activeTab === 'plans' && (
-            <View style={s.centeredState}>
-              <Text style={s.emptyTitle}>No workout plans yet</Text>
-              <Text style={s.emptySubtitle}>Build a personal day-by-day plan and it'll show up here</Text>
-              
-              <TouchableOpacity style={s.primaryBtn}>
-                <CalendarDays size={20} color={colors.accent} />
-                <Text style={s.primaryBtnText}>Create workout plan</Text>
-              </TouchableOpacity>
-              
-              <View style={s.syncBadge}>
-                <View style={s.syncDot} />
-                <Text style={s.syncText}>Syncs automatically with Planner</Text>
+            plans.length > 0 ? (
+              <View style={{ gap: 12 }}>
+                {plans.map(p => (
+                  <TouchableOpacity key={p.id} style={s.folderRow} activeOpacity={0.8}>
+                    <View style={s.folderRowLeft}>
+                      <View style={s.folderIconBadge}>
+                        <CalendarDays size={20} color={colors.accent} />
+                      </View>
+                      <View>
+                        <Text style={s.folderName}>{p.title}</Text>
+                        <Text style={s.folderDesc}>{p.status}</Text>
+                      </View>
+                    </View>
+                    <ChevronRight size={20} color="#9CA3AF" />
+                  </TouchableOpacity>
+                ))}
               </View>
-            </View>
+            ) : (
+              <View style={s.centeredState}>
+                <Text style={s.emptyTitle}>No workout plans yet</Text>
+                <Text style={s.emptySubtitle}>Build a personal day-by-day plan and it'll show up here</Text>
+                
+                <TouchableOpacity style={s.primaryBtn}>
+                  <CalendarDays size={20} color={colors.accent} />
+                  <Text style={s.primaryBtnText}>Create workout plan</Text>
+                </TouchableOpacity>
+                
+                <View style={s.syncBadge}>
+                  <View style={s.syncDot} />
+                  <Text style={s.syncText}>Syncs automatically with Planner</Text>
+                </View>
+              </View>
+            )
           )}
 
         </ScrollView>

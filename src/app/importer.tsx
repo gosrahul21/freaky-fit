@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { X, Link as LinkIcon, Instagram, Youtube, Wand2 } from 'lucide-react-native';
+import { X, Link as LinkIcon, Wand2 } from 'lucide-react-native';
+import { FontAwesome5 } from '@expo/vector-icons';
 import { useTheme } from '../contexts/ThemeContext';
 import { hapticImpactLight } from '../utils/haptics';
 
@@ -69,9 +70,9 @@ export default function ImporterScreen() {
             <View style={s.supportedPlatforms}>
               <Text style={s.supportedText}>Supported platforms:</Text>
               <View style={s.platformIcons}>
-                <Instagram size={16} color={colors.textSecondary} />
-                <Youtube size={16} color={colors.textSecondary} />
-                <Text style={s.tiktokIcon}>🎵</Text>
+                <FontAwesome5 name="instagram" size={16} color={colors.textSecondary} />
+                <FontAwesome5 name="youtube" size={16} color={colors.textSecondary} />
+                <FontAwesome5 name="tiktok" size={14} color={colors.textSecondary} />
               </View>
             </View>
           </View>
