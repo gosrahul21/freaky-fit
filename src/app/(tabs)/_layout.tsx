@@ -19,6 +19,7 @@ export default function TabsLayout() {
         <Tabs.Screen name="plans" />
         <Tabs.Screen name="streaks" />
         <Tabs.Screen name="library" />
+        <Tabs.Screen name="explore" />
       </Tabs>
 
       {/* Bottom Navigation Bar */}
@@ -76,7 +77,7 @@ export default function TabsLayout() {
             
             <View style={s.sheetOptionsContainer}>
               {/* Option 1 */}
-              <TouchableOpacity style={s.sheetOption} activeOpacity={0.7} onPress={() => setShowAddModal(false)}>
+              <TouchableOpacity style={s.sheetOption} activeOpacity={0.7} onPress={() => { setShowAddModal(false); router.push('/importer'); }}>
                 <View style={s.sheetOptionIcon}>
                   <Download size={24} color={colors.textPrimary} strokeWidth={2.2} />
                 </View>

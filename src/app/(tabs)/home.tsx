@@ -193,7 +193,7 @@ export default function HomeScreen() {
               <Text style={s.routineTitle}>Hypertrophy Lower Quad Focus</Text>
               <Text style={s.routineDesc}>Barbell Squats, Romanian Deadlifts, Bulgarian Split Squats</Text>
               
-              <TouchableOpacity style={s.startSessionFooter}>
+              <TouchableOpacity style={s.startSessionFooter} activeOpacity={0.8} onPress={() => router.push('/workout/active')}>
                 <View style={s.avatarStack}>
                   <View style={s.miniAvatar}><Text style={s.miniAvatarText}>1</Text></View>
                   <View style={[s.miniAvatar, { marginLeft: -8 }]}><Text style={s.miniAvatarText}>2</Text></View>
