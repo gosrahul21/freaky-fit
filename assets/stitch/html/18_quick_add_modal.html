@@ -1,0 +1,293 @@
+<!DOCTYPE html><html lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" name="viewport">
+<title>FreakyFit - Add Workout</title>
+<!-- Tailwind CSS v3 with plugins -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Tailwind Configuration -->
+<script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              orange: '#FF5E00',
+              accent: '#E65100',
+              dark: '#121212',
+              card: '#18181A',
+              muted: '#71717A',
+              subtle: '#A1A1AA',
+              surface: '#F4F4F5',
+            }
+          },
+          fontFamily: {
+            sans: ['-apple-system', 'BlinkMacSystemFont', '"SF Pro Display"', '"Segoe UI"', 'Roboto', 'Helvetica', 'Arial', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+<!-- Custom Styles: General & Animations -->
+<style data-purpose="custom-styling">
+    /* iOS smooth tap highlight removal */
+    * {
+      -webkit-tap-highlight-color: transparent;
+    }
+    
+    /* Custom sheet shadow */
+    .sheet-shadow {
+      box-shadow: 0 -10px 40px -10px rgba(0, 0, 0, 0.28);
+    }
+    
+    /* Smooth transition for bottom sheet dismissal */
+    #bottom-sheet {
+      transition: transform 0.28s cubic-bezier(0.32, 0.72, 0, 1);
+    }
+
+    #backdrop-overlay {
+      transition: opacity 0.25s ease-out;
+    }
+  </style>
+</head>
+<body class="bg-black flex justify-center items-center min-h-screen font-sans antialiased select-none text-zinc-900">
+<!-- BEGIN: PhoneFrameWrapper -->
+<!-- Constrained mobile iOS container mimicking native viewport -->
+<main class="relative w-full max-w-[430px] h-[932px] max-h-[100dvh] bg-[#EDEDEE] overflow-hidden flex flex-col justify-between shadow-2xl md:rounded-[48px] border-zinc-800">
+<!-- BEGIN: BackgroundHomeScreen -->
+<!-- Dimmed & blurred simulated background layer representing the active home screen -->
+<div class="absolute inset-0 flex flex-col px-5 pt-12 pb-24 overflow-y-auto pointer-events-none select-none filter blur-[1.5px] opacity-75" id="home-screen-bg">
+<!-- iOS Status Bar Representation -->
+<div class="w-full flex justify-between items-center text-xs font-semibold px-2 mb-4 text-zinc-800 tracking-tight">
+<span>23:49</span>
+<div class="flex items-center space-x-1.5 text-zinc-700">
+<!-- Connection / battery icons placeholder -->
+<svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24"><path d="M12 3c-4.97 0-9 4.03-9 9 0 2.12.74 4.07 1.97 5.61L12 22l7.03-4.39C20.26 16.07 21 14.12 21 12c0-4.97-4.03-9-9-9z"></path></svg>
+<svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24"><path d="M12 4C7.31 4 3.07 5.9 0 8.98L12 21 24 8.98C20.93 5.9 16.69 4 12 4z"></path></svg>
+<div class="border border-zinc-700 rounded-sm px-1 py-0.2 text-[9px] font-bold leading-none">13</div>
+</div>
+</div>
+<!-- Home Top App Bar -->
+<header class="flex justify-between items-center mt-1 mb-5">
+<div class="flex items-center space-x-3.5">
+<!-- Search Icon -->
+<button aria-label="Search" class="p-1 text-zinc-900">
+<svg class="w-6 h-6 stroke-[2.5]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<path d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</button>
+<!-- Screen Title with Active Underline -->
+<div class="relative">
+<h1 class="text-2xl font-black text-zinc-950 tracking-tight leading-none pb-1.5">Home</h1>
+<div class="absolute left-0 bottom-0 w-full h-[3.5px] bg-zinc-950 rounded-full"></div>
+</div>
+</div>
+<!-- User Profile Avatar with Gold Crown -->
+<div class="relative flex items-center justify-center">
+<!-- Crown Icon badge -->
+<svg class="absolute -top-3 right-0 w-5 h-5 text-amber-500 transform rotate-12 drop-shadow" fill="currentColor" viewBox="0 0 24 24">
+<path d="M5 16L3 5l5.5 5L12 4l3.5 6L21 5l-2 11H5m14 3c0 .6-.4 1-1 1H6c-.6 0-1-.4-1-1v-1h14v1z"></path>
+</svg>
+<!-- Avatar Initial Circle -->
+<div class="w-10 h-10 rounded-full bg-[#B25E27] flex items-center justify-center text-white font-bold text-lg shadow-sm">
+            R
+          </div>
+</div>
+</header>
+<!-- Featured Promo Banner: Import a Workout -->
+<section class="w-full bg-[#151516] text-white rounded-3xl p-5 shadow-lg relative overflow-hidden mb-6">
+<h2 class="text-xl font-bold tracking-tight mb-1 text-zinc-100">Import a Workout</h2>
+<p class="text-xs text-zinc-400 font-medium leading-relaxed max-w-[260px] mb-4">
+          from Instagram, Tiktok, threads, Redit, anywhere
+        </p>
+<!-- Progress Ticks/Dashes -->
+<div class="flex items-center space-x-1.5 mb-4">
+<div class="h-1 flex-1 bg-[#FF5E00] rounded-full"></div>
+<div class="h-1 flex-1 bg-[#FF5E00] rounded-full"></div>
+<div class="h-1 flex-1 bg-[#FF5E00] rounded-full"></div>
+<div class="h-1 flex-1 bg-[#FF5E00] rounded-full"></div>
+<div class="h-1 flex-1 bg-[#FF5E00] rounded-full"></div>
+</div>
+<!-- Footer inside Banner -->
+<div class="flex justify-between items-center pt-1 text-xs">
+<span class="font-semibold underline underline-offset-4 decoration-zinc-500 text-zinc-200">Import now</span>
+<div class="flex items-center space-x-1.5 text-zinc-300 font-medium">
+<span class="text-sm leading-none font-bold">∞</span>
+<span>Unlimited imports</span>
+</div>
+</div>
+</section>
+<!-- Week Calendar Strip -->
+<section class="flex justify-between items-center mb-6 px-1">
+<!-- Day Item -->
+<div class="flex flex-col items-center space-y-1.5">
+<span class="text-xs font-semibold text-zinc-400">M</span>
+<div class="w-10 h-10 rounded-full border border-zinc-300 flex items-center justify-center text-sm font-bold text-zinc-800">21</div>
+</div>
+<div class="flex flex-col items-center space-y-1.5">
+<span class="text-xs font-semibold text-zinc-400">T</span>
+<div class="w-10 h-10 rounded-full border border-zinc-300 flex items-center justify-center text-sm font-bold text-zinc-800">22</div>
+</div>
+<div class="flex flex-col items-center space-y-1.5">
+<span class="text-xs font-semibold text-zinc-400">W</span>
+<div class="w-10 h-10 rounded-full border border-zinc-300 flex items-center justify-center text-sm font-bold text-zinc-800">23</div>
+</div>
+<div class="flex flex-col items-center space-y-1.5">
+<span class="text-xs font-semibold text-zinc-400">T</span>
+<div class="w-10 h-10 rounded-full border border-zinc-300 flex items-center justify-center text-sm font-bold text-zinc-800">24</div>
+</div>
+<div class="flex flex-col items-center space-y-1.5">
+<span class="text-xs font-semibold text-zinc-400">F</span>
+<div class="w-10 h-10 rounded-full border border-zinc-300 flex items-center justify-center text-sm font-bold text-zinc-800">25</div>
+</div>
+<div class="flex flex-col items-center space-y-1.5">
+<span class="text-xs font-semibold text-zinc-400">S</span>
+<div class="w-10 h-10 rounded-full border border-zinc-300 flex items-center justify-center text-sm font-bold text-zinc-800">26</div>
+</div>
+<!-- Active/Current Day (Sunday 27) -->
+<div class="flex flex-col items-center space-y-1.5">
+<span class="w-4 h-4 bg-zinc-600 rounded-full flex items-center justify-center text-[10px] font-bold text-white leading-none">S</span>
+<div class="w-10 h-10 rounded-full bg-zinc-950 flex items-center justify-center text-sm font-bold text-white shadow-sm">27</div>
+</div>
+</section>
+<!-- Section: On deck -->
+<section class="mt-2">
+<span class="text-xs font-semibold uppercase tracking-wider text-zinc-500">On deck</span>
+<div class="flex items-center justify-between mt-2">
+<h3 class="text-2xl font-black text-zinc-900 tracking-tight">Today</h3>
+<div class="w-9 h-9 rounded-full bg-zinc-200/80 flex items-center justify-center text-zinc-700">
+<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<rect height="18" rx="2" stroke-width="2" width="18" x="3" y="4"></rect>
+<line stroke-width="2" x1="16" x2="16" y1="2" y2="6"></line>
+<line stroke-width="2" x1="8" x2="8" y1="2" y2="6"></line>
+<line stroke-width="2" x1="3" x2="21" y1="10" y2="10"></line>
+</svg>
+</div>
+</div>
+</section>
+</div>
+<!-- END: BackgroundHomeScreen -->
+<!-- BEGIN: ModalDimBackdrop -->
+<!-- Translucent overlay behind sheet for dismiss touch handling -->
+<div aria-hidden="true" class="absolute inset-0 bg-black/40 z-20 backdrop-blur-[1.5px] cursor-pointer" id="backdrop-overlay" onclick="closeSheet()">
+</div>
+<!-- END: ModalDimBackdrop -->
+<!-- BEGIN: BottomSheetModal -->
+<!-- Bottom Sheet Container sliding up with primary action items -->
+<section aria-labelledby="modal-title" aria-modal="true" class="absolute bottom-0 inset-x-0 z-30 bg-white rounded-t-[34px] sheet-shadow pt-3 pb-8 px-6 flex flex-col transform translate-y-0" id="bottom-sheet" role="dialog">
+<!-- Drag Pill Handle -->
+<div class="w-full flex justify-center pb-3">
+<div aria-hidden="true" class="w-10 h-1 bg-zinc-200 rounded-full"></div>
+</div>
+<!-- Sheet Header Title -->
+<div class="mt-1 mb-5 text-center sm:text-left">
+<h2 class="text-[23px] font-black text-zinc-950 tracking-tight leading-snug" id="modal-title">
+          What would you like to add?
+        </h2>
+</div>
+<!-- Action Items List -->
+<div class="divide-y divide-zinc-100 flex flex-col">
+<!-- Option 1: Import a Workout -->
+<button class="w-full group flex items-center text-left py-4 transition-colors active:bg-zinc-50 rounded-xl focus:outline-none" onclick="selectAction('Import a Workout')" type="button">
+<!-- Leading Icon -->
+<div class="flex-shrink-0 mr-4 text-zinc-900 group-hover:text-brand-orange transition-colors">
+<!-- Tray Arrow / Download Icon -->
+<svg class="w-7 h-7" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" viewBox="0 0 24 24">
+<path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"></path>
+<polyline points="7 11 12 16 17 11"></polyline>
+<line x1="12" x2="12" y1="4" y2="16"></line>
+</svg>
+</div>
+<!-- Label & Description -->
+<div class="flex-1 pr-2">
+<span class="block text-[17px] font-bold text-zinc-950 tracking-tight group-hover:text-brand-orange transition-colors">
+              Import a Workout
+            </span>
+<span class="block text-[14px] text-zinc-500 font-normal leading-tight mt-0.5">
+              From a URL, photo, or paste text
+            </span>
+</div>
+</button>
+<!-- Option 2: Create a Collection -->
+<button class="w-full group flex items-center text-left py-4 transition-colors active:bg-zinc-50 rounded-xl focus:outline-none" onclick="selectAction('Create a Collection')" type="button">
+<!-- Leading Icon -->
+<div class="flex-shrink-0 mr-4 text-zinc-700 group-hover:text-brand-orange transition-colors">
+<!-- Journal / Bookmark Folder Icon matching snapshot -->
+<svg class="w-7 h-7 fill-current" viewBox="0 0 24 24">
+<path d="M6 3a3 3 0 0 0-3 3v13a2 2 0 0 0 2 2h13a3 3 0 0 0 3-3V6a3 3 0 0 0-3-3H6zm1 4h2v8H7V7zm4 0h6a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1h-6V7z"></path>
+</svg>
+</div>
+<!-- Label & Description -->
+<div class="flex-1 pr-2">
+<span class="block text-[17px] font-bold text-zinc-950 tracking-tight group-hover:text-brand-orange transition-colors">
+              Create a Collection
+            </span>
+<span class="block text-[14px] text-zinc-500 font-normal leading-tight mt-0.5">
+              Organise your workouts into collections
+            </span>
+</div>
+</button>
+<!-- Option 3: Create workout plan -->
+<button class="w-full group flex items-center text-left py-4 transition-colors active:bg-zinc-50 rounded-xl focus:outline-none" onclick="selectAction('Create workout plan')" type="button">
+<!-- Leading Icon -->
+<div class="flex-shrink-0 mr-4 text-zinc-800 group-hover:text-brand-orange transition-colors">
+<!-- Calendar with Checklist Icon -->
+<svg class="w-7 h-7" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" viewBox="0 0 24 24">
+<rect height="18" rx="2" ry="2" width="18" x="3" y="4"></rect>
+<line x1="16" x2="16" y1="2" y2="6"></line>
+<line x1="8" x2="8" y1="2" y2="6"></line>
+<line x1="3" x2="21" y1="10" y2="10"></line>
+<!-- Small calendar interior dots/checklist marks -->
+<circle cx="8" cy="14" fill="currentColor" r="0.8"></circle>
+<circle cx="12" cy="14" fill="currentColor" r="0.8"></circle>
+<circle cx="16" cy="14" fill="currentColor" r="0.8"></circle>
+<circle cx="8" cy="17.5" fill="currentColor" r="0.8"></circle>
+<circle cx="12" cy="17.5" fill="currentColor" r="0.8"></circle>
+</svg>
+</div>
+<!-- Label & Description -->
+<div class="flex-1 pr-2">
+<span class="block text-[17px] font-bold text-zinc-950 tracking-tight group-hover:text-brand-orange transition-colors">
+              Create workout plan
+            </span>
+<span class="block text-[14px] text-zinc-500 font-normal leading-tight mt-0.5">
+              Build a personal day-based plan
+            </span>
+</div>
+</button>
+</div>
+<!-- iOS Home Indicator Spacing & Bar -->
+<div class="w-full flex justify-center pt-6 pb-1">
+<div class="w-32 h-1 bg-zinc-950/20 rounded-full"></div>
+</div>
+</section>
+<!-- END: BottomSheetModal -->
+</main>
+<!-- END: PhoneFrameWrapper -->
+<!-- BEGIN: InteractiveScripts -->
+<script data-purpose="sheet-interactivity">
+    // Micro-interactions to dismiss and reopen sheet smoothly
+    function closeSheet() {
+      const sheet = document.getElementById('bottom-sheet');
+      const backdrop = document.getElementById('backdrop-overlay');
+      const homeBg = document.getElementById('home-screen-bg');
+
+      if (sheet && backdrop) {
+        sheet.style.transform = 'translateY(100%)';
+        backdrop.style.opacity = '0';
+        backdrop.style.pointerEvents = 'none';
+
+        if (homeBg) {
+          homeBg.classList.remove('blur-[1.5px]', 'opacity-75');
+          homeBg.classList.add('opacity-100');
+          homeBg.style.pointerEvents = 'auto';
+        }
+      }
+    }
+
+    function selectAction(actionName) {
+      console.log('Selected action:', actionName);
+      closeSheet();
+    }
+  </script>
+<!-- END: InteractiveScripts -->
+</body></html>

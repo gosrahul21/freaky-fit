@@ -1,0 +1,368 @@
+<!DOCTYPE html><html lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport">
+<title>FreakyFit - Library</title>
+<!-- Tailwind CSS v3 with Plugins -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Google Fonts: Oswald (Athletic headings) and Inter (Clean UI body) -->
+<link href="https://fonts.googleapis.com" rel="preconnect">
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Oswald:wght@500;600;700&amp;display=swap" rel="stylesheet">
+<script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              orange: '#FF5E00',
+              'orange-light': '#FFF0E6',
+              'orange-dark': '#E05300',
+              slate: '#111317',
+              muted: '#687076',
+              border: '#E5E7EB',
+              bg: '#F8F9FA',
+              card: '#FFFFFF',
+            }
+          },
+          fontFamily: {
+            athletic: ['Oswald', 'sans-serif'],
+            sans: ['Inter', 'sans-serif'],
+          },
+          boxShadow: {
+            'floating': '0 8px 24px -4px rgba(0, 0, 0, 0.08), 0 4px 8px -2px rgba(0, 0, 0, 0.04)',
+            'btn-shadow': '0 4px 14px rgba(255, 94, 0, 0.35)',
+            'card-soft': '0 2px 10px rgba(0, 0, 0, 0.03)',
+            'nav-shadow': '0 -4px 20px rgba(0, 0, 0, 0.05)',
+          }
+        }
+      }
+    }
+  </script>
+<style data-purpose="custom-typography">
+    body {
+      font-family: 'Inter', sans-serif;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+    .font-kinetic {
+      font-family: 'Oswald', sans-serif;
+      letter-spacing: 0.02em;
+    }
+  </style>
+<style data-purpose="scrollbar-handling">
+    /* Hide scrollbars for clean mobile app experience */
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+  </style>
+</head>
+<body class="bg-[#ECEEF2] min-h-screen flex justify-center items-center p-0 md:p-6 antialiased text-brand-slate">
+<!-- BEGIN: MobileDeviceFrame -->
+<div class="w-full max-w-[420px] h-[100dvh] md:h-[890px] bg-brand-bg flex flex-col relative overflow-hidden md:rounded-[44px] md:shadow-[0_25px_60px_-15px_rgba(0,0,0,0.3)] md:border-[7px] md:border-[#1E2229]">
+<!-- BEGIN: StatusBar -->
+<header class="w-full pt-3 px-6 pb-2 flex justify-between items-center text-xs font-semibold tracking-tight text-brand-slate select-none z-30 shrink-0" data-purpose="ios-status-bar">
+<span>23:48</span>
+<div class="flex items-center gap-1.5 text-brand-slate">
+<!-- Cellular Signal -->
+<svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
+<path d="M12 3c-4.97 0-9 4.03-9 9 0 2.12.74 4.07 1.97 5.61L12 22l7.03-4.39C20.26 16.07 21 14.12 21 12c0-4.97-4.03-9-9-9z" opacity="0.3"></path>
+<rect height="5" rx="1" width="3" x="2" y="16"></rect>
+<rect height="9" rx="1" width="3" x="7" y="12"></rect>
+<rect height="13" rx="1" width="3" x="12" y="8"></rect>
+<rect height="17" rx="1" width="3" x="17" y="4"></rect>
+</svg>
+<!-- Wifi -->
+<svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
+<path d="M12 4C7.31 4 3.07 5.9 0 8.98L12 21 24 8.98C20.93 5.9 16.69 4 12 4zm0 3.5c3.78 0 7.21 1.5 9.77 3.96L12 18.57 2.23 11.46C4.79 9 8.22 7.5 12 7.5z"></path>
+</svg>
+<!-- Battery with fill -->
+<div class="flex items-center">
+<span class="text-[10px] font-bold mr-1">13</span>
+<div class="w-5 h-2.5 border border-brand-slate rounded-[3px] p-0.5 flex items-center">
+<div class="h-full bg-brand-slate w-1/4 rounded-[1px]"></div>
+</div>
+</div>
+</div>
+</header>
+<!-- END: StatusBar -->
+<!-- BEGIN: TopBar -->
+<section class="px-5 pt-2 pb-3 flex justify-between items-center z-20 shrink-0" data-purpose="app-header">
+<!-- Profile Avatar with Crown Icon (Matches 'R' avatar in screenshot) -->
+<div class="relative group cursor-pointer" data-purpose="user-profile">
+<!-- Crown badge icon on top corner -->
+<div class="absolute -top-1.5 -left-1.5 z-10 text-amber-500 drop-shadow-sm transform -rotate-12">
+<svg class="w-4 h-4 fill-amber-400 stroke-amber-600 stroke-1" viewBox="0 0 24 24">
+<path d="M5 16L3 5l5.5 5L12 4l3.5 6L21 5l-2 11H5m14 3c0 .6-.4 1-1 1H6c-.6 0-1-.4-1-1v-1h14v1z"></path>
+</svg>
+</div>
+<!-- Circular Avatar -->
+<div class="w-11 h-11 rounded-full bg-gradient-to-tr from-amber-600 to-amber-500 flex items-center justify-center text-white font-kinetic text-xl font-bold shadow-md shadow-amber-500/20 ring-2 ring-white">
+          R
+        </div>
+</div>
+<!-- Action Icons (Search, List/Edit) -->
+<div class="flex items-center gap-3">
+<!-- Quick View / List Toggle -->
+<button class="w-10 h-10 rounded-full flex items-center justify-center text-brand-slate hover:bg-black/5 active:scale-95 transition-transform" title="List View">
+<svg class="w-6 h-6 stroke-current stroke-[2] fill-none" viewBox="0 0 24 24">
+<path d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</button>
+<!-- Search Icon -->
+<button class="w-10 h-10 rounded-full flex items-center justify-center text-brand-slate hover:bg-black/5 active:scale-95 transition-transform" title="Search">
+<svg class="w-6 h-6 stroke-current stroke-[2.2] fill-none" viewBox="0 0 24 24">
+<circle cx="11" cy="11" r="7"></circle>
+<path d="M20 20l-3.5-3.5" stroke-linecap="round"></path>
+</svg>
+</button>
+<!-- Compose / Create Routine Note -->
+<button class="w-10 h-10 rounded-full flex items-center justify-center text-brand-slate hover:bg-black/5 active:scale-95 transition-transform" title="Write Note">
+<svg class="w-6 h-6 stroke-current stroke-[2] fill-none" viewBox="0 0 24 24">
+<path d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</button>
+</div>
+</section>
+<!-- END: TopBar -->
+<!-- BEGIN: SegmentedNavigationTabs -->
+<!-- Direct faithful reproduction of the 3 tabs seen in Screenshots 3, 4, and 5 -->
+<nav class="px-5 border-b border-brand-border/70 shrink-0" data-purpose="library-tab-bar">
+<div class="flex items-center justify-between text-base font-medium">
+<!-- Workouts Tab -->
+<button class="relative pb-3 px-1 text-brand-slate font-bold transition-colors" id="tab-btn-workouts" onclick="switchTab('workouts')">
+<span class="tracking-tight text-[17px]">Workouts</span>
+<!-- Active Indicator Bar -->
+<div class="absolute bottom-0 left-0 right-0 h-[2.5px] bg-brand-orange rounded-full" id="indicator-workouts"></div>
+</button>
+<!-- Collections Tab -->
+<button class="relative pb-3 px-1 text-brand-muted hover:text-brand-slate font-semibold transition-colors" id="tab-btn-collections" onclick="switchTab('collections')">
+<span class="tracking-tight text-[17px]">Collections</span>
+<!-- Active Indicator Bar -->
+<div class="absolute bottom-0 left-0 right-0 h-[2.5px] bg-transparent rounded-full" id="indicator-collections"></div>
+</button>
+<!-- Workout Plans Tab -->
+<button class="relative pb-3 px-1 text-brand-muted hover:text-brand-slate font-semibold transition-colors" id="tab-btn-plans" onclick="switchTab('plans')">
+<span class="tracking-tight text-[17px]">Workout Plans</span>
+<!-- Active Indicator Bar -->
+<div class="absolute bottom-0 left-0 right-0 h-[2.5px] bg-transparent rounded-full" id="indicator-plans"></div>
+</button>
+</div>
+</nav>
+<!-- END: SegmentedNavigationTabs -->
+<!-- BEGIN: MainContentArea -->
+<main class="flex-1 overflow-y-auto no-scrollbar relative flex flex-col justify-center px-6 py-6" id="library-content-container">
+<!-- TAB 1: WORKOUTS EMPTY / STARTER STATE (IMAGE_5) -->
+<section class="flex flex-col items-center justify-center text-center my-auto transition-opacity duration-200" id="tab-workouts">
+<!-- Primary Headline -->
+<h2 class="text-2xl font-bold tracking-tight text-brand-slate mb-2">
+          No workouts yet
+        </h2>
+<!-- Subtitle -->
+<p class="text-[15px] text-brand-muted mb-8 max-w-[260px] leading-relaxed">
+          Import your first workout to get started
+        </p>
+<!-- Main Call To Action Button -->
+<button class="w-full max-w-[230px] bg-brand-slate hover:bg-black text-white font-semibold py-3.5 px-6 rounded-full shadow-lg hover:shadow-xl active:scale-[0.98] transition-all duration-150 flex items-center justify-center gap-2 group">
+<svg class="w-4 h-4 text-brand-orange group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+<path d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+<span>Import a workout</span>
+</button>
+<!-- Kinetic Accent Link for Instant Inspiration -->
+<div class="mt-8 pt-6 border-t border-dashed border-brand-border/60 w-full max-w-[280px]">
+<p class="text-xs uppercase tracking-wider font-semibold text-brand-muted mb-2">Quick Start Templates</p>
+<div class="flex justify-center gap-2">
+<span class="text-xs bg-white border border-brand-border px-3 py-1.5 rounded-full font-medium text-brand-slate shadow-sm cursor-pointer hover:border-brand-orange hover:text-brand-orange transition-colors">Upper Power</span>
+<span class="text-xs bg-white border border-brand-border px-3 py-1.5 rounded-full font-medium text-brand-slate shadow-sm cursor-pointer hover:border-brand-orange hover:text-brand-orange transition-colors">Legs Hypertrophy</span>
+</div>
+</div>
+</section>
+<!-- TAB 2: COLLECTIONS STATE (IMAGE_4) -->
+<section class="hidden flex-col items-center justify-start pt-6 h-full transition-opacity duration-200" id="tab-collections">
+<!-- New Collection Box Card (Exact match with Image 4) -->
+<div class="w-full max-w-[190px] flex flex-col items-center cursor-pointer group">
+<div class="w-full aspect-[1.35] bg-white border-2 border-brand-slate rounded-2xl flex items-center justify-center shadow-card-soft group-hover:border-brand-orange group-active:scale-95 transition-all">
+<svg class="w-9 h-9 stroke-brand-slate group-hover:stroke-brand-orange stroke-[1.8] fill-none transition-colors" viewBox="0 0 24 24">
+<path d="M12 4.5v15m7.5-7.5h-15" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</div>
+<!-- Label below container -->
+<span class="mt-2.5 text-base font-semibold text-brand-slate group-hover:text-brand-orange transition-colors">
+            New collection
+          </span>
+</div>
+<!-- Instructional Subtitle -->
+<p class="text-[15px] text-brand-muted text-center mt-7 max-w-[260px] leading-relaxed">
+          Create a collection to organise your workouts.
+        </p>
+<!-- Preset Suggested Folders Preview -->
+<div class="w-full mt-10 space-y-3">
+<div class="flex items-center justify-between text-xs font-semibold uppercase text-brand-muted tracking-wider px-1">
+<span>Suggested Folders</span>
+<span class="text-brand-orange cursor-pointer">Explore</span>
+</div>
+<div class="bg-white p-3 rounded-xl border border-brand-border flex items-center justify-between shadow-sm hover:border-brand-orange/40 transition-colors">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-lg bg-brand-orange-light flex items-center justify-center text-brand-orange font-bold">
+                ⚡
+              </div>
+<div class="text-left">
+<div class="text-sm font-semibold text-brand-slate">Hypertrophy Split</div>
+<div class="text-xs text-brand-muted">4 scheduled routines</div>
+</div>
+</div>
+<svg class="w-5 h-5 text-brand-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<path d="M9 5l7 7-7 7" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+</div>
+</div>
+</section>
+<!-- TAB 3: WORKOUT PLANS STATE (IMAGE_3) -->
+<section class="hidden flex-col items-center justify-center text-center my-auto transition-opacity duration-200" id="tab-plans">
+<!-- Main Headline -->
+<h2 class="text-2xl font-bold tracking-tight text-brand-slate mb-2">
+          No workout plans yet
+        </h2>
+<!-- Explanatory Subtitle -->
+<p class="text-[15px] text-brand-muted mb-8 max-w-[270px] leading-relaxed">
+          Build a personal day-by-day plan and it'll show up here
+        </p>
+<!-- Primary Action Button -->
+<button class="w-full max-w-[240px] bg-brand-slate hover:bg-black text-white font-semibold py-3.5 px-6 rounded-full shadow-lg hover:shadow-xl active:scale-[0.98] transition-all duration-150 flex items-center justify-center gap-2 group">
+<svg class="w-4 h-4 text-brand-orange group-hover:rotate-90 transition-transform duration-200" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+<path d="M12 4.5v15m7.5-7.5h-15" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+<span>Create workout plan</span>
+</button>
+<div class="mt-8 flex items-center gap-2 text-xs font-medium text-brand-muted bg-brand-card py-2 px-3.5 rounded-full border border-brand-border">
+<span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+          Syncs automatically with Planner
+        </div>
+</section>
+</main>
+<!-- END: MainContentArea -->
+<!-- BEGIN: FloatingFeedbackButton -->
+<!-- Positioned precisely bottom-right just above navigation bar (Images 3, 4, 5) -->
+<div class="absolute bottom-20 right-4 z-30" data-purpose="floating-feedback">
+<button class="bg-white hover:bg-brand-bg text-brand-slate text-sm font-semibold py-2.5 px-5 rounded-2xl shadow-floating border border-brand-border/60 hover:shadow-lg active:scale-95 transition-all duration-150 flex items-center gap-1.5 backdrop-blur-sm">
+<svg class="w-4 h-4 text-brand-muted" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+<path d="M7.5 8.25h9m-9 3H12m-9.75 1.51c0 1.6 1.123 2.994 2.707 3.227 1.129.166 2.27.293 3.423.379.35.026.67.21.865.501L12 21l2.755-4.133a1.14 1.14 0 01.865-.502 49.177 49.177 0 003.423-.379c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0012 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v5.018z" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+<span>Feedback</span>
+</button>
+</div>
+<!-- END: FloatingFeedbackButton -->
+<!-- BEGIN: BottomNavigation -->
+<footer class="w-full bg-white/95 backdrop-blur-md border-t border-brand-border/80 px-4 py-2 flex items-center justify-between relative z-40 shrink-0" data-purpose="bottom-nav">
+<!-- Nav Item: Home -->
+<a class="flex flex-col items-center justify-center flex-1 py-1 text-brand-muted hover:text-brand-slate transition-colors group" href="#">
+<svg class="w-6 h-6 stroke-current stroke-2 fill-none group-hover:scale-105 transition-transform" viewBox="0 0 24 24">
+<path d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+<span class="text-[11px] font-medium mt-1">Home</span>
+</a>
+<!-- Nav Item: Library (ACTIVE: Energetic Orange #FF5E00) -->
+<a class="flex flex-col items-center justify-center flex-1 py-1 text-brand-orange font-bold relative group" href="#">
+<div class="relative">
+<svg class="w-6 h-6 fill-current stroke-brand-orange" viewBox="0 0 24 24">
+<path d="M17 3H7c-1.1 0-1.99.9-1.99 2L5 21l7-3 7 3V5c0-1.1-.9-2-2-2z"></path>
+</svg>
+</div>
+<span class="text-[11px] font-bold mt-1 text-brand-orange tracking-tight">Library</span>
+</a>
+<!-- Center Floating Elevated Add (+) Action Button -->
+<div class="flex-1 flex justify-center -mt-6">
+<button class="w-13 h-13 w-[52px] h-[52px] rounded-full bg-white border border-brand-border/60 shadow-floating flex items-center justify-center group active:scale-90 transition-all duration-200" title="Add Routine / Log">
+<div class="w-11 h-11 rounded-full bg-gradient-to-tr from-brand-orange to-[#FF7A29] flex items-center justify-center text-white shadow-btn-shadow group-hover:scale-105 transition-transform">
+<svg class="w-6 h-6 stroke-white stroke-[2.8] fill-none" viewBox="0 0 24 24">
+<path d="M12 4.5v15m7.5-7.5h-15" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</div>
+</button>
+</div>
+<!-- Nav Item: Planner -->
+<a class="flex flex-col items-center justify-center flex-1 py-1 text-brand-muted hover:text-brand-slate transition-colors group" href="#">
+<svg class="w-6 h-6 stroke-current stroke-2 fill-none group-hover:scale-105 transition-transform" viewBox="0 0 24 24">
+<path d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+<span class="text-[11px] font-medium mt-1">Planner</span>
+</a>
+<!-- Nav Item: Profile -->
+<a class="flex flex-col items-center justify-center flex-1 py-1 text-brand-muted hover:text-brand-slate transition-colors group" href="#">
+<svg class="w-6 h-6 stroke-current stroke-2 fill-none group-hover:scale-105 transition-transform" viewBox="0 0 24 24">
+<path d="M17.982 18.725A7.488 7.488 0 0012 15.75a7.488 7.488 0 00-5.982 2.975m11.963 0a9 9 0 10-11.963 0m11.963 0A8.966 8.966 0 0112 21a8.966 8.966 0 01-5.982-2.275M15 9.75a3 3 0 11-6 0 3 3 0 016 0z" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+<span class="text-[11px] font-medium mt-1">Profile</span>
+</a>
+</footer>
+<!-- END: BottomNavigation -->
+<!-- Android / iOS Home Navigation Bar Indicator (visible on mobile screens) -->
+<div class="w-full bg-white pb-2 pt-1 flex justify-center items-center gap-12 text-brand-muted/40 shrink-0 select-none">
+<!-- Android 3-button style subtle bar icons -->
+<svg class="w-4 h-4 fill-none stroke-current stroke-2" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"></path></svg>
+<div class="w-3.5 h-3.5 border-2 border-current rounded-sm"></div>
+<svg class="w-4 h-4 fill-none stroke-current stroke-2" viewBox="0 0 24 24"><path d="M15 19l-7-7 7-7"></path></svg>
+</div>
+</div>
+<!-- END: MobileDeviceFrame -->
+<!-- BEGIN: InteractiveTabSwitcherScript -->
+<script data-purpose="tab-switcher">
+    function switchTab(target) {
+      // Tab sections
+      const workoutsSection = document.getElementById('tab-workouts');
+      const collectionsSection = document.getElementById('tab-collections');
+      const plansSection = document.getElementById('tab-plans');
+
+      // Tab Buttons
+      const btnWorkouts = document.getElementById('tab-btn-workouts');
+      const btnCollections = document.getElementById('tab-btn-collections');
+      const btnPlans = document.getElementById('tab-btn-plans');
+
+      // Indicators
+      const indWorkouts = document.getElementById('indicator-workouts');
+      const indCollections = document.getElementById('indicator-collections');
+      const indPlans = document.getElementById('indicator-plans');
+
+      // Reset all tabs
+      [workoutsSection, collectionsSection, plansSection].forEach(el => {
+        el.classList.add('hidden');
+        el.classList.remove('flex');
+      });
+
+      [btnWorkouts, btnCollections, btnPlans].forEach(btn => {
+        btn.classList.remove('text-brand-slate', 'font-bold');
+        btn.classList.add('text-brand-muted', 'font-semibold');
+      });
+
+      [indWorkouts, indCollections, indPlans].forEach(ind => {
+        ind.className = 'absolute bottom-0 left-0 right-0 h-[2.5px] bg-transparent rounded-full';
+      });
+
+      // Activate selected tab
+      if (target === 'workouts') {
+        workoutsSection.classList.remove('hidden');
+        workoutsSection.classList.add('flex');
+        btnWorkouts.classList.add('text-brand-slate', 'font-bold');
+        btnWorkouts.classList.remove('text-brand-muted');
+        indWorkouts.className = 'absolute bottom-0 left-0 right-0 h-[2.5px] bg-brand-orange rounded-full';
+      } else if (target === 'collections') {
+        collectionsSection.classList.remove('hidden');
+        collectionsSection.classList.add('flex');
+        btnCollections.classList.add('text-brand-slate', 'font-bold');
+        btnCollections.classList.remove('text-brand-muted');
+        indCollections.className = 'absolute bottom-0 left-0 right-0 h-[2.5px] bg-brand-orange rounded-full';
+      } else if (target === 'plans') {
+        plansSection.classList.remove('hidden');
+        plansSection.classList.add('flex');
+        btnPlans.classList.add('text-brand-slate', 'font-bold');
+        btnPlans.classList.remove('text-brand-muted');
+        indPlans.className = 'absolute bottom-0 left-0 right-0 h-[2.5px] bg-brand-orange rounded-full';
+      }
+    }
+  </script>
+<!-- END: InteractiveTabSwitcherScript -->
+</body></html>

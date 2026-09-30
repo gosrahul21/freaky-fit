@@ -1,0 +1,535 @@
+<!DOCTYPE html><html lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport">
+<title>FreakyFit - Imported Workout</title>
+<!-- Tailwind CSS v3 with Plugins -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Google Fonts: Oswald for Display & Inter for Body -->
+<link href="https://fonts.googleapis.com" rel="preconnect">
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Oswald:wght@500;600;700&amp;display=swap" rel="stylesheet">
+<!-- Tailwind Configuration -->
+<script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              orange: '#ff5e00',
+              'orange-light': '#ffefe5',
+              dark: '#111317',
+              muted: '#68707e',
+              border: '#f0f1f4',
+              surface: '#f8f9fa'
+            }
+          },
+          fontFamily: {
+            display: ['Oswald', 'sans-serif'],
+            sans: ['Inter', 'sans-serif']
+          }
+        }
+      }
+    }
+  </script>
+<!-- BEGIN: Custom Styles -->
+<style data-purpose="typography">
+    .font-athletic-header {
+      font-family: 'Oswald', sans-serif;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+    }
+  </style>
+<style data-purpose="scroll-and-layout">
+    /* Hide scrollbar for seamless mobile app viewport */
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+  </style>
+<!-- END: Custom Styles -->
+</head>
+<body class="bg-gray-100 flex justify-center items-center min-h-screen font-sans text-brand-dark antialiased select-none">
+<!-- BEGIN: MobileDeviceFrame -->
+<div class="w-full max-w-[420px] bg-white h-screen max-h-[920px] shadow-2xl relative flex flex-col overflow-hidden sm:rounded-[36px] sm:border-[8px] sm:border-neutral-800">
+<!-- BEGIN: TopBar -->
+<header class="px-5 pt-6 pb-3 flex items-center justify-between bg-white z-20 shrink-0">
+<h1 class="text-2xl font-bold tracking-tight text-neutral-900 font-sans">
+        Imported workout
+      </h1>
+<button aria-label="Close" class="w-9 h-9 rounded-full bg-neutral-100 text-neutral-600 flex items-center justify-center hover:bg-neutral-200 transition-colors shadow-sm active:scale-95" type="button">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" viewBox="0 0 24 24">
+<line x1="18" x2="6" y1="6" y2="18"></line>
+<line x1="6" x2="18" y1="6" y2="18"></line>
+</svg>
+</button>
+</header>
+<!-- END: TopBar -->
+<!-- BEGIN: ScrollableContent -->
+<main class="flex-1 overflow-y-auto px-5 pb-28 space-y-6 no-scrollbar">
+<!-- BEGIN: WorkoutHeroSummary -->
+<section class="pt-2" data-purpose="workout-hero">
+<div class="flex items-start gap-4">
+<!-- Thumbnail illustration -->
+<div class="w-24 h-24 rounded-2xl bg-neutral-100 border border-neutral-200 flex-shrink-0 flex items-center justify-center relative overflow-hidden p-2 shadow-inner">
+<svg class="w-16 h-16 text-neutral-300" fill="none" viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg">
+<rect height="52" rx="10" stroke="currentColor" stroke-dasharray="3 3" stroke-width="3" width="64" x="8" y="14"></rect>
+<path d="M22 52L36 34L48 48L58 38L66 48" stroke="#9ca3af" stroke-linecap="round" stroke-linejoin="round" stroke-width="3.5"></path>
+<circle cx="30" cy="28" fill="#f97316" fill-opacity="0.8" r="5"></circle>
+<path d="M12 60C24 55 42 66 68 59" stroke="#cbd5e1" stroke-width="3"></path>
+</svg>
+<div class="absolute bottom-1 right-1 bg-brand-orange text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider">
+              NEW
+            </div>
+</div>
+<!-- Metadata & Title -->
+<div class="flex-1 min-w-0">
+<h2 class="text-xl font-bold leading-tight text-neutral-900 tracking-tight">
+              Build a Bigger Back: Upper, La...
+            </h2>
+<div class="mt-2 flex items-center flex-wrap gap-2 text-xs font-medium text-neutral-600">
+<span class="inline-flex items-center gap-1 font-semibold text-neutral-800">
+<svg class="w-3.5 h-3.5 text-neutral-700" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+<path d="M6 5v14M18 5v14M2 9v6M22 9v6M6 12h12" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+                4 exercises
+              </span>
+<span class="text-neutral-300">•</span>
+<span class="inline-flex items-center gap-1 font-medium text-neutral-700">
+<svg class="w-4 h-4 fill-red-600" viewBox="0 0 24 24">
+<path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"></path>
+</svg>
+                YouTube
+              </span>
+</div>
+</div>
+</div>
+<!-- Action Pills: Collection & Plan -->
+<div class="grid grid-cols-2 gap-3 mt-4">
+<button class="flex items-center justify-center gap-2 py-3 px-4 rounded-2xl bg-neutral-100 hover:bg-neutral-200/80 active:scale-[0.98] transition font-semibold text-neutral-800 text-sm shadow-sm border border-neutral-200/60" type="button">
+<svg class="w-4 h-4 text-neutral-700" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+<rect height="16" rx="2" width="18" x="3" y="4"></rect>
+<line x1="8" x2="16" y1="2" y2="2"></line>
+</svg>
+            Collection
+          </button>
+<button class="flex items-center justify-center gap-2 py-3 px-4 rounded-2xl bg-neutral-100 hover:bg-neutral-200/80 active:scale-[0.98] transition font-semibold text-neutral-800 text-sm shadow-sm border border-neutral-200/60" type="button">
+<svg class="w-4 h-4 text-neutral-700" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+<rect height="18" rx="2" ry="2" width="18" x="3" y="4"></rect>
+<line x1="16" x2="16" y1="2" y2="6"></line>
+<line x1="8" x2="8" y1="2" y2="6"></line>
+<line x1="3" x2="21" y1="10" y2="10"></line>
+</svg>
+            Plan
+          </button>
+</div>
+</section>
+<!-- END: WorkoutHeroSummary -->
+<!-- BEGIN: AboutSection -->
+<section class="border-t border-neutral-100 pt-4" data-purpose="about-workout">
+<h3 class="font-athletic-header text-lg font-bold tracking-wider text-neutral-900 mb-2">
+          ABOUT THIS WORKOUT
+        </h3>
+<p class="text-sm text-neutral-600 leading-relaxed font-normal">
+          This workout focuses on comprehensively developing a bigger and stronger back by specifically targeting the upper back, lats, and rhomboids...
+        </p>
+<button class="mt-1 text-sm font-semibold text-brand-dark underline decoration-brand-orange decoration-2 underline-offset-4 hover:text-brand-orange transition-colors" type="button">
+          Show more
+        </button>
+</section>
+<!-- END: AboutSection -->
+<!-- BEGIN: MusclesWorkedSection -->
+<section class="border-t border-neutral-100 pt-4" data-purpose="muscles-worked">
+<h3 class="font-athletic-header text-lg font-bold tracking-wider text-neutral-900 mb-4">
+          MUSCLES WORKED
+        </h3>
+<!-- Anatomical Body Visualization -->
+<div class="bg-neutral-50 rounded-2xl p-4 border border-neutral-100 flex items-center justify-around gap-2">
+<!-- Front Body Vector -->
+<div class="flex flex-col items-center">
+<span class="text-[11px] font-semibold text-neutral-400 uppercase tracking-widest mb-1">Front</span>
+<svg class="w-32 h-60 drop-shadow-sm" fill="none" viewBox="0 0 160 300" xmlns="http://www.w3.org/2000/svg">
+<!-- Neutral Body Silhouette / Base -->
+<ellipse cx="80" cy="22" fill="#e2e8f0" rx="14" ry="18"></ellipse>
+<path d="M72 40 L88 40 L86 52 L74 52 Z" fill="#e2e8f0"></path>
+<!-- Torso / Chest / Core (Light Grey Neutral) -->
+<path d="M60 52 C50 65 52 110 54 135 C65 140 95 140 106 135 C108 110 110 65 100 52 Z" fill="#e2e8f0"></path>
+<!-- Abdomen detail line -->
+<line stroke="#cbd5e1" stroke-width="2" x1="80" x2="80" y1="58" y2="128"></line>
+<!-- Front Shoulders (Targeted Accent - Orange) -->
+<path d="M50 56 C44 65 42 80 48 90 C54 86 56 68 60 56 Z" fill="#ea580c"></path>
+<path d="M110 56 C116 65 118 80 112 90 C106 86 104 68 100 56 Z" fill="#ea580c"></path>
+<!-- Forearms (Targeted Accent - Light Orange) -->
+<path d="M42 120 C36 135 34 165 38 175 C42 170 47 145 46 120 Z" fill="#f97316"></path>
+<path d="M118 120 C124 135 126 165 122 175 C118 170 113 145 114 120 Z" fill="#f97316"></path>
+<!-- Arms Neutral Biceps -->
+<path d="M47 90 C43 100 42 112 43 120 C47 120 51 106 50 90 Z" fill="#cbd5e1"></path>
+<path d="M113 90 C117 100 118 112 117 120 C113 120 109 106 110 90 Z" fill="#cbd5e1"></path>
+<!-- Pelvis -->
+<path d="M56 136 C64 146 96 146 104 136 C100 156 60 156 56 136 Z" fill="#e2e8f0"></path>
+<!-- Quads / Front Legs (Active Secondary - Amber Orange) -->
+<path d="M56 150 C54 185 58 220 62 235 C68 234 76 215 76 150 Z" fill="#f97316"></path>
+<path d="M104 150 C106 185 102 220 98 235 C92 234 84 215 84 150 Z" fill="#f97316"></path>
+<!-- Calves & Feet (Neutral) -->
+<path d="M60 240 C56 260 58 280 62 292 C67 292 70 275 72 240 Z" fill="#e2e8f0"></path>
+<path d="M100 240 C104 260 102 280 98 292 C93 292 90 275 88 240 Z" fill="#e2e8f0"></path>
+</svg>
+</div>
+<!-- Back Body Vector (High Primary Intensity - Deep Red / Dark Orange) -->
+<div class="flex flex-col items-center">
+<span class="text-[11px] font-semibold text-neutral-400 uppercase tracking-widest mb-1">Back</span>
+<svg class="w-32 h-60 drop-shadow-sm" fill="none" viewBox="0 0 160 300" xmlns="http://www.w3.org/2000/svg">
+<!-- Neutral Head/Neck -->
+<ellipse cx="80" cy="22" fill="#e2e8f0" rx="14" ry="18"></ellipse>
+<path d="M72 38 C75 48 85 48 88 38 Z" fill="#e2e8f0"></path>
+<!-- Upper Traps (Deep Red Active) -->
+<path d="M64 50 C74 46 86 46 96 50 C90 68 70 68 64 50 Z" fill="#7f1d1d"></path>
+<!-- Rear Deltoids -->
+<path d="M50 56 C44 65 42 78 48 88 C54 84 58 70 62 56 Z" fill="#c2410c"></path>
+<path d="M110 56 C116 65 118 78 112 88 C106 84 102 70 98 56 Z" fill="#c2410c"></path>
+<!-- Rhomboids & Mid Trapezius (Primary Deep Wine / Burgundy) -->
+<path d="M64 56 C74 72 80 95 80 115 C80 95 86 72 96 56 C88 64 72 64 64 56 Z" fill="#991b1b"></path>
+<!-- Latissimus Dorsi (Major Target - Burnt Red/Orange) -->
+<path d="M60 70 C54 95 62 132 78 135 C78 110 68 85 60 70 Z" fill="#b91c1c"></path>
+<path d="M100 70 C106 95 98 132 82 135 C82 110 92 85 100 70 Z" fill="#b91c1c"></path>
+<!-- Triceps / Forearms Rear -->
+<path d="M43 120 C36 135 34 165 38 175 C42 170 47 145 46 120 Z" fill="#f97316"></path>
+<path d="M117 120 C124 135 126 165 122 175 C118 170 113 145 114 120 Z" fill="#f97316"></path>
+<path d="M47 90 C43 100 42 112 43 120 C47 120 51 106 50 90 Z" fill="#ea580c"></path>
+<path d="M113 90 C117 100 118 112 117 120 C113 120 109 106 110 90 Z" fill="#ea580c"></path>
+<!-- Glutes (Sub-Target - Crimson Red) -->
+<path d="M58 136 C64 135 78 140 79 164 C65 168 56 156 58 136 Z" fill="#991b1b"></path>
+<path d="M102 136 C96 135 82 140 81 164 C95 168 104 156 102 136 Z" fill="#991b1b"></path>
+<!-- Hamstrings (Amber / Burnt Orange) -->
+<path d="M58 168 C58 200 62 230 68 235 C74 230 78 200 78 168 Z" fill="#c2410c"></path>
+<path d="M102 168 C102 200 98 230 92 235 C86 230 82 200 82 168 Z" fill="#c2410c"></path>
+<!-- Rear Calves (Light Gray Neutral) -->
+<path d="M60 240 C56 260 58 280 62 292 C67 292 70 275 72 240 Z" fill="#e2e8f0"></path>
+<path d="M100 240 C104 260 102 280 98 292 C93 292 90 275 88 240 Z" fill="#e2e8f0"></path>
+</svg>
+</div>
+</div>
+<!-- Intensity Gradient Legend -->
+<div class="mt-4 px-2">
+<div class="flex items-center gap-3">
+<span class="text-xs font-medium text-neutral-500">less</span>
+<div class="flex-1 h-2 rounded-full overflow-hidden bg-neutral-200">
+<div class="h-full w-full rounded-full bg-gradient-to-r from-neutral-200 via-amber-300 via-orange-500 to-[#6b1515]"></div>
+</div>
+<span class="text-xs font-medium text-neutral-500">more</span>
+</div>
+</div>
+</section>
+<!-- END: MusclesWorkedSection -->
+<!-- BEGIN: ExercisesSection -->
+<section class="border-t border-neutral-100 pt-4 space-y-6" data-purpose="exercises-list">
+<!-- Section Title with Exercise Count -->
+<div class="flex items-baseline gap-2">
+<h3 class="font-athletic-header text-xl font-bold tracking-wider text-neutral-900">
+            EXERCISES
+          </h3>
+<span class="font-athletic-header text-2xl font-bold text-neutral-400">4</span>
+</div>
+<!-- EXERCISE 1 -->
+<article class="bg-white rounded-2xl border border-neutral-100 p-4 shadow-sm hover:shadow-md transition">
+<div class="flex items-start gap-4">
+<!-- Exercise anatomical highlight icon -->
+<div class="w-16 h-20 rounded-xl bg-neutral-50 border border-neutral-100 flex items-center justify-center p-1 shrink-0">
+<svg class="w-12 h-16" fill="none" viewBox="0 0 100 120">
+<ellipse cx="50" cy="18" fill="#e2e8f0" rx="10" ry="12"></ellipse>
+<path d="M44 32 L56 32 L54 42 L46 42 Z" fill="#e2e8f0"></path>
+<path d="M38 42 C48 38 52 38 62 42 C58 55 42 55 38 42 Z" fill="#7f1d1d"></path>
+<path d="M26 44 C20 54 22 68 28 72 C32 68 34 56 36 44 Z" fill="#ea580c"></path>
+<path d="M74 44 C80 54 78 68 72 72 C68 68 66 56 64 44 Z" fill="#ea580c"></path>
+<path d="M38 44 C45 56 50 75 50 90 C50 75 55 56 62 44 Z" fill="#991b1b"></path>
+<path d="M34 55 C30 75 36 100 48 105 C48 88 40 68 34 55 Z" fill="#b91c1c"></path>
+<path d="M66 55 C70 75 64 100 52 105 C52 88 60 68 66 55 Z" fill="#b91c1c"></path>
+<path d="M22 75 C16 90 18 105 22 115 Z" fill="#e2e8f0"></path>
+<path d="M78 75 C84 90 82 105 78 115 Z" fill="#e2e8f0"></path>
+</svg>
+</div>
+<!-- Details -->
+<div class="flex-1 min-w-0">
+<h4 class="text-base font-bold text-neutral-900 leading-snug">
+                1. Wide Dumbbell Rows
+              </h4>
+<div class="flex items-center gap-3 mt-1 text-xs font-semibold text-neutral-600">
+<span class="inline-flex items-center gap-1">
+<svg class="w-3.5 h-3.5 text-neutral-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+<polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+<polyline points="2 17 12 22 22 17"></polyline>
+<polyline points="2 12 12 17 22 12"></polyline>
+</svg>
+                  2 sets
+                </span>
+<span class="inline-flex items-center gap-1">
+<svg class="w-3.5 h-3.5 text-neutral-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+<path d="M17 2l4 4-4 4"></path>
+<path d="M3 11v-1a4 4 0 0 1 4-4h14"></path>
+<path d="M7 22l-4-4 4-4"></path>
+<path d="M21 13v1a4 4 0 0 1-4 4H3"></path>
+</svg>
+                  10 reps
+                </span>
+</div>
+<div class="mt-1 flex items-center gap-1 text-xs font-semibold text-neutral-600">
+<span class="text-neutral-900 font-bold">▶</span> 0:05–0:09
+              </div>
+</div>
+</div>
+<p class="text-xs text-neutral-600 mt-3 leading-relaxed">
+            A dumbbell row variation targeting the upper back, emphasizing a wider pull.
+          </p>
+<!-- Accordion Steps -->
+<div class="mt-3 pt-2 border-t border-neutral-100 flex items-center justify-between cursor-pointer group">
+<span class="text-xs font-bold text-neutral-800 underline decoration-neutral-300 group-hover:text-brand-orange transition-colors">
+              Steps · 4
+            </span>
+<svg class="w-4 h-4 text-neutral-400 group-hover:text-brand-orange transition-transform" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+<polyline points="6 9 12 15 18 9"></polyline>
+</svg>
+</div>
+<!-- Tools Section -->
+<div class="mt-3">
+<div class="text-[11px] font-bold tracking-wider text-neutral-400 uppercase flex items-center gap-1">
+              TOOLS 
+              <svg class="w-2.5 h-2.5 text-neutral-400" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24">
+<polyline points="9 18 15 12 9 6"></polyline>
+</svg>
+</div>
+<div class="flex flex-wrap gap-2 mt-1.5">
+<span class="italic text-xs font-medium text-neutral-800 bg-neutral-100 px-2.5 py-1 rounded-lg">Dumbbell</span>
+<span class="italic text-xs font-medium text-neutral-800 bg-neutral-100 px-2.5 py-1 rounded-lg">Flat Bench</span>
+</div>
+</div>
+</article>
+<!-- EXERCISE 2 -->
+<article class="bg-white rounded-2xl border border-neutral-100 p-4 shadow-sm hover:shadow-md transition">
+<div class="flex items-start gap-4">
+<!-- Muscle Graphic -->
+<div class="w-16 h-20 rounded-xl bg-neutral-50 border border-neutral-100 flex items-center justify-center p-1 shrink-0">
+<svg class="w-12 h-16" fill="none" viewBox="0 0 100 120">
+<ellipse cx="50" cy="18" fill="#e2e8f0" rx="10" ry="12"></ellipse>
+<path d="M44 32 L56 32 L54 42 L46 42 Z" fill="#e2e8f0"></path>
+<!-- Upper Back Focus -->
+<path d="M38 42 C48 38 52 38 62 42 C58 55 42 55 38 42 Z" fill="#991b1b"></path>
+<path d="M26 44 C20 54 22 68 28 72 C32 68 34 56 36 44 Z" fill="#ea580c"></path>
+<path d="M74 44 C80 54 78 68 72 72 C68 68 66 56 64 44 Z" fill="#ea580c"></path>
+<path d="M38 44 C45 56 50 75 50 90 C50 75 55 56 62 44 Z" fill="#991b1b"></path>
+<!-- Meadows targets lower lats intensely -->
+<path d="M34 55 C30 75 36 100 48 105 C48 88 40 68 34 55 Z" fill="#ea580c"></path>
+<path d="M66 55 C70 75 64 100 52 105 C52 88 60 68 66 55 Z" fill="#f97316"></path>
+</svg>
+</div>
+<!-- Details -->
+<div class="flex-1 min-w-0">
+<h4 class="text-base font-bold text-neutral-900 leading-snug">
+                2. Meadows Row
+              </h4>
+<div class="flex items-center gap-3 mt-1 text-xs font-semibold text-neutral-600">
+<span class="inline-flex items-center gap-1">
+<svg class="w-3.5 h-3.5 text-neutral-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+<polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+<polyline points="2 17 12 22 22 17"></polyline>
+<polyline points="2 12 12 17 22 12"></polyline>
+</svg>
+                  2 sets
+                </span>
+<span class="inline-flex items-center gap-1">
+<svg class="w-3.5 h-3.5 text-neutral-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+<path d="M17 2l4 4-4 4"></path>
+<path d="M3 11v-1a4 4 0 0 1 4-4h14"></path>
+<path d="M7 22l-4-4 4-4"></path>
+<path d="M21 13v1a4 4 0 0 1-4 4H3"></path>
+</svg>
+                  10 reps
+                </span>
+</div>
+<div class="mt-1 flex items-center gap-1 text-xs font-semibold text-neutral-600">
+<span class="text-neutral-900 font-bold">▶</span> 0:09–0:11
+              </div>
+</div>
+</div>
+<p class="text-xs text-neutral-600 mt-3 leading-relaxed">
+            A single-arm barbell row variation, typically performed with a landmine attachment, excellent for targeting the upper back and lats.
+          </p>
+<!-- Accordion Steps -->
+<div class="mt-3 pt-2 border-t border-neutral-100 flex items-center justify-between cursor-pointer group">
+<span class="text-xs font-bold text-neutral-800 underline decoration-neutral-300 group-hover:text-brand-orange transition-colors">
+              Steps · 4
+            </span>
+<svg class="w-4 h-4 text-neutral-400 group-hover:text-brand-orange transition-transform" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+<polyline points="6 9 12 15 18 9"></polyline>
+</svg>
+</div>
+<!-- Tools Section -->
+<div class="mt-3">
+<div class="text-[11px] font-bold tracking-wider text-neutral-400 uppercase flex items-center gap-1">
+              TOOLS 
+              <svg class="w-2.5 h-2.5 text-neutral-400" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24">
+<polyline points="9 18 15 12 9 6"></polyline>
+</svg>
+</div>
+<div class="flex flex-wrap gap-2 mt-1.5">
+<span class="italic text-xs font-medium text-neutral-800 bg-neutral-100 px-2.5 py-1 rounded-lg">Barbell</span>
+<span class="italic text-xs font-medium text-neutral-800 bg-neutral-100 px-2.5 py-1 rounded-lg">Weight Plates</span>
+<span class="italic text-xs font-medium text-neutral-800 bg-neutral-100 px-2.5 py-1 rounded-lg">Landmine Attachment</span>
+</div>
+</div>
+</article>
+<!-- EXERCISE 3 -->
+<article class="bg-white rounded-2xl border border-neutral-100 p-4 shadow-sm hover:shadow-md transition">
+<div class="flex items-start gap-4">
+<!-- Muscle Graphic -->
+<div class="w-16 h-20 rounded-xl bg-neutral-50 border border-neutral-100 flex items-center justify-center p-1 shrink-0">
+<svg class="w-12 h-16" fill="none" viewBox="0 0 100 120">
+<ellipse cx="50" cy="18" fill="#e2e8f0" rx="10" ry="12"></ellipse>
+<path d="M44 32 L56 32 L54 42 L46 42 Z" fill="#e2e8f0"></path>
+<path d="M38 42 C48 38 52 38 62 42 C58 55 42 55 38 42 Z" fill="#ea580c"></path>
+<path d="M38 44 C45 56 50 75 50 90 C50 75 55 56 62 44 Z" fill="#ea580c"></path>
+<!-- Direct Lat emphasis -->
+<path d="M34 55 C30 75 36 100 48 105 C48 88 40 68 34 55 Z" fill="#7f1d1d"></path>
+<path d="M66 55 C70 75 64 100 52 105 C52 88 60 68 66 55 Z" fill="#7f1d1d"></path>
+</svg>
+</div>
+<!-- Details -->
+<div class="flex-1 min-w-0">
+<h4 class="text-base font-bold text-neutral-900 leading-snug">
+                3. Lat Pulldown (Neutral Grip)
+              </h4>
+<div class="flex items-center gap-3 mt-1 text-xs font-semibold text-neutral-600">
+<span class="inline-flex items-center gap-1">
+<svg class="w-3.5 h-3.5 text-neutral-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+<polygon points="12 2 2 7 12 12 22 7 12 2">
+<polyline points="2 17 12 22 22 17"></polyline>
+<polyline points="2 12 12 17 22 12"></polyline>
+</polygon></svg>
+                  3 sets
+                </span>
+<span class="inline-flex items-center gap-1">
+<svg class="w-3.5 h-3.5 text-neutral-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+<path d="M17 2l4 4-4 4"></path>
+<path d="M3 11v-1a4 4 0 0 1 4-4h14"></path>
+<path d="M7 22l-4-4 4-4"></path>
+<path d="M21 13v1a4 4 0 0 1-4 4H3"></path>
+</svg>
+                  12 reps
+                </span>
+</div>
+<div class="mt-1 flex items-center gap-1 text-xs font-semibold text-neutral-600">
+<span class="text-neutral-900 font-bold">▶</span> 0:11–0:14
+              </div>
+</div>
+</div>
+<p class="text-xs text-neutral-600 mt-3 leading-relaxed">
+            Targets lats width with controlled eccentric phase and tucked elbows.
+          </p>
+<!-- Accordion Steps -->
+<div class="mt-3 pt-2 border-t border-neutral-100 flex items-center justify-between cursor-pointer group">
+<span class="text-xs font-bold text-neutral-800 underline decoration-neutral-300 group-hover:text-brand-orange transition-colors">
+              Steps · 3
+            </span>
+<svg class="w-4 h-4 text-neutral-400 group-hover:text-brand-orange transition-transform" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+<polyline points="6 9 12 15 18 9"></polyline>
+</svg>
+</div>
+<!-- Tools Section -->
+<div class="mt-3">
+<div class="text-[11px] font-bold tracking-wider text-neutral-400 uppercase flex items-center gap-1">
+              TOOLS 
+              <svg class="w-2.5 h-2.5 text-neutral-400" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24">
+<polyline points="9 18 15 12 9 6"></polyline>
+</svg>
+</div>
+<div class="flex flex-wrap gap-2 mt-1.5">
+<span class="italic text-xs font-medium text-neutral-800 bg-neutral-100 px-2.5 py-1 rounded-lg">Cable Pulldown</span>
+<span class="italic text-xs font-medium text-neutral-800 bg-neutral-100 px-2.5 py-1 rounded-lg">V-Bar Attachment</span>
+</div>
+</div>
+</article>
+<!-- EXERCISE 4 -->
+<article class="bg-white rounded-2xl border border-neutral-100 p-4 shadow-sm hover:shadow-md transition">
+<div class="flex items-start gap-4">
+<!-- Muscle Graphic -->
+<div class="w-16 h-20 rounded-xl bg-neutral-50 border border-neutral-100 flex items-center justify-center p-1 shrink-0">
+<svg class="w-12 h-16" fill="none" viewBox="0 0 100 120">
+<ellipse cx="50" cy="18" fill="#e2e8f0" rx="10" ry="12"></ellipse>
+<path d="M44 32 L56 32 L54 42 L46 42 Z" fill="#e2e8f0"></path>
+<!-- Upper Traps & Rear Delts (Burgundy / Red Accent) -->
+<path d="M38 42 C48 38 52 38 62 42 C58 55 42 55 38 42 Z" fill="#7f1d1d"></path>
+<path d="M26 44 C20 54 22 68 28 72 C32 68 34 56 36 44 Z" fill="#991b1b"></path>
+<path d="M74 44 C80 54 78 68 72 72 C68 68 66 56 64 44 Z" fill="#991b1b"></path>
+<path d="M38 44 C45 56 50 75 50 90 C50 75 55 56 62 44 Z" fill="#ea580c"></path>
+</svg>
+</div>
+<!-- Details -->
+<div class="flex-1 min-w-0">
+<h4 class="text-base font-bold text-neutral-900 leading-snug">
+                4. Face Pulls
+              </h4>
+<div class="flex items-center gap-3 mt-1 text-xs font-semibold text-neutral-600">
+<span class="inline-flex items-center gap-1">
+<svg class="w-3.5 h-3.5 text-neutral-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+<polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+<polyline points="2 17 12 22 22 17"></polyline>
+<polyline points="2 12 12 17 22 12"></polyline>
+</svg>
+                  3 sets
+                </span>
+<span class="inline-flex items-center gap-1">
+<svg class="w-3.5 h-3.5 text-neutral-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+<path d="M17 2l4 4-4 4"></path>
+<path d="M3 11v-1a4 4 0 0 1 4-4h14"></path>
+<path d="M7 22l-4-4 4-4"></path>
+<path d="M21 13v1a4 4 0 0 1-4 4H3"></path>
+</svg>
+                  15 reps
+                </span>
+</div>
+<div class="mt-1 flex items-center gap-1 text-xs font-semibold text-neutral-600">
+<span class="text-neutral-900 font-bold">▶</span> 0:14–0:18
+              </div>
+</div>
+</div>
+<p class="text-xs text-neutral-600 mt-3 leading-relaxed">
+            Essential movement for rear delts, rhomboids, and shoulder health.
+          </p>
+<!-- Accordion Steps -->
+<div class="mt-3 pt-2 border-t border-neutral-100 flex items-center justify-between cursor-pointer group">
+<span class="text-xs font-bold text-neutral-800 underline decoration-neutral-300 group-hover:text-brand-orange transition-colors">
+              Steps · 3
+            </span>
+<svg class="w-4 h-4 text-neutral-400 group-hover:text-brand-orange transition-transform" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+<polyline points="6 9 12 15 18 9"></polyline>
+</svg>
+</div>
+<!-- Tools Section -->
+<div class="mt-3">
+<div class="text-[11px] font-bold tracking-wider text-neutral-400 uppercase flex items-center gap-1">
+              TOOLS 
+              <svg class="w-2.5 h-2.5 text-neutral-400" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24">
+<polyline points="9 18 15 12 9 6"></polyline>
+</svg>
+</div>
+<div class="flex flex-wrap gap-2 mt-1.5">
+<span class="italic text-xs font-medium text-neutral-800 bg-neutral-100 px-2.5 py-1 rounded-lg">Cable Machine</span>
+<span class="italic text-xs font-medium text-neutral-800 bg-neutral-100 px-2.5 py-1 rounded-lg">Rope Attachment</span>
+</div>
+</div>
+</article>
+</section>
+<!-- END: ExercisesSection -->
+</main>
+<!-- END: ScrollableContent -->
+<!-- BEGIN: StickyBottomBar -->
+<div class="absolute bottom-0 left-0 right-0 p-5 bg-gradient-to-t from-white via-white/95 to-transparent z-30 pointer-events-auto" data-purpose="sticky-action-container">
+<button class="w-full bg-[#111317] hover:bg-neutral-800 text-white font-bold py-4 px-6 rounded-full tracking-wide shadow-lg shadow-black/10 active:scale-[0.98] transition-all flex items-center justify-center gap-2 font-sans text-base" type="button">
+<span>Save workout</span>
+</button>
+</div>
+<!-- END: StickyBottomBar -->
+</div>
+<!-- END: MobileDeviceFrame -->
+</body></html>

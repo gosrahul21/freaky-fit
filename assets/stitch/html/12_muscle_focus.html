@@ -1,0 +1,255 @@
+<!DOCTYPE html><html lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport">
+<title>FreakyFit - Target Muscle Focus</title>
+<!-- Tailwind CSS CDN with Forms & Container Queries -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Tailwind Configuration for FreakyFit Custom Theme -->
+<script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#fff7ed',
+              100: '#ffedd5',
+              400: '#fb923c',
+              500: '#ff5e00',
+              600: '#ea580c',
+              glow: 'rgba(255, 94, 0, 0.25)'
+            },
+            surface: {
+              card: '#FFFFFF',
+              subtle: '#F8FAFC',
+              border: '#E2E8F0',
+              muted: '#94A3B8'
+            }
+          },
+          fontFamily: {
+            sans: ['-apple-system', 'BlinkMacSystemFont', '"SF Pro Display"', '"Segoe UI"', 'Roboto', 'sans-serif'],
+          },
+          boxShadow: {
+            'glow-orange': '0 4px 20px -2px rgba(255, 94, 0, 0.35)',
+            'pill-active': '0 2px 8px rgba(0, 0, 0, 0.08)',
+          }
+        }
+      }
+    }
+  </script>
+<!-- BEGIN: Custom Visual Enhancements -->
+<style data-purpose="custom-enhancements">
+    /* Subtle touch animations and scroll styling */
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+    .tap-press:active {
+      transform: scale(0.98);
+      transition: transform 0.1s ease;
+    }
+    .muscle-active {
+      fill: #ff5e00 !important;
+      filter: drop-shadow(0 0 6px rgba(255, 94, 0, 0.55));
+      transition: all 0.3s ease;
+    }
+    .muscle-neutral {
+      fill: #CBD5E1;
+      transition: all 0.3s ease;
+    }
+  </style>
+<!-- END: Custom Visual Enhancements -->
+</head>
+<body class="bg-surface-subtle text-slate-900 font-sans antialiased min-h-screen flex justify-center items-start selection:bg-brand-500 selection:text-white">
+<!-- Mobile iOS Device Frame Container -->
+<main class="w-full max-w-[430px] min-h-screen bg-white flex flex-col justify-between relative shadow-2xl overflow-hidden border-x border-slate-100">
+<!-- BEGIN: TopNavigation -->
+<header class="pt-12 px-5 pb-3 bg-white/90 backdrop-blur-md sticky top-0 z-30 flex flex-col gap-3">
+<!-- Top Row: Back button, Logo and Step Counter -->
+<div class="flex items-center justify-between">
+<button aria-label="Go back" class="w-10 h-10 -ml-2 rounded-full flex items-center justify-center text-slate-800 hover:bg-slate-100 tap-press transition" type="button">
+<svg class="w-6 h-6 stroke-[2.5]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<path d="M15.75 19.5L8.25 12l7.5-7.5" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</button>
+<div class="flex items-center gap-1.5" data-purpose="brand-header">
+<span class="text-xl font-black italic tracking-tighter text-slate-900 uppercase">Freaky<span class="text-brand-500">Fit</span></span>
+</div>
+<span class="text-xs font-semibold text-slate-400 tabular-nums">06 / 08</span>
+</div>
+<!-- Segmented Multi-Step Progress Bar -->
+<div class="grid grid-cols-8 gap-1.5 w-full pt-1" data-purpose="onboarding-progress">
+<div class="h-1.5 rounded-full bg-slate-900"></div>
+<div class="h-1.5 rounded-full bg-slate-900"></div>
+<div class="h-1.5 rounded-full bg-slate-900"></div>
+<div class="h-1.5 rounded-full bg-slate-900"></div>
+<div class="h-1.5 rounded-full bg-slate-900"></div>
+<div class="h-1.5 rounded-full bg-brand-500 shadow-sm"></div>
+<div class="h-1.5 rounded-full bg-slate-200"></div>
+<div class="h-1.5 rounded-full bg-slate-200"></div>
+</div>
+</header>
+<!-- END: TopNavigation -->
+<!-- BEGIN: ContentArea -->
+<section class="flex-1 px-5 pt-3 pb-24 overflow-y-auto no-scrollbar flex flex-col">
+<!-- Title & Headline Section -->
+<div class="mb-5 text-left">
+<h1 class="text-2xl sm:text-[26px] font-black tracking-tight text-slate-900 leading-snug">
+          Target muscle groups
+        </h1>
+<p class="text-xs sm:text-sm text-slate-500 font-medium mt-1.5 leading-relaxed">
+          Select what you want to grow — our AI will prioritize workouts matching these areas.
+        </p>
+</div>
+<!-- View Angle Switcher (Front/Back Segmented Switch) -->
+<div class="flex justify-center mb-6">
+<div aria-label="Muscle view orientation" class="bg-slate-100 p-1 rounded-full flex items-center border border-slate-200/80 shadow-inner w-full max-w-[280px]" role="tablist">
+<button aria-selected="true" class="flex-1 py-2 rounded-full text-xs font-bold transition-all duration-200 bg-slate-900 text-white shadow-sm flex items-center justify-center gap-1.5" role="tab" type="button">
+<span class="w-1.5 h-1.5 rounded-full bg-brand-500 inline-block"></span>
+            Front side
+          </button>
+<button aria-selected="false" class="flex-1 py-2 rounded-full text-xs font-bold text-slate-500 hover:text-slate-900 transition-all duration-200 flex items-center justify-center" role="tab" type="button">
+            Back side
+          </button>
+</div>
+</div>
+<!-- Interactive 2-Column Split Layout -->
+<div class="grid grid-cols-12 gap-3 items-start flex-1 min-h-[410px]">
+<!-- Left Column: Muscle Group Selector Pills -->
+<div class="col-span-6 flex flex-col gap-2.5" data-purpose="muscle-options-list">
+<!-- Option: Chest (Selected) -->
+<div class="tap-press group relative flex items-center gap-2.5 p-3 rounded-2xl bg-white border-2 border-brand-500 shadow-sm transition-all cursor-pointer">
+<div class="w-5 h-5 rounded-full bg-brand-500 flex items-center justify-center text-white shrink-0 shadow-sm">
+<svg class="w-3.5 h-3.5 stroke-[3]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<path d="M4.5 12.75l6 6 9-13.5" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</div>
+<span class="text-xs font-bold text-slate-900 tracking-tight">Chest</span>
+</div>
+<!-- Option: Shoulders (Selected) -->
+<div class="tap-press group relative flex items-center gap-2.5 p-3 rounded-2xl bg-white border-2 border-brand-500 shadow-sm transition-all cursor-pointer">
+<div class="w-5 h-5 rounded-full bg-brand-500 flex items-center justify-center text-white shrink-0 shadow-sm">
+<svg class="w-3.5 h-3.5 stroke-[3]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<path d="M4.5 12.75l6 6 9-13.5" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</div>
+<span class="text-xs font-bold text-slate-900 tracking-tight">Shoulders</span>
+</div>
+<!-- Option: Biceps (Unselected) -->
+<div class="tap-press group relative flex items-center gap-2.5 p-3 rounded-2xl bg-slate-50/70 border border-slate-200 hover:border-slate-300 transition-all cursor-pointer">
+<div class="w-5 h-5 rounded-full border-2 border-slate-300 group-hover:border-slate-400 bg-white shrink-0"></div>
+<span class="text-xs font-semibold text-slate-600">Biceps</span>
+</div>
+<!-- Option: Triceps (Unselected) -->
+<div class="tap-press group relative flex items-center gap-2.5 p-3 rounded-2xl bg-slate-50/70 border border-slate-200 hover:border-slate-300 transition-all cursor-pointer">
+<div class="w-5 h-5 rounded-full border-2 border-slate-300 group-hover:border-slate-400 bg-white shrink-0"></div>
+<span class="text-xs font-semibold text-slate-600">Triceps</span>
+</div>
+<!-- Option: Abs & Core (Unselected) -->
+<div class="tap-press group relative flex items-center gap-2.5 p-3 rounded-2xl bg-slate-50/70 border border-slate-200 hover:border-slate-300 transition-all cursor-pointer">
+<div class="w-5 h-5 rounded-full border-2 border-slate-300 group-hover:border-slate-400 bg-white shrink-0"></div>
+<span class="text-xs font-semibold text-slate-600">Abs &amp; Core</span>
+</div>
+<!-- Option: Quads (Unselected) -->
+<div class="tap-press group relative flex items-center gap-2.5 p-3 rounded-2xl bg-slate-50/70 border border-slate-200 hover:border-slate-300 transition-all cursor-pointer">
+<div class="w-5 h-5 rounded-full border-2 border-slate-300 group-hover:border-slate-400 bg-white shrink-0"></div>
+<span class="text-xs font-semibold text-slate-600">Quads</span>
+</div>
+</div>
+<!-- Right Column: Stylized Muscular Anatomy Vector Graphic -->
+<div class="col-span-6 flex flex-col items-center justify-center relative py-1 px-1">
+<!-- Ambient Athletic Radial Glow behind highlighted torso -->
+<div class="absolute top-12 w-36 h-36 bg-brand-500/10 rounded-full blur-2xl pointer-events-none"></div>
+<!-- High-Precision Athletic Human Body Anatomy SVG -->
+<div class="w-full max-w-[190px] h-[390px] flex items-center justify-center relative">
+<svg class="w-full h-full drop-shadow-sm select-none" data-purpose="human-anatomy-diagram" fill="none" viewBox="0 0 200 420" xmlns="http://www.w3.org/2000/svg">
+<!-- Neutral Body Base: Head & Neck -->
+<path d="M100 22 C108 22 114 28 114 38 C114 48 108 55 100 55 C92 55 86 48 86 38 C86 28 92 22 100 22 Z" fill="#E2E8F0"></path>
+<path d="M94 54 H106 V65 H94 Z" fill="#E2E8F0"></path>
+<!-- Trapezius -->
+<path d="M93 63 L80 72 L86 76 L94 65 Z" fill="#E2E8F0"></path>
+<path d="M107 63 L120 72 L114 76 L106 65 Z" fill="#E2E8F0"></path>
+<!-- HIGHLIGHTED MUSCLE: Shoulders / Deltoids (Left & Right) -->
+<!-- Left Deltoid -->
+<path class="muscle-active" d="M66 73 C73 70 78 72 81 74 C78 84 75 96 66 102 C60 95 60 84 66 73 Z"></path>
+<!-- Right Deltoid -->
+<path class="muscle-active" d="M134 73 C127 70 122 72 119 74 C122 84 125 96 134 102 C140 95 140 84 134 73 Z"></path>
+<!-- HIGHLIGHTED MUSCLE: Chest / Pectorals (Left & Right) -->
+<!-- Left Pec -->
+<path class="muscle-active" d="M82 76 C91 75 98 78 99 82 L98 103 C91 106 82 104 77 98 C76 89 78 81 82 76 Z"></path>
+<!-- Right Pec -->
+<path class="muscle-active" d="M118 76 C109 75 102 78 101 82 L102 103 C109 106 118 104 123 98 C124 89 122 81 118 76 Z"></path>
+<!-- Neutral Arms: Biceps, Triceps, Forearms, Hands -->
+<!-- Left Bicep -->
+<path class="muscle-neutral" d="M64 105 C68 105 73 112 71 124 C67 127 63 124 61 118 C60 112 62 106 64 105 Z"></path>
+<!-- Right Bicep -->
+<path class="muscle-neutral" d="M136 105 C132 105 127 112 129 124 C133 127 137 124 139 118 C140 112 138 106 136 105 Z"></path>
+<!-- Left Forearm -->
+<path class="muscle-neutral" d="M60 128 C64 129 67 138 64 153 C62 161 58 163 56 161 C54 150 56 136 60 128 Z"></path>
+<!-- Right Forearm -->
+<path class="muscle-neutral" d="M140 128 C136 129 133 138 136 153 C138 161 142 163 144 161 C146 150 144 136 140 128 Z"></path>
+<!-- Hands -->
+<path class="muscle-neutral" d="M54 164 C55 168 53 176 49 182 C47 182 46 178 48 171 C49 167 51 164 54 164 Z"></path>
+<path class="muscle-neutral" d="M146 164 C145 168 147 176 151 182 C153 182 154 178 152 171 C151 167 149 164 146 164 Z"></path>
+<!-- Neutral Core & Abdominals (Upper/Mid/Lower 6-pack) -->
+<path class="muscle-neutral" d="M92 108 H98 V118 H92 Z"></path>
+<path class="muscle-neutral" d="M102 108 H108 V118 H102 Z"></path>
+<path class="muscle-neutral" d="M91 121 H98 V132 H91 Z"></path>
+<path class="muscle-neutral" d="M102 121 H109 V132 H102 Z"></path>
+<path class="muscle-neutral" d="M92 135 H98 V146 H92 Z"></path>
+<path class="muscle-neutral" d="M102 135 H108 V146 H102 Z"></path>
+<!-- Neutral Obliques & Pelvis -->
+<path class="muscle-neutral" d="M78 108 C84 108 86 114 86 124 C86 134 83 142 78 144 C76 138 75 120 78 108 Z"></path>
+<path class="muscle-neutral" d="M122 108 C116 108 114 114 114 124 C114 134 117 142 122 144 C124 138 125 120 122 108 Z"></path>
+<path class="muscle-neutral" d="M88 151 C94 153 106 153 112 151 C112 163 106 172 100 174 C94 172 88 163 88 151 Z"></path>
+<!-- Neutral Lower Body: Quads -->
+<!-- Left Quad -->
+<path class="muscle-neutral" d="M82 178 C89 174 97 175 97 184 C97 202 96 230 92 245 C86 245 81 228 78 208 C76 195 78 184 82 178 Z"></path>
+<!-- Right Quad -->
+<path class="muscle-neutral" d="M118 178 C111 174 103 175 103 184 C103 202 104 230 108 245 C114 245 119 228 122 208 C124 195 122 184 118 178 Z"></path>
+<!-- Knees -->
+<circle cx="89" cy="254" fill="#E2E8F0" r="5"></circle>
+<circle cx="111" cy="254" fill="#E2E8F0" r="5"></circle>
+<!-- Neutral Lower Body: Calves, Shins & Feet -->
+<!-- Left Calf -->
+<path class="muscle-neutral" d="M85 262 C90 263 94 274 92 296 C89 316 87 325 84 326 C82 316 80 295 81 278 C82 268 83 263 85 262 Z"></path>
+<!-- Right Calf -->
+<path class="muscle-neutral" d="M115 262 C110 263 106 274 108 296 C111 316 113 325 116 326 C118 316 120 295 119 278 C118 268 117 263 115 262 Z"></path>
+<!-- Feet -->
+<path class="muscle-neutral" d="M81 332 C85 332 87 338 88 344 H78 C78 338 79 332 81 332 Z"></path>
+<path class="muscle-neutral" d="M119 332 C115 332 113 338 112 344 H122 C122 338 121 332 119 332 Z"></path>
+</svg>
+<!-- Subtle Tag Indicator Overlay -->
+<div class="absolute -bottom-2 right-2 flex items-center gap-1.5 bg-brand-50 border border-brand-100 px-2.5 py-1 rounded-full shadow-xs">
+<span class="w-1.5 h-1.5 rounded-full bg-brand-500 animate-pulse"></span>
+<span class="text-[10px] font-bold text-brand-600 tracking-wider uppercase">Anterior</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Live Selection Summary Badge -->
+<div class="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
+<div class="flex items-center gap-2">
+<div class="w-2 h-2 rounded-full bg-brand-500"></div>
+<span class="text-xs font-semibold text-slate-700">2 muscle groups focused</span>
+</div>
+<button class="text-xs font-bold text-brand-600 hover:text-brand-500 transition" type="button">
+          Clear all
+        </button>
+</div>
+</section>
+<!-- END: ContentArea -->
+<!-- BEGIN: StickyFooterCTA -->
+<footer class="p-5 bg-white/95 backdrop-blur-md border-t border-slate-100 fixed bottom-0 max-w-[430px] w-full z-40">
+<button class="tap-press w-full py-4 px-6 rounded-2xl bg-brand-500 hover:bg-brand-600 text-white font-extrabold text-base tracking-wide shadow-glow-orange flex items-center justify-center gap-2 transition-all" type="button">
+<span>Continue (2 selected)</span>
+<svg class="w-5 h-5 stroke-[2.5]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<path d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</button>
+</footer>
+<!-- END: StickyFooterCTA -->
+</main>
+</body></html>

@@ -1,0 +1,217 @@
+<!DOCTYPE html><html lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport">
+<title>FreakyFit - Turn Social Workouts into Real Plans</title>
+<!-- Tailwind CSS CDN -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Google Fonts: Oswald (Athletic Header) & Plus Jakarta Sans (Modern UI body) -->
+<link href="https://fonts.googleapis.com" rel="preconnect">
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@600;700&amp;family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<!-- FontAwesome Icons for clean athletic & social icons -->
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+<!-- Tailwind Configuration -->
+<script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#fff7ed',
+              100: '#ffedd5',
+              500: '#ff5e00', // FreakyFit signature kinetic orange
+              600: '#ea5300',
+              700: '#c2410c',
+            },
+            dark: {
+              900: '#090a0f',
+              800: '#14161f',
+              700: '#1e2230',
+            }
+          },
+          fontFamily: {
+            athletic: ['Oswald', 'sans-serif'],
+            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+          },
+          boxShadow: {
+            'phone-glow': '0 25px 60px -15px rgba(255, 94, 0, 0.22), 0 16px 32px -8px rgba(0,0,0,0.12)',
+            'pill-glow': '0 10px 25px -4px rgba(255, 94, 0, 0.45)',
+          }
+        }
+      }
+    }
+  </script>
+<!-- BEGIN: Custom Styles -->
+<style data-purpose="typography">
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      -webkit-font-smoothing: antialiased;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .font-athletic {
+      font-family: 'Oswald', sans-serif;
+      letter-spacing: -0.02em;
+      text-transform: uppercase;
+    }
+  </style>
+<style data-purpose="device-frame">
+    /* Realistic iPhone 15 Pro bezel & dynamic island mimic */
+    .iphone-frame {
+      border: 8px solid #181920;
+      border-radius: 46px;
+      position: relative;
+      overflow: hidden;
+      background: #000;
+    }
+    .iphone-dynamic-island {
+      width: 82px;
+      height: 22px;
+      background-color: #000;
+      border-radius: 20px;
+      position: absolute;
+      top: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 40;
+    }
+  </style>
+<style data-purpose="visual-effects">
+    /* Subtle glowing backdrops */
+    .hero-glow-bg {
+      background: radial-gradient(circle at 50% 30%, rgba(255, 94, 0, 0.12) 0%, rgba(255, 255, 255, 0) 70%);
+    }
+    .tiktok-badge-gradient {
+      background: linear-gradient(135deg, #00f2fe 0%, #4facfe 35%, #fe0979 100%);
+    }
+  </style>
+<!-- END: Custom Styles -->
+</head>
+<body class="bg-[#F8F9FA] text-dark-900 flex justify-center items-center min-h-screen selection:bg-brand-500 selection:text-white">
+<!-- Mobile Wrapper Device Simulation (Max 420px for iOS feel) -->
+<main class="w-full max-w-[410px] min-h-screen bg-[#FAFAFC] relative overflow-hidden flex flex-col justify-between hero-glow-bg shadow-2xl sm:my-4 sm:rounded-[44px] border border-gray-200/80">
+<!-- BEGIN: TopBar -->
+<header class="w-full pt-4 px-6 pb-2 flex items-center justify-between z-30" data-purpose="top-navigation">
+<!-- iOS Status Time Mock -->
+<div class="text-[13px] font-bold tracking-tight text-gray-800">
+        9:41
+      </div>
+<!-- FreakyFit Logo Branding -->
+<div class="flex items-center gap-1.5" data-purpose="brand-logo">
+<div class="w-6 h-6 rounded-md bg-brand-500 flex items-center justify-center text-white text-xs font-black shadow-sm">
+<i class="fa-solid fa-bolt"></i>
+</div>
+<span class="font-athletic text-xl tracking-wider text-dark-900 font-bold">
+          FREAKY<span class="text-brand-500">FIT</span>
+</span>
+</div>
+<!-- Live AI Status / Battery -->
+<div class="flex items-center gap-2 text-dark-900 text-[11px] font-semibold bg-white/80 backdrop-blur-md px-2.5 py-1 rounded-full border border-gray-200 shadow-xs">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+        AI Ready
+      </div>
+</header>
+<!-- END: TopBar -->
+<!-- BEGIN: PhonePreviewSection -->
+<section class="relative px-5 pt-3 pb-1 flex flex-col items-center justify-center flex-grow" data-purpose="visual-mockup-showcase">
+<!-- Interactive Source Badges Floating outside phone -->
+<div class="absolute top-2 left-6 z-20 flex items-center gap-1.5 bg-white/95 backdrop-blur-md px-3 py-1.5 rounded-full border border-gray-200/90 shadow-md transform -rotate-3 transition hover:rotate-0">
+<i class="fa-brands fa-tiktok text-black text-sm"></i>
+<span class="text-[11px] font-bold text-gray-800">TikTok Saved</span>
+</div>
+<div class="absolute top-8 right-6 z-20 flex items-center gap-1.5 bg-white/95 backdrop-blur-md px-3 py-1.5 rounded-full border border-gray-200/90 shadow-md transform rotate-3 transition hover:rotate-0">
+<i class="fa-brands fa-instagram text-[#E1306C] text-sm"></i>
+<span class="text-[11px] font-bold text-gray-800">Reels Synced</span>
+</div>
+<!-- Realistic iPhone Mockup Frame -->
+<div class="iphone-frame w-[275px] h-[375px] shadow-phone-glow transform hover:scale-[1.01] transition-transform duration-300">
+<!-- Dynamic Island -->
+<div class="iphone-dynamic-island flex items-center justify-end px-2">
+<div class="w-2.5 h-2.5 rounded-full bg-emerald-400/80 animate-ping"></div>
+</div>
+<!-- Phone Screen Content (Original Input Screen Imagery) -->
+<div class="w-full h-full relative bg-dark-900 overflow-hidden">
+<!-- Video Screen Image Provided -->
+<img alt="TikTok Fitness Video parsed in FreakyFit" class="w-full h-full object-cover object-top scale-105" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD_7Bh21r0-jvpsZUV4-Ssijh5Tdg6PEY2Bz2vFG647hxmEYP9rmSbdfjOG0h1FxzciGvQK-PLlHJEsAOc3fkjXDBGkPaRX82Bj-OpseSu9c59d7zoy-0-qAYxKMb9mk3qxUeQn73MOBYxLXyQgjERSkKArirDrEtw4VyyLvzH9WEbeW6Ao-nWnAvdRHgVRdrZ5nM5ZuccutKrksPV2hgBfH0qPvr1DsFJuvNwUK_Rdk5qHnzCcFSK1mVxjXZrrrWj9gQ">
+<!-- Real-Time AI Extraction Overlay Pill inside phone -->
+<div class="absolute bottom-16 left-3 right-3 bg-dark-900/90 backdrop-blur-md border border-white/20 p-2.5 rounded-2xl shadow-xl z-30" data-purpose="ai-parser-card">
+<div class="flex items-center justify-between mb-1.5">
+<div class="flex items-center gap-1.5">
+<span class="w-2 h-2 rounded-full bg-brand-500 animate-pulse"></span>
+<span class="text-[10px] uppercase font-bold tracking-wider text-orange-400 font-athletic">FreakyFit Engine</span>
+</div>
+<span class="text-[10px] text-gray-300 font-semibold bg-white/10 px-1.5 py-0.5 rounded">RDL • Glutes</span>
+</div>
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded-lg bg-brand-500/20 text-brand-500 flex items-center justify-center font-bold text-xs">
+<i class="fa-solid fa-dumbbell"></i>
+</div>
+<div class="flex-1">
+<p class="text-white text-xs font-bold leading-tight">Barbell Romanian Deadlift</p>
+<p class="text-gray-400 text-[10px] font-medium">4 Sets × 10 Reps • Auto Logged</p>
+</div>
+<div class="w-6 h-6 rounded-full bg-brand-500 text-white flex items-center justify-center text-xs">
+<i class="fa-solid fa-check"></i>
+</div>
+</div>
+</div>
+<!-- Bottom subtle gradient to increase contrast -->
+<div class="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/80 to-transparent pointer-events-none"></div>
+</div>
+</div>
+<!-- Feature Pill Badge Below Device -->
+<div class="mt-3.5 inline-flex items-center gap-2 bg-brand-50 border border-brand-100 px-3.5 py-1 rounded-full text-brand-700 text-xs font-bold">
+<i class="fa-solid fa-sparkles text-brand-500"></i>
+<span>AI parses sets, reps, and form instantly</span>
+</div>
+</section>
+<!-- END: PhonePreviewSection -->
+<!-- BEGIN: ValueProposition & CTAs -->
+<footer class="w-full px-6 pt-2 pb-8 flex flex-col items-center text-center bg-white rounded-t-[34px] shadow-[0_-8px_30px_rgba(0,0,0,0.04)] border-t border-gray-100 z-30" data-purpose="conversion-footer">
+<!-- Drag handle indicator for sheet feel -->
+<div class="w-10 h-1 bg-gray-200 rounded-full mb-4"></div>
+<!-- Kinetic High-Conversion Headline -->
+<h1 class="font-athletic text-[34px] leading-[1.05] text-dark-900 tracking-tight font-extrabold max-w-[340px]">
+        TURN ANY <span class="text-brand-500 inline-block hover:scale-105 transition-transform">TIKTOK</span> OR <span class="text-dark-900">REEL</span> INTO WORKOUT PLANS
+      </h1>
+<!-- Supporting Body Description -->
+<p class="text-gray-500 text-xs sm:text-[13px] mt-2.5 max-w-[310px] leading-relaxed font-medium">
+        Stop saving clips you never do. Paste any fitness link and our AI builds you custom daily routine cards.
+      </p>
+<!-- Primary Action CTA Button -->
+<div class="w-full mt-5 flex flex-col gap-3">
+<button class="w-full py-4 px-6 rounded-2xl bg-dark-900 hover:bg-black text-white font-bold text-base tracking-wide flex items-center justify-center gap-2 shadow-xl hover:shadow-2xl active:scale-[0.98] transition-all duration-200 group" data-purpose="get-started-button" type="button">
+<span>Get Started Free</span>
+<i class="fa-solid fa-arrow-right text-brand-500 group-hover:translate-x-1 transition-transform"></i>
+</button>
+<!-- Secondary Sign In Navigation -->
+<div class="text-xs text-gray-500 font-medium py-1">
+          Already have an account? 
+          <a class="text-dark-900 hover:text-brand-500 font-bold underline underline-offset-2 ml-0.5 transition-colors" href="#signin">
+            Sign In
+          </a>
+</div>
+</div>
+<!-- Trust Badges & Guarantee -->
+<div class="mt-4 flex items-center justify-center gap-4 text-[11px] font-semibold text-gray-400">
+<span class="flex items-center gap-1">
+<i class="fa-solid fa-shield-halved text-emerald-500"></i> No credit card needed
+        </span>
+<span>•</span>
+<span class="flex items-center gap-1">
+<i class="fa-solid fa-star text-amber-400"></i> 4.9/5 Athlete rating
+        </span>
+</div>
+</footer>
+<!-- END: ValueProposition & CTAs -->
+</main>
+<!-- Interactive Mock Action Script -->
+<script data-purpose="button-interaction">
+    document.querySelector('[data-purpose="get-started-button"]').addEventListener('click', function() {
+      const btn = this;
+      btn.innerHTML = '<i class="fa-solid fa-spinner animate-spin"></i><span>Creating Workout Studio...</span>';
+      setTimeout(() => {
+        btn.innerHTML = '<span>Welcome to FreakyFit!</span> <i class="fa-solid fa-check text-brand-500"></i>';
+      }, 700);
+    });
+  </script>
+</body></html>

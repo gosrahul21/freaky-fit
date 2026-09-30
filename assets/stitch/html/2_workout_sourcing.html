@@ -1,0 +1,302 @@
+<!DOCTYPE html><html lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" name="viewport">
+<title>FreakyFit - Workout Sourcing Onboarding</title>
+<!-- Tailwind CSS v3 with Plugins -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Tailwind Configuration -->
+<script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#fff7ed',
+              100: '#ffedd5',
+              500: '#ff5e00',
+              600: '#ea5300',
+              700: '#c2410c',
+            },
+            surface: {
+              card: '#ffffff',
+              bg: '#f8f9fa',
+              subtle: '#f1f3f5'
+            }
+          },
+          fontFamily: {
+            sans: ['-apple-system', 'BlinkMacSystemFont', '"SF Pro Display"', '"SF Pro Text"', 'Segoe UI', 'Roboto', 'sans-serif'],
+          },
+          boxShadow: {
+            card: '0 2px 10px -2px rgba(17, 24, 39, 0.05), 0 1px 3px -1px rgba(17, 24, 39, 0.03)',
+            'card-active': '0 4px 16px -2px rgba(255, 94, 0, 0.18), 0 2px 6px -1px rgba(255, 94, 0, 0.1)',
+            cta: '0 8px 24px -4px rgba(255, 94, 0, 0.35)',
+          }
+        }
+      }
+    }
+  </script>
+<!-- Custom Styles for Mobile Shell and iOS Haptics -->
+<style data-purpose="base-typography">
+    body {
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+      -webkit-font-smoothing: antialiased;
+    }
+  </style>
+<style data-purpose="animations-and-states">
+    .option-card {
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .option-card:active {
+      transform: scale(0.985);
+    }
+    .checkbox-tick {
+      transition: all 0.2s ease;
+    }
+  </style>
+</head>
+<body class="bg-surface-bg text-neutral-900 antialiased min-h-screen flex flex-col justify-between selection:bg-brand-500 selection:text-white">
+<!-- BEGIN: MainContainer -->
+<div class="max-w-md mx-auto w-full min-h-screen flex flex-col bg-surface-bg relative pb-32">
+<!-- BEGIN: TopStatusBarAndHeader -->
+<header class="sticky top-0 z-30 bg-surface-bg/90 backdrop-blur-md px-5 pt-3 pb-2" data-purpose="app-header">
+<!-- iOS Top Sim Bar -->
+<div class="flex justify-between items-center text-xs font-semibold text-neutral-800 mb-2 px-1">
+<span>9:41</span>
+<div class="flex items-center gap-1.5">
+<!-- Signal Icon -->
+<svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24"><path d="M12 3c-4.97 0-9 4.03-9 9 0 2.12.74 4.07 1.97 5.61L4.35 18.25C2.89 16.51 2 14.36 2 12c0-5.52 4.48-10 10-10s10 4.48 10 10c0 2.36-.89 4.51-2.35 6.25l-.62-.64C20.26 16.07 21 14.12 21 12c0-4.97-4.03-9-9-9zm0 4c-2.76 0-5 2.24-5 5 0 1.28.48 2.45 1.28 3.34l.71-.71C8.38 13.97 8 13.03 8 12c0-2.21 1.79-4 4-4s4 1.79 4 4c0 1.03-.38 1.97-.99 2.63l.71.71c.8-.89 1.28-2.06 1.28-3.34 0-2.76-2.24-5-5-5zm0 8a2 2 0 100-4 2 2 0 000 4z"></path></svg>
+<!-- Wifi Icon -->
+<svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24"><path d="M12 4C7.31 4 3.07 5.9 0 8.98L12 21 24 8.98C20.93 5.9 16.69 4 12 4zm0 3.32c3.78 0 7.22 1.5 9.76 3.94L12 19.06 2.24 11.26C4.78 8.82 8.22 7.32 12 7.32z"></path></svg>
+<!-- Battery Icon -->
+<div class="w-5 h-2.5 border border-neutral-800 rounded-sm p-0.5 flex items-center">
+<div class="h-full bg-neutral-900 rounded-[1px] w-3/4"></div>
+</div>
+</div>
+</div>
+<!-- Navigation & Wordmark -->
+<div class="flex items-center justify-between py-1">
+<button aria-label="Go back" class="p-2 -ml-2 rounded-full hover:bg-neutral-200/60 active:scale-95 transition text-neutral-800" type="button">
+<svg class="w-5 h-5 stroke-[2.5]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<path d="M15.75 19.5L8.25 12l7.5-7.5" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</button>
+<div class="flex items-center gap-1.5">
+<span class="font-black italic tracking-tight text-xl text-neutral-900 uppercase">Freaky<span class="text-brand-500">Fit</span></span>
+</div>
+<button class="text-xs font-semibold text-neutral-400 hover:text-neutral-700 transition px-2 py-1" type="button">
+          Skip
+        </button>
+</div>
+<!-- Segmented Step Progress Bar (Step 3 of 8) -->
+<div aria-label="Step 3 of 8" class="grid grid-cols-8 gap-1.5 mt-3" data-purpose="progress-tracker">
+<div class="h-1.5 rounded-full bg-brand-500"></div>
+<div class="h-1.5 rounded-full bg-brand-500"></div>
+<div class="h-1.5 rounded-full bg-brand-500"></div>
+<div class="h-1.5 rounded-full bg-neutral-200"></div>
+<div class="h-1.5 rounded-full bg-neutral-200"></div>
+<div class="h-1.5 rounded-full bg-neutral-200"></div>
+<div class="h-1.5 rounded-full bg-neutral-200"></div>
+<div class="h-1.5 rounded-full bg-neutral-200"></div>
+</div>
+</header>
+<!-- END: TopStatusBarAndHeader -->
+<!-- BEGIN: MainContent -->
+<main class="px-5 pt-4 flex-1">
+<!-- Headline & Subtitle -->
+<section class="mb-6" data-purpose="heading-section">
+<div class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-brand-50 text-brand-600 text-xs font-bold tracking-wide uppercase mb-2">
+<span>✨ Smart Importer</span>
+</div>
+<h1 class="text-2xl sm:text-3xl font-extrabold text-neutral-900 tracking-tight leading-tight">
+          Where do you get your workouts from?
+        </h1>
+<!-- <p class="mt-2 text-sm text-neutral-500 font-normal leading-relaxed">
+          Select all that apply — we'll set up your one-tap import presets.
+        </p> -->
+</section>
+<!-- Multi-select Options List -->
+<section class="space-y-3" data-purpose="options-list">
+<!-- Option 1: Social Media -->
+<label class="option-card group relative block p-4 rounded-2xl bg-white border border-neutral-200 shadow-card cursor-pointer select-none">
+<input checked="" class="peer sr-only" name="sources" type="checkbox" value="social_media">
+<div class="flex items-start justify-between gap-3">
+<div class="flex-1">
+<div class="flex items-center gap-2">
+<span class="font-bold text-base text-neutral-900">Social media</span>
+<span class="text-xs px-2 py-0.5 rounded-full bg-neutral-100 text-neutral-600 font-medium">Fast Sync</span>
+</div>
+<p class="text-xs text-neutral-500 mt-0.5 leading-snug">Import directly via share sheet or copied link</p>
+<!-- Badges for Social Platforms -->
+<div class="flex items-center gap-1.5 mt-2.5">
+<span class="inline-flex items-center justify-center h-6 px-2 rounded-md bg-neutral-100 text-[11px] font-semibold text-neutral-700">TikTok</span>
+<span class="inline-flex items-center justify-center h-6 px-2 rounded-md bg-pink-50 text-[11px] font-semibold text-pink-600">Reels</span>
+<span class="inline-flex items-center justify-center h-6 px-2 rounded-md bg-red-50 text-[11px] font-semibold text-red-600">YouTube</span>
+<span class="inline-flex items-center justify-center h-6 px-2 rounded-md bg-orange-50 text-[11px] font-semibold text-orange-600">Reddit</span>
+</div>
+</div>
+<!-- Custom Checkbox Indicator -->
+<div class="w-6 h-6 rounded-full border-2 border-neutral-300 peer-checked:border-brand-500 peer-checked:bg-brand-500 flex items-center justify-center flex-shrink-0 transition-colors mt-0.5">
+<svg class="w-3.5 h-3.5 text-white stroke-[3] hidden peer-checked:block" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<path d="M4.5 12.75l6 6 9-13.5" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</div>
+</div>
+<!-- Border highlight on check -->
+<div class="absolute inset-0 rounded-2xl border-2 border-brand-500 pointer-events-none opacity-0 peer-checked:opacity-100 transition-opacity"></div>
+</label>
+<!-- Option 2: Websites & blogs -->
+<label class="option-card group relative block p-4 rounded-2xl bg-white border border-neutral-200 shadow-card cursor-pointer select-none">
+<input checked="" class="peer sr-only" name="sources" type="checkbox" value="websites_blogs">
+<div class="flex items-start justify-between gap-3">
+<div class="flex items-start gap-3 flex-1">
+<div class="w-10 h-10 rounded-xl bg-sky-50 text-sky-500 flex items-center justify-center flex-shrink-0 text-xl font-medium">
+                🌐
+              </div>
+<div>
+<span class="font-bold text-base text-neutral-900 block">Websites &amp; blogs</span>
+<p class="text-xs text-neutral-500 mt-0.5 leading-snug">Articles, workout routines &amp; bodybuilding guides</p>
+<span class="inline-block mt-2 text-[11px] text-sky-600 font-medium">Web clipper enabled</span>
+</div>
+</div>
+<div class="w-6 h-6 rounded-full border-2 border-neutral-300 peer-checked:border-brand-500 peer-checked:bg-brand-500 flex items-center justify-center flex-shrink-0 transition-colors mt-1">
+<svg class="w-3.5 h-3.5 text-white stroke-[3] hidden peer-checked:block" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<path d="M4.5 12.75l6 6 9-13.5" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</div>
+</div>
+<div class="absolute inset-0 rounded-2xl border-2 border-brand-500 pointer-events-none opacity-0 peer-checked:opacity-100 transition-opacity"></div>
+</label>
+<!-- Option 3: Personal trainer or coach -->
+<label class="option-card group relative block p-4 rounded-2xl bg-white border border-neutral-200 shadow-card cursor-pointer select-none">
+<input class="peer sr-only" name="sources" type="checkbox" value="coach">
+<div class="flex items-start justify-between gap-3">
+<div class="flex items-start gap-3 flex-1">
+<div class="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center flex-shrink-0 text-xl font-medium">
+                📋
+              </div>
+<div>
+<span class="font-bold text-base text-neutral-900 block">Personal trainer or coach</span>
+<p class="text-xs text-neutral-500 mt-0.5 leading-snug">PDFs, spreadsheets, WhatsApp messages &amp; notes</p>
+</div>
+</div>
+<div class="w-6 h-6 rounded-full border-2 border-neutral-300 peer-checked:border-brand-500 peer-checked:bg-brand-500 flex items-center justify-center flex-shrink-0 transition-colors mt-1">
+<svg class="w-3.5 h-3.5 text-white stroke-[3] hidden peer-checked:block" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<path d="M4.5 12.75l6 6 9-13.5" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</div>
+</div>
+<div class="absolute inset-0 rounded-2xl border-2 border-brand-500 pointer-events-none opacity-0 peer-checked:opacity-100 transition-opacity"></div>
+</label>
+<!-- Option 4: Another fitness app -->
+<label class="option-card group relative block p-4 rounded-2xl bg-white border border-neutral-200 shadow-card cursor-pointer select-none">
+<input class="peer sr-only" name="sources" type="checkbox" value="another_app">
+<div class="flex items-start justify-between gap-3">
+<div class="flex items-start gap-3 flex-1">
+<div class="w-10 h-10 rounded-xl bg-violet-50 text-violet-600 flex items-center justify-center flex-shrink-0 text-xl font-medium">
+                📱
+              </div>
+<div>
+<span class="font-bold text-base text-neutral-900 block">Another fitness app</span>
+<p class="text-xs text-neutral-500 mt-0.5 leading-snug">Hevy, Strong, Nike Training Club, Apple Fitness</p>
+<div class="flex items-center gap-1 mt-2">
+<span class="text-[11px] font-semibold text-violet-700 bg-violet-100/60 px-2 py-0.5 rounded-full">Auto-migrator</span>
+</div>
+</div>
+</div>
+<div class="w-6 h-6 rounded-full border-2 border-neutral-300 peer-checked:border-brand-500 peer-checked:bg-brand-500 flex items-center justify-center flex-shrink-0 transition-colors mt-1">
+<svg class="w-3.5 h-3.5 text-white stroke-[3] hidden peer-checked:block" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<path d="M4.5 12.75l6 6 9-13.5" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</div>
+</div>
+<div class="absolute inset-0 rounded-2xl border-2 border-brand-500 pointer-events-none opacity-0 peer-checked:opacity-100 transition-opacity"></div>
+</label>
+<!-- Option 5: Saved camera roll / Screenshots -->
+<label class="option-card group relative block p-4 rounded-2xl bg-white border border-neutral-200 shadow-card cursor-pointer select-none">
+<input class="peer sr-only" name="sources" type="checkbox" value="screenshots">
+<div class="flex items-start justify-between gap-3">
+<div class="flex items-start gap-3 flex-1">
+<div class="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center flex-shrink-0 text-xl font-medium">
+                📸
+              </div>
+<div>
+<span class="font-bold text-base text-neutral-900 block">Saved camera roll / Screenshots</span>
+<p class="text-xs text-neutral-500 mt-0.5 leading-snug">Exercise screenshots &amp; gym whiteboard photos</p>
+<span class="inline-block mt-2 text-[11px] text-amber-700 font-medium">OCR Text Scanner</span>
+</div>
+</div>
+<div class="w-6 h-6 rounded-full border-2 border-neutral-300 peer-checked:border-brand-500 peer-checked:bg-brand-500 flex items-center justify-center flex-shrink-0 transition-colors mt-1">
+<svg class="w-3.5 h-3.5 text-white stroke-[3] hidden peer-checked:block" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<path d="M4.5 12.75l6 6 9-13.5" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</div>
+</div>
+<div class="absolute inset-0 rounded-2xl border-2 border-brand-500 pointer-events-none opacity-0 peer-checked:opacity-100 transition-opacity"></div>
+</label>
+<!-- Option 6: Somewhere else / Custom routines -->
+<label class="option-card group relative block p-4 rounded-2xl bg-white border border-neutral-200 shadow-card cursor-pointer select-none">
+<input class="peer sr-only" name="sources" type="checkbox" value="somewhere_else">
+<div class="flex items-start justify-between gap-3">
+<div class="flex items-start gap-3 flex-1">
+<div class="w-10 h-10 rounded-xl bg-orange-50 text-brand-500 flex items-center justify-center flex-shrink-0 text-xl font-medium">
+                ✨
+              </div>
+<div>
+<span class="font-bold text-base text-neutral-900 block">Somewhere else</span>
+<p class="text-xs text-neutral-500 mt-0.5 leading-snug">Paper notebooks, custom memory routines, or AI builder</p>
+</div>
+</div>
+<div class="w-6 h-6 rounded-full border-2 border-neutral-300 peer-checked:border-brand-500 peer-checked:bg-brand-500 flex items-center justify-center flex-shrink-0 transition-colors mt-1">
+<svg class="w-3.5 h-3.5 text-white stroke-[3] hidden peer-checked:block" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<path d="M4.5 12.75l6 6 9-13.5" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</div>
+</div>
+<div class="absolute inset-0 rounded-2xl border-2 border-brand-500 pointer-events-none opacity-0 peer-checked:opacity-100 transition-opacity"></div>
+</label>
+</section>
+</main>
+<!-- END: MainContent -->
+<!-- BEGIN: BottomStickyBar -->
+<footer class="fixed bottom-0 left-0 right-0 max-w-md mx-auto z-40 bg-gradient-to-t from-surface-bg via-surface-bg/95 to-transparent px-5 pt-5 pb-3">
+<!-- High contrast primary CTA -->
+<button class="w-full bg-brand-500 hover:bg-brand-600 active:scale-[0.98] text-white font-bold text-base py-4 px-6 rounded-2xl shadow-cta flex items-center justify-center gap-2 transition duration-150" id="cta-button" type="button">
+<span id="cta-text">Continue (2 selected)</span>
+<svg class="w-5 h-5 stroke-[2.5]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<path d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</button>
+<!-- iOS Bottom Home Indicator Bar -->
+<div class="w-32 h-1 bg-neutral-900/30 rounded-full mx-auto mt-4"></div>
+</footer>
+<!-- END: BottomStickyBar -->
+</div>
+<!-- END: MainContainer -->
+<!-- BEGIN: InteractiveScript -->
+<script data-purpose="selection-handler">
+    document.addEventListener('DOMContentLoaded', () => {
+      const checkboxes = document.querySelectorAll('input[name="sources"]');
+      const ctaText = document.getElementById('cta-text');
+      const ctaBtn = document.getElementById('cta-button');
+
+      function updateCounter() {
+        const checkedCount = document.querySelectorAll('input[name="sources"]:checked').length;
+        if (checkedCount === 0) {
+          ctaText.textContent = "Select at least 1";
+          ctaBtn.classList.add('opacity-50', 'pointer-events-none');
+        } else {
+          ctaText.textContent = `Continue (${checkedCount} selected)`;
+          ctaBtn.classList.remove('opacity-50', 'pointer-events-none');
+        }
+      }
+
+      checkboxes.forEach(chk => {
+        chk.addEventListener('change', updateCounter);
+      });
+
+      updateCounter();
+    });
+  </script>
+<!-- END: InteractiveScript -->
+</body></html>

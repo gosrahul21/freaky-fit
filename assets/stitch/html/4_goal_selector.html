@@ -1,0 +1,278 @@
+<!DOCTYPE html><html lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" name="viewport">
+<title>FreakyFit - Goal Selection</title>
+<!-- Tailwind CSS v3 with Plugins -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Tailwind Custom Configuration -->
+<script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              orange: '#ff5e00',
+              'orange-light': '#fff3eb',
+              'orange-hover': '#e05300',
+              dark: '#111315',
+              muted: '#687076',
+              surface: '#F8F9FA',
+              card: '#FFFFFF',
+              border: '#E8ECF0'
+            }
+          },
+          fontFamily: {
+            athletic: ['Inter', 'system-ui', '-apple-system', 'sans-serif']
+          },
+          boxShadow: {
+            'card-soft': '0 4px 20px -2px rgba(17, 19, 21, 0.05), 0 2px 6px -1px rgba(17, 19, 21, 0.02)',
+            'card-active': '0 10px 25px -4px rgba(255, 94, 0, 0.18), 0 4px 10px -2px rgba(255, 94, 0, 0.1)',
+            'cta-glow': '0 10px 24px -4px rgba(255, 94, 0, 0.38)'
+          }
+        }
+      }
+    }
+  </script>
+<!-- Google Font -->
+<link href="https://fonts.googleapis.com" rel="preconnect">
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,800&amp;display=swap" rel="stylesheet">
+<style data-purpose="typography">
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+  </style>
+<style data-purpose="custom-transitions">
+    .card-transition {
+      transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .safe-bottom-padding {
+      padding-bottom: env(safe-area-inset-bottom, 20px);
+    }
+    .safe-top-padding {
+      padding-top: env(safe-area-inset-top, 12px);
+    }
+  </style>
+</head>
+<body class="bg-brand-surface text-brand-dark min-h-screen flex flex-col justify-between antialiased selection:bg-brand-orange selection:text-white">
+<!-- BEGIN: MainContainer -->
+<div class="w-full max-w-md mx-auto min-h-screen flex flex-col bg-brand-surface relative">
+<!-- BEGIN: TopBar -->
+<header class="w-full pt-3 px-5 pb-3 sticky top-0 bg-brand-surface/95 backdrop-blur-md z-30 safe-top-padding">
+<!-- iOS Status Bar Placeholder Spacing & Navigation Row -->
+<div class="flex items-center justify-between h-11 relative mb-3">
+<!-- Back Navigation Button -->
+<button aria-label="Go back" class="w-10 h-10 rounded-full flex items-center justify-center -ml-2 text-brand-dark active:bg-black/5 transition-colors" type="button">
+<svg class="w-5 h-5 stroke-[2.5]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<path d="M15.75 19.5L8.25 12l7.5-7.5" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</button>
+<!-- Brand Wordmark -->
+<div class="flex items-center gap-1.5 font-extrabold italic tracking-tight text-xl">
+<span class="text-brand-dark">Freaky</span><span class="text-brand-orange">Fit</span>
+<span class="w-1.5 h-1.5 rounded-full bg-brand-orange inline-block mb-1"></span>
+</div>
+<!-- Right action or placeholder spacer -->
+<div class="w-10 text-right">
+<span class="text-xs font-bold uppercase tracking-wider text-brand-muted">2/8</span>
+</div>
+</div>
+<!-- Segmented Multi-Step Progress Bar (8 Segments) -->
+<div aria-label="Setup progress: Step 2 of 8" class="grid grid-cols-8 gap-1.5 w-full pt-1">
+<!-- Segment 1: Completed -->
+<div class="h-1.5 rounded-full bg-brand-orange transition-all duration-300"></div>
+<!-- Segment 2: Current Active -->
+<div class="h-1.5 rounded-full bg-brand-orange transition-all duration-300 shadow-sm shadow-orange-300"></div>
+<!-- Segment 3: Pending -->
+<div class="h-1.5 rounded-full bg-slate-200"></div>
+<!-- Segment 4: Pending -->
+<div class="h-1.5 rounded-full bg-slate-200"></div>
+<!-- Segment 5: Pending -->
+<div class="h-1.5 rounded-full bg-slate-200"></div>
+<!-- Segment 6: Pending -->
+<div class="h-1.5 rounded-full bg-slate-200"></div>
+<!-- Segment 7: Pending -->
+<div class="h-1.5 rounded-full bg-slate-200"></div>
+<!-- Segment 8: Pending -->
+<div class="h-1.5 rounded-full bg-slate-200"></div>
+</div>
+</header>
+<!-- END: TopBar -->
+<!-- BEGIN: MainContent -->
+<main class="flex-1 px-5 pt-3 pb-32">
+<!-- Title & Onboarding Explanation -->
+<section class="mb-6" data-purpose="screen-heading">
+<h1 class="text-2xl sm:text-3xl font-extrabold tracking-tight text-brand-dark leading-tight">
+          What's your main goal?
+        </h1>
+<p class="text-sm sm:text-base text-brand-muted mt-2 font-medium leading-relaxed">
+          We'll tailor your workout plans, auto-tags, and recommendations around it.
+        </p>
+</section>
+<!-- Selection List of Goal Options -->
+<div aria-label="Fitness main goals" class="space-y-3.5" role="radiogroup">
+<!-- Option 1: Build Muscle (Default Selected) -->
+<div aria-checked="true" class="goal-card group relative p-4 rounded-2xl bg-brand-card border-2 border-brand-orange shadow-card-active card-transition cursor-pointer flex items-center justify-between" data-purpose="goal-option" role="radio" tabindex="0">
+<div class="flex items-center space-x-4">
+<!-- Icon Avatar -->
+<div class="w-12 h-12 rounded-xl bg-orange-50 border border-orange-100 flex items-center justify-center text-2xl flex-shrink-0 group-hover:scale-105 transition-transform duration-200">
+              💪
+            </div>
+<!-- Labels -->
+<div class="pr-2">
+<span class="block text-base font-bold text-brand-dark group-hover:text-brand-orange transition-colors">
+                Build muscle
+              </span>
+<span class="block text-xs font-medium text-brand-muted leading-tight mt-0.5">
+                Hypertrophy &amp; progressive overload
+              </span>
+</div>
+</div>
+<!-- Custom Radio Selection Indicator -->
+<div class="w-6 h-6 rounded-full bg-brand-orange border-2 border-brand-orange flex items-center justify-center flex-shrink-0 text-white shadow-sm">
+<svg class="w-3.5 h-3.5 stroke-[3]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<polyline points="20 6 9 17 4 12"></polyline>
+</svg>
+</div>
+</div>
+<!-- Option 2: Lose fat & get lean -->
+<div aria-checked="false" class="goal-card group relative p-4 rounded-2xl bg-brand-card border border-brand-border shadow-card-soft card-transition cursor-pointer hover:border-brand-orange/40 hover:bg-white flex items-center justify-between" data-purpose="goal-option" role="radio" tabindex="0">
+<div class="flex items-center space-x-4">
+<div class="w-12 h-12 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center text-2xl flex-shrink-0 group-hover:scale-105 transition-transform duration-200">
+              🔥
+            </div>
+<div class="pr-2">
+<span class="block text-base font-bold text-brand-dark group-hover:text-brand-orange transition-colors">
+                Lose fat &amp; get lean
+              </span>
+<span class="block text-xs font-medium text-brand-muted leading-tight mt-0.5">
+                High burn, calorie tracking &amp; conditioning
+              </span>
+</div>
+</div>
+<!-- Inactive Checkmark Ring -->
+<div class="w-6 h-6 rounded-full border-2 border-slate-300 group-hover:border-slate-400 flex items-center justify-center flex-shrink-0 transition-colors"></div>
+</div>
+<!-- Option 3: Stay consistent -->
+<div aria-checked="false" class="goal-card group relative p-4 rounded-2xl bg-brand-card border border-brand-border shadow-card-soft card-transition cursor-pointer hover:border-brand-orange/40 hover:bg-white flex items-center justify-between" data-purpose="goal-option" role="radio" tabindex="0">
+<div class="flex items-center space-x-4">
+<div class="w-12 h-12 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center text-2xl flex-shrink-0 group-hover:scale-105 transition-transform duration-200">
+              📅
+            </div>
+<div class="pr-2">
+<span class="block text-base font-bold text-brand-dark group-hover:text-brand-orange transition-colors">
+                Stay consistent
+              </span>
+<span class="block text-xs font-medium text-brand-muted leading-tight mt-0.5">
+                Habit formation &amp; streak tracker
+              </span>
+</div>
+</div>
+<div class="w-6 h-6 rounded-full border-2 border-slate-300 group-hover:border-slate-400 flex items-center justify-center flex-shrink-0 transition-colors"></div>
+</div>
+<!-- Option 4: Get stronger -->
+<div aria-checked="false" class="goal-card group relative p-4 rounded-2xl bg-brand-card border border-brand-border shadow-card-soft card-transition cursor-pointer hover:border-brand-orange/40 hover:bg-white flex items-center justify-between" data-purpose="goal-option" role="radio" tabindex="0">
+<div class="flex items-center space-x-4">
+<div class="w-12 h-12 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center text-2xl flex-shrink-0 group-hover:scale-105 transition-transform duration-200">
+              🏋️
+            </div>
+<div class="pr-2">
+<span class="block text-base font-bold text-brand-dark group-hover:text-brand-orange transition-colors">
+                Get stronger
+              </span>
+<span class="block text-xs font-medium text-brand-muted leading-tight mt-0.5">
+                Powerlifting, compound movements &amp; PRs
+              </span>
+</div>
+</div>
+<div class="w-6 h-6 rounded-full border-2 border-slate-300 group-hover:border-slate-400 flex items-center justify-center flex-shrink-0 transition-colors"></div>
+</div>
+<!-- Option 5: Athletic performance & mobility -->
+<div aria-checked="false" class="goal-card group relative p-4 rounded-2xl bg-brand-card border border-brand-border shadow-card-soft card-transition cursor-pointer hover:border-brand-orange/40 hover:bg-white flex items-center justify-between" data-purpose="goal-option" role="radio" tabindex="0">
+<div class="flex items-center space-x-4">
+<div class="w-12 h-12 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center text-2xl flex-shrink-0 group-hover:scale-105 transition-transform duration-200">
+              ⚡
+            </div>
+<div class="pr-2">
+<span class="block text-base font-bold text-brand-dark group-hover:text-brand-orange transition-colors">
+                Athletic performance
+              </span>
+<span class="block text-xs font-medium text-brand-muted leading-tight mt-0.5">
+                Agility, functional fitness &amp; stamina
+              </span>
+</div>
+</div>
+<div class="w-6 h-6 rounded-full border-2 border-slate-300 group-hover:border-slate-400 flex items-center justify-center flex-shrink-0 transition-colors"></div>
+</div>
+</div>
+</main>
+<!-- END: MainContent -->
+<!-- BEGIN: StickyFooterAction -->
+<footer class="fixed bottom-0 left-0 right-0 max-w-md mx-auto px-5 pt-3 pb-2 bg-gradient-to-t from-brand-surface via-brand-surface/95 to-brand-surface/0 z-40">
+<!-- Continue Button -->
+<button class="w-full bg-brand-orange hover:bg-brand-orange-hover active:scale-[0.98] transition-all text-white font-extrabold text-base py-4 rounded-2xl shadow-cta-glow flex items-center justify-center gap-2 group" type="button">
+<span>Continue</span>
+<svg class="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<path d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"></path>
+</svg>
+</button>
+<!-- iOS Home Indicator Spacing -->
+<div class="w-full flex justify-center pt-3 pb-1 safe-bottom-padding">
+<div class="w-32 h-1 bg-black/20 rounded-full"></div>
+</div>
+</footer>
+<!-- END: StickyFooterAction -->
+</div>
+<!-- END: MainContainer -->
+<!-- BEGIN: InteractiveCardSelectionScript -->
+<script data-purpose="card-selection-handler">
+    document.addEventListener('DOMContentLoaded', () => {
+      const cards = document.querySelectorAll('[data-purpose="goal-option"]');
+
+      cards.forEach(card => {
+        card.addEventListener('click', () => {
+          // Deselect all
+          cards.forEach(c => {
+            c.setAttribute('aria-checked', 'false');
+            c.className = 'goal-card group relative p-4 rounded-2xl bg-brand-card border border-brand-border shadow-card-soft card-transition cursor-pointer hover:border-brand-orange/40 hover:bg-white flex items-center justify-between';
+            
+            // Set icon box to neutral
+            const iconBox = c.querySelector('.w-12');
+            if (iconBox) {
+              iconBox.className = 'w-12 h-12 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center text-2xl flex-shrink-0 group-hover:scale-105 transition-transform duration-200';
+            }
+
+            // Set radio indicator to inactive
+            const indicator = c.querySelector('.rounded-full:last-child');
+            if (indicator) {
+              indicator.className = 'w-6 h-6 rounded-full border-2 border-slate-300 group-hover:border-slate-400 flex items-center justify-center flex-shrink-0 transition-colors';
+              indicator.innerHTML = '';
+            }
+          });
+
+          // Select current card
+          card.setAttribute('aria-checked', 'true');
+          card.className = 'goal-card group relative p-4 rounded-2xl bg-brand-card border-2 border-brand-orange shadow-card-active card-transition cursor-pointer flex items-center justify-between';
+          
+          const iconBox = card.querySelector('.w-12');
+          if (iconBox) {
+            iconBox.className = 'w-12 h-12 rounded-xl bg-orange-50 border border-orange-100 flex items-center justify-center text-2xl flex-shrink-0 group-hover:scale-105 transition-transform duration-200';
+          }
+
+          const indicator = card.querySelector('.rounded-full:last-child');
+          if (indicator) {
+            indicator.className = 'w-6 h-6 rounded-full bg-brand-orange border-2 border-brand-orange flex items-center justify-center flex-shrink-0 text-white shadow-sm';
+            indicator.innerHTML = `
+              <svg class="w-3.5 h-3.5 stroke-[3]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <polyline points="20 6 9 17 4 12"></polyline>
+              </svg>
+            `;
+          }
+        });
+      });
+    });
+  </script>
+<!-- END: InteractiveCardSelectionScript -->
+</body></html>

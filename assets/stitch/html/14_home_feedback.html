@@ -1,0 +1,319 @@
+<!DOCTYPE html><html lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport">
+<title>FreakyFit - Home</title>
+<!-- Google Fonts: Oswald & Inter -->
+<link href="https://fonts.googleapis.com" rel="preconnect">
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Oswald:wght@500;600;700&amp;display=swap" rel="stylesheet">
+<!-- Tailwind CSS v3 -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              DEFAULT: '#ff5e00',
+              dark: '#e05300',
+              light: '#fff1eb',
+            },
+            surface: {
+              DEFAULT: '#f8f9fa',
+              dim: '#d9dadb',
+              low: '#f3f4f5',
+              card: '#ffffff'
+            },
+            obsidian: '#0f172a'
+          },
+          fontFamily: {
+            display: ['Oswald', 'sans-serif'],
+            sans: ['Inter', 'sans-serif']
+          },
+          boxShadow: {
+            'floating': '0 8px 30px rgba(0, 0, 0, 0.12)',
+            'subtle': '0 2px 10px rgba(0, 0, 0, 0.04)'
+          }
+        }
+      }
+    }
+  </script>
+<!-- Lucide Icons -->
+<script src="https://unpkg.com/lucide@latest"></script>
+<style data-purpose="base-styling">
+    body {
+      font-family: 'Inter', sans-serif;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+      background-color: #121316;
+    }
+    .font-oswald {
+      font-family: 'Oswald', sans-serif;
+    }
+    /* Hide scrollbars */
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex justify-center items-center p-0 sm:p-4">
+<!-- Mobile Frame Simulator Wrapper -->
+<div class="w-full max-w-[420px] h-[100dvh] sm:h-[880px] bg-[#f8f9fa] text-obsidian flex flex-col relative overflow-hidden sm:rounded-[40px] shadow-2xl border border-gray-200/50">
+<!-- BEGIN: iOS Status Bar -->
+<div class="w-full pt-3 px-7 pb-2 flex justify-between items-center text-xs font-semibold text-neutral-800 z-30 select-none">
+<span class="tracking-tight text-[13px]">23:48</span>
+<div class="flex items-center space-x-2 text-[11px]">
+<i class="w-3.5 h-3.5 stroke-[2.5]" data-lucide="wifi"></i>
+<i class="w-3.5 h-3.5 stroke-[2.5]" data-lucide="signal"></i>
+<div class="flex items-center gap-0.5">
+<div class="w-5 h-2.5 border border-neutral-700 rounded-sm p-[1.5px] flex items-center">
+<div class="h-full bg-neutral-800 w-[60%] rounded-2xs"></div>
+</div>
+</div>
+</div>
+</div>
+<!-- END: iOS Status Bar -->
+<!-- BEGIN: MainHeader -->
+<header class="px-5 py-2 flex items-center justify-between z-20">
+<div class="flex items-center gap-3">
+<!-- Search Button -->
+<button aria-label="Search workouts" class="w-10 h-10 flex items-center justify-center rounded-full hover:bg-neutral-200/60 active:scale-95 transition-all text-neutral-800">
+<i class="w-6 h-6 stroke-[2.2]" data-lucide="search"></i>
+</button>
+<h1 class="text-2xl font-bold tracking-tight text-neutral-900 font-oswald uppercase">Home</h1>
+</div>
+<!-- User Profile Badge with Gold VIP Crown -->
+<div class="relative cursor-pointer group active:scale-95 transition-transform" data-purpose="user-avatar-badge">
+<div class="w-10 h-10 rounded-full bg-neutral-900 flex items-center justify-center text-white font-semibold text-xs border-2 border-white shadow-sm">
+          RG
+        </div>
+<!-- Gold VIP Crown Badge -->
+<div class="absolute -top-1.5 -right-1 text-amber-500 bg-white rounded-full p-0.5 shadow-sm border border-amber-200/60 flex items-center justify-center">
+<i class="w-3.5 h-3.5 fill-amber-400 stroke-amber-600" data-lucide="crown"></i>
+</div>
+</div>
+</header>
+<!-- END: MainHeader -->
+<!-- BEGIN: Scrollable Content Area -->
+<main class="flex-1 overflow-y-auto no-scrollbar px-4 pt-2 pb-24 space-y-5 relative">
+<!-- BEGIN: Dark High-Contrast Import Card -->
+<section class="w-full bg-[#111317] text-white rounded-2xl p-4 shadow-md relative overflow-hidden" data-purpose="import-banner">
+<div class="flex justify-between items-center mb-3">
+<span class="text-xs font-semibold tracking-wider uppercase text-neutral-400">anywhere...</span>
+<span class="text-xs font-medium text-brand flex items-center gap-1">
+<i class="w-3.5 h-3.5" data-lucide="infinity"></i> Unlimited imports
+          </span>
+</div>
+<!-- Segmented Orange Progress Indicators -->
+<div class="grid grid-cols-5 gap-1.5 mb-4">
+<div class="h-1.5 rounded-full bg-[#ff5e00]"></div>
+<div class="h-1.5 rounded-full bg-[#ff5e00]"></div>
+<div class="h-1.5 rounded-full bg-[#ff5e00]"></div>
+<div class="h-1.5 rounded-full bg-[#ff5e00]"></div>
+<div class="h-1.5 rounded-full bg-[#ff5e00]"></div>
+</div>
+<div class="flex items-center justify-between pt-1">
+<a class="text-sm font-semibold underline underline-offset-4 text-white hover:text-brand transition-colors" href="#">
+            Import now
+          </a>
+<span class="text-[11px] text-neutral-400">Sync web, reel &amp; notes</span>
+</div>
+</section>
+<!-- END: Dark High-Contrast Import Card -->
+<!-- BEGIN: Calendar Strip -->
+<section class="pt-1" data-purpose="weekly-calendar-strip">
+<div class="flex justify-between items-center bg-white px-2 py-3 rounded-2xl border border-gray-100 shadow-xs">
+<!-- Monday -->
+<div class="flex flex-col items-center gap-1.5 cursor-pointer">
+<span class="text-[11px] font-semibold text-neutral-400">M</span>
+<div class="w-9 h-9 rounded-full border border-neutral-300 flex items-center justify-center text-xs font-semibold text-neutral-700 bg-white">
+              21
+            </div>
+</div>
+<!-- Tuesday -->
+<div class="flex flex-col items-center gap-1.5 cursor-pointer">
+<span class="text-[11px] font-semibold text-neutral-400">T</span>
+<div class="w-9 h-9 rounded-full border border-neutral-300 flex items-center justify-center text-xs font-semibold text-neutral-700 bg-white">
+              22
+            </div>
+</div>
+<!-- Wednesday -->
+<div class="flex flex-col items-center gap-1.5 cursor-pointer">
+<span class="text-[11px] font-semibold text-neutral-400">W</span>
+<div class="w-9 h-9 rounded-full border border-neutral-300 flex items-center justify-center text-xs font-semibold text-neutral-700 bg-white">
+              23
+            </div>
+</div>
+<!-- Thursday -->
+<div class="flex flex-col items-center gap-1.5 cursor-pointer">
+<span class="text-[11px] font-semibold text-neutral-400">T</span>
+<div class="w-9 h-9 rounded-full border border-neutral-300 flex items-center justify-center text-xs font-semibold text-neutral-700 bg-white">
+              24
+            </div>
+</div>
+<!-- Friday -->
+<div class="flex flex-col items-center gap-1.5 cursor-pointer">
+<span class="text-[11px] font-semibold text-neutral-400">F</span>
+<div class="w-9 h-9 rounded-full border border-neutral-300 flex items-center justify-center text-xs font-semibold text-neutral-700 bg-white">
+              25
+            </div>
+</div>
+<!-- Saturday -->
+<div class="flex flex-col items-center gap-1.5 cursor-pointer">
+<span class="text-[11px] font-semibold text-neutral-400">S</span>
+<div class="w-9 h-9 rounded-full border border-neutral-300 flex items-center justify-center text-xs font-semibold text-neutral-700 bg-white">
+              26
+            </div>
+</div>
+<!-- Sunday (Selected Today) -->
+<div class="flex flex-col items-center gap-1.5 cursor-pointer">
+<span class="w-5 h-5 rounded-full bg-neutral-400/30 flex items-center justify-center text-[10px] font-bold text-neutral-700">S</span>
+<div class="w-9 h-9 rounded-full bg-neutral-900 text-white flex items-center justify-center text-xs font-bold shadow-md ring-2 ring-neutral-900/10">
+              27
+            </div>
+</div>
+</div>
+</section>
+<!-- END: Calendar Strip -->
+<!-- BEGIN: Section Header Today / On Deck -->
+<section class="flex items-end justify-between px-1 pt-1">
+<div>
+<span class="text-xs font-bold uppercase tracking-wider text-neutral-400">On deck</span>
+<div class="flex items-baseline gap-2">
+<h2 class="text-3xl font-extrabold text-neutral-900 tracking-tight font-oswald uppercase">Today</h2>
+<span class="text-2xl font-light text-neutral-400">Sep 27</span>
+</div>
+</div>
+<!-- Calendar Picker Shortcut Button -->
+<button aria-label="Open Calendar" class="w-10 h-10 rounded-xl bg-neutral-200/70 hover:bg-neutral-200 flex items-center justify-center text-neutral-600 transition-colors">
+<i class="w-5 h-5 stroke-[2]" data-lucide="calendar"></i>
+</button>
+</section>
+<!-- END: Section Header Today / On Deck -->
+<!-- BEGIN: Workout Cards Preview Stack -->
+<section class="space-y-3 pt-1" data-purpose="workout-cards-container">
+<!-- Active Routine Card -->
+<div class="bg-white rounded-2xl p-4 shadow-sm border border-neutral-200/70 relative">
+<div class="flex justify-between items-start mb-2">
+<div class="flex items-center gap-2">
+<span class="px-2 py-0.5 rounded-full bg-brand-light text-brand text-[10px] font-bold uppercase tracking-wide">Legs &amp; Core</span>
+<span class="text-xs text-neutral-400 font-medium">50 mins</span>
+</div>
+<button class="text-neutral-400 hover:text-neutral-700">
+<i class="w-5 h-5" data-lucide="more-horizontal"></i>
+</button>
+</div>
+<h3 class="text-lg font-bold text-neutral-900">Hypertrophy Lower Quad Focus</h3>
+<p class="text-xs text-neutral-500 mt-1">Barbell Squats, Romanian Deadlifts, Bulgarian Split Squats</p>
+<div class="mt-4 pt-3 border-t border-neutral-100 flex items-center justify-between">
+<div class="flex -space-x-1.5 overflow-hidden">
+<span class="inline-block h-5 w-5 rounded-full bg-neutral-200 border-2 border-white flex items-center justify-center text-[9px] font-bold text-neutral-600">1</span>
+<span class="inline-block h-5 w-5 rounded-full bg-neutral-200 border-2 border-white flex items-center justify-center text-[9px] font-bold text-neutral-600">2</span>
+<span class="inline-block h-5 w-5 rounded-full bg-neutral-200 border-2 border-white flex items-center justify-center text-[9px] font-bold text-neutral-600">3</span>
+</div>
+<span class="text-xs font-semibold text-brand flex items-center gap-0.5">Start Session <i class="w-4 h-4" data-lucide="chevron-right"></i></span>
+</div>
+</div>
+<!-- Skeleton / Secondary Stacked Card -->
+<div class="bg-neutral-200/50 rounded-2xl p-4 border border-dashed border-neutral-300/80 flex items-center justify-between">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-xl bg-white/70 flex items-center justify-center text-neutral-500">
+<i class="w-5 h-5" data-lucide="plus"></i>
+</div>
+<div>
+<p class="text-sm font-semibold text-neutral-700">Add an exercise or import notes</p>
+<p class="text-xs text-neutral-400">Quick builder or paste workout links</p>
+</div>
+</div>
+<button class="text-neutral-400">
+<i class="w-5 h-5" data-lucide="more-horizontal"></i>
+</button>
+</div>
+</section>
+<!-- END: Workout Cards Preview Stack -->
+</main>
+<!-- END: Scrollable Content Area -->
+<!-- BEGIN: Tooltip / Feedback Popover Walkthrough Modal -->
+<div class="absolute bottom-24 left-4 right-4 z-40 bg-white/95 backdrop-blur-md rounded-2xl p-4 shadow-floating border border-neutral-200/80 transition-all duration-300" data-purpose="onboarding-tooltip">
+<!-- Popover Top Row -->
+<div class="flex items-start justify-between gap-3">
+<div class="flex items-start gap-3">
+<!-- Chat / Feedback Icon Badge -->
+<div class="w-10 h-10 rounded-xl bg-neutral-100 flex items-center justify-center text-neutral-800 shrink-0">
+<i class="w-5 h-5" data-lucide="message-square"></i>
+</div>
+<div>
+<h4 class="text-sm font-bold text-neutral-900 leading-snug">Share your feedback</h4>
+<p class="text-xs text-neutral-500 mt-1 leading-relaxed">
+              Found a bug or have an idea? Tap here anytime — you can also drag the button anywhere.
+            </p>
+</div>
+</div>
+<!-- Close Button -->
+<button aria-label="Dismiss feedback tooltip" class="w-6 h-6 rounded-full bg-neutral-100 flex items-center justify-center text-neutral-500 hover:text-neutral-800 transition-colors shrink-0">
+<i class="w-3.5 h-3.5 stroke-[2.5]" data-lucide="x"></i>
+</button>
+</div>
+<!-- Popover Bottom Controls -->
+<div class="flex items-center justify-between mt-4 pt-2 border-t border-neutral-100 text-xs">
+<span class="text-neutral-400 font-medium tracking-tight">1 of 3</span>
+<button class="font-bold text-neutral-900 hover:text-brand transition-colors text-sm px-2 py-0.5">
+          Next
+        </button>
+</div>
+</div>
+<!-- END: Tooltip / Feedback Popover Walkthrough Modal -->
+<!-- BEGIN: Anchoring Floating Feedback Button -->
+<div class="absolute bottom-20 right-4 z-40" data-purpose="floating-feedback-pill">
+<button class="bg-white text-neutral-900 border border-neutral-200 text-xs font-semibold py-2 px-4 rounded-full shadow-lg hover:shadow-xl active:scale-95 transition-all flex items-center gap-1.5">
+        Feedback
+      </button>
+</div>
+<!-- END: Anchoring Floating Feedback Button -->
+<!-- BEGIN: Bottom Navigation Bar -->
+<nav class="h-20 bg-white border-t border-neutral-100 px-6 flex items-center justify-between relative z-30 shadow-subtle select-none">
+<!-- Home Tab (Active) -->
+<a class="flex flex-col items-center justify-center text-brand space-y-1" href="#">
+<i class="w-5 h-5 stroke-[2.4]" data-lucide="home"></i>
+<span class="text-[10px] font-semibold">Home</span>
+</a>
+<!-- Library Tab -->
+<a class="flex flex-col items-center justify-center text-neutral-400 hover:text-neutral-700 transition-colors space-y-1" href="#">
+<i class="w-5 h-5 stroke-[2]" data-lucide="bookmark"></i>
+<span class="text-[10px] font-medium">Library</span>
+</a>
+<!-- Centered Elevated (+) Action Button -->
+<div class="relative -top-3">
+<button aria-label="Add workout or routine" class="w-13 h-13 w-12 h-12 rounded-full bg-neutral-100 border border-neutral-200/80 shadow-md hover:shadow-lg flex items-center justify-center text-brand active:scale-95 transition-transform">
+<i class="w-7 h-7 stroke-[2.5]" data-lucide="plus"></i>
+</button>
+</div>
+<!-- Planner Tab -->
+<a class="flex flex-col items-center justify-center text-neutral-400 hover:text-neutral-700 transition-colors space-y-1" href="#">
+<i class="w-5 h-5 stroke-[2]" data-lucide="calendar-days"></i>
+<span class="text-[10px] font-medium">Planner</span>
+</a>
+<!-- Profile Tab -->
+<a class="flex flex-col items-center justify-center text-neutral-400 hover:text-neutral-700 transition-colors space-y-1" href="#">
+<i class="w-5 h-5 stroke-[2]" data-lucide="user"></i>
+<span class="text-[10px] font-medium">Profile</span>
+</a>
+</nav>
+<!-- END: Bottom Navigation Bar -->
+<!-- BEGIN: Android/iOS Home Bar Indicator -->
+<div class="w-full bg-white pb-2 flex justify-center items-center">
+<div class="w-32 h-1 bg-neutral-300 rounded-full"></div>
+</div>
+<!-- END: Android/iOS Home Bar Indicator -->
+</div>
+<!-- Lucide Script Initialization -->
+<script data-purpose="icon-loader">
+    document.addEventListener("DOMContentLoaded", () => {
+      lucide.createIcons();
+    });
+  </script>
+</body></html>
