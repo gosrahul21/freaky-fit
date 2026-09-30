@@ -1,33 +1,37 @@
+import { SafeAreaView } from 'react-native-safe-area-context';
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, Dimensions, StatusBar } from 'react-native';
+import { useTheme } from '../contexts/ThemeContext';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, StatusBar } from 'react-native';
 import { X, PlayCircle, Plus, LayoutGrid, CheckSquare, ChevronDown, List as ListIcon, Activity } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import Svg, { Path, Ellipse, Circle, Rect, Line, Defs, LinearGradient as SvgLinearGradient, Stop } from 'react-native-svg';
 
 export default function WorkoutDetailsScreen() {
+  const { colors } = useTheme();
+  const s = makeStyles(colors);
   const router = useRouter();
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={s.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
-      <View style={styles.container}>
+      <View style={s.container}>
         
         {/* Top Header */}
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>Imported workout</Text>
-          <TouchableOpacity style={styles.closeBtn} onPress={() => router.back()}>
+        <View style={s.header}>
+          <Text style={s.headerTitle}>Imported workout</Text>
+          <TouchableOpacity style={s.closeBtn} onPress={() => router.back()}>
             <X size={20} color="#4B5563" strokeWidth={2.5} />
           </TouchableOpacity>
         </View>
 
-        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        <ScrollView contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
           
           {/* Workout Hero Summary */}
-          <View style={styles.heroSection}>
-            <View style={styles.heroMainInfo}>
+          <View style={s.heroSection}>
+            <View style={s.heroMainInfo}>
               
-              <View style={styles.thumbnailContainer}>
-                <View style={styles.thumbnailPlaceholder}>
+              <View style={s.thumbnailContainer}>
+                <View style={s.thumbnailPlaceholder}>
                   <Svg width={60} height={60} viewBox="0 0 80 80">
                     <Rect x="8" y="14" width="64" height="52" rx="10" stroke="#D1D5DB" strokeWidth="3" strokeDasharray="3 3" fill="none" />
                     <Path d="M22 52L36 34L48 48L58 38L66 48" stroke="#9CA3AF" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
@@ -35,57 +39,57 @@ export default function WorkoutDetailsScreen() {
                     <Path d="M12 60C24 55 42 66 68 59" stroke="#CBD5E1" strokeWidth="3" fill="none" />
                   </Svg>
                 </View>
-                <View style={styles.newBadge}>
-                  <Text style={styles.newBadgeText}>NEW</Text>
+                <View style={s.newBadge}>
+                  <Text style={s.newBadgeText}>NEW</Text>
                 </View>
               </View>
 
-              <View style={styles.heroTextInfo}>
-                <Text style={styles.workoutTitle} numberOfLines={2}>Build a Bigger Back: Upper, La...</Text>
-                <View style={styles.metadataRow}>
-                  <View style={styles.metaBadge}>
+              <View style={s.heroTextInfo}>
+                <Text style={s.workoutTitle} numberOfLines={2}>Build a Bigger Back: Upper, La...</Text>
+                <View style={s.metadataRow}>
+                  <View style={s.metaBadge}>
                     <ListIcon size={14} color="#374151" strokeWidth={2.5} />
-                    <Text style={styles.metaBadgeText}>4 exercises</Text>
+                    <Text style={s.metaBadgeText}>4 exercises</Text>
                   </View>
-                  <Text style={styles.metaDot}>•</Text>
-                  <View style={styles.metaBadge}>
+                  <Text style={s.metaDot}>•</Text>
+                  <View style={s.metaBadge}>
                     <PlayCircle size={16} color="#DC2626" />
-                    <Text style={styles.metaBadgeText}>YouTube</Text>
+                    <Text style={s.metaBadgeText}>YouTube</Text>
                   </View>
                 </View>
               </View>
             </View>
 
-            <View style={styles.actionPillsRow}>
-              <TouchableOpacity style={styles.actionPill}>
+            <View style={s.actionPillsRow}>
+              <TouchableOpacity style={s.actionPill}>
                 <LayoutGrid size={16} color="#4B5563" />
-                <Text style={styles.actionPillText}>Collection</Text>
+                <Text style={s.actionPillText}>Collection</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.actionPill}>
+              <TouchableOpacity style={s.actionPill}>
                 <CheckSquare size={16} color="#4B5563" />
-                <Text style={styles.actionPillText}>Plan</Text>
+                <Text style={s.actionPillText}>Plan</Text>
               </TouchableOpacity>
             </View>
           </View>
 
           {/* About Section */}
-          <View style={styles.section}>
-            <Text style={styles.sectionHeader}>ABOUT THIS WORKOUT</Text>
-            <Text style={styles.aboutText}>
+          <View style={s.section}>
+            <Text style={s.sectionHeader}>ABOUT THIS WORKOUT</Text>
+            <Text style={s.aboutText}>
               This workout focuses on comprehensively developing a bigger and stronger back by specifically targeting the upper back, lats, and rhomboids...
             </Text>
             <TouchableOpacity>
-              <Text style={styles.showMoreText}>Show more</Text>
+              <Text style={s.showMoreText}>Show more</Text>
             </TouchableOpacity>
           </View>
 
           {/* Muscles Worked Section */}
-          <View style={styles.section}>
-            <Text style={styles.sectionHeader}>MUSCLES WORKED</Text>
+          <View style={s.section}>
+            <Text style={s.sectionHeader}>MUSCLES WORKED</Text>
             
-            <View style={styles.musclesDisplayBox}>
-              <View style={styles.muscleFigure}>
-                <Text style={styles.figureLabel}>FRONT</Text>
+            <View style={s.musclesDisplayBox}>
+              <View style={s.muscleFigure}>
+                <Text style={s.figureLabel}>FRONT</Text>
                 <Svg width={100} height={180} viewBox="0 0 160 300">
                   {/* Base Body */}
                   <Ellipse cx="80" cy="22" rx="14" ry="18" fill="#e2e8f0" />
@@ -109,8 +113,8 @@ export default function WorkoutDetailsScreen() {
                 </Svg>
               </View>
 
-              <View style={styles.muscleFigure}>
-                <Text style={styles.figureLabel}>BACK</Text>
+              <View style={s.muscleFigure}>
+                <Text style={s.figureLabel}>BACK</Text>
                 <Svg width={100} height={180} viewBox="0 0 160 300">
                   <Ellipse cx="80" cy="22" rx="14" ry="18" fill="#e2e8f0" />
                   <Path d="M72 38 C75 48 85 48 88 38 Z" fill="#e2e8f0" />
@@ -135,9 +139,9 @@ export default function WorkoutDetailsScreen() {
               </View>
             </View>
 
-            <View style={styles.legendContainer}>
-              <Text style={styles.legendText}>less</Text>
-              <View style={styles.legendBar}>
+            <View style={s.legendContainer}>
+              <Text style={s.legendText}>less</Text>
+              <View style={s.legendBar}>
                 <Svg width="100%" height="100%">
                   <Defs>
                     <SvgLinearGradient id="grad" x1="0" y1="0" x2="1" y2="0">
@@ -150,21 +154,21 @@ export default function WorkoutDetailsScreen() {
                   <Rect width="100%" height="100%" fill="url(#grad)" rx="4" />
                 </Svg>
               </View>
-              <Text style={styles.legendText}>more</Text>
+              <Text style={s.legendText}>more</Text>
             </View>
           </View>
 
           {/* Exercises List */}
-          <View style={styles.section}>
-            <View style={styles.exerciseHeader}>
-              <Text style={styles.sectionHeader}>EXERCISES</Text>
-              <Text style={styles.exerciseCount}>4</Text>
+          <View style={s.section}>
+            <View style={s.exerciseHeader}>
+              <Text style={s.sectionHeader}>EXERCISES</Text>
+              <Text style={s.exerciseCount}>4</Text>
             </View>
 
             {/* EXERCISE 1 */}
-            <View style={styles.exerciseCard}>
-              <View style={styles.exerciseCardTop}>
-                <View style={styles.exerciseIcon}>
+            <View style={s.exerciseCard}>
+              <View style={s.exerciseCardTop}>
+                <View style={s.exerciseIcon}>
                   <Svg width={40} height={50} viewBox="0 0 100 120">
                     <Ellipse cx="50" cy="18" rx="10" ry="12" fill="#e2e8f0" />
                     <Path d="M44 32 L56 32 L54 42 L46 42 Z" fill="#e2e8f0" />
@@ -178,36 +182,36 @@ export default function WorkoutDetailsScreen() {
                     <Path d="M78 75 C84 90 82 105 78 115 Z" fill="#e2e8f0" />
                   </Svg>
                 </View>
-                <View style={styles.exerciseDetails}>
-                  <Text style={styles.exerciseTitle}>1. Wide Dumbbell Rows</Text>
-                  <View style={styles.exerciseStats}>
-                    <Text style={styles.statText}>2 sets</Text>
-                    <Text style={styles.statText}>10 reps</Text>
+                <View style={s.exerciseDetails}>
+                  <Text style={s.exerciseTitle}>1. Wide Dumbbell Rows</Text>
+                  <View style={s.exerciseStats}>
+                    <Text style={s.statText}>2 sets</Text>
+                    <Text style={s.statText}>10 reps</Text>
                   </View>
-                  <View style={styles.exerciseTime}>
-                    <Text style={styles.playIcon}>▶</Text>
-                    <Text style={styles.timeText}>0:05–0:09</Text>
+                  <View style={s.exerciseTime}>
+                    <Text style={s.playIcon}>▶</Text>
+                    <Text style={s.timeText}>0:05–0:09</Text>
                   </View>
                 </View>
               </View>
-              <Text style={styles.exerciseDesc}>A dumbbell row variation targeting the upper back, emphasizing a wider pull.</Text>
-              <View style={styles.stepsRow}>
-                <Text style={styles.stepsText}>Steps · 4</Text>
+              <Text style={s.exerciseDesc}>A dumbbell row variation targeting the upper back, emphasizing a wider pull.</Text>
+              <View style={s.stepsRow}>
+                <Text style={s.stepsText}>Steps · 4</Text>
                 <ChevronDown size={16} color="#9CA3AF" />
               </View>
-              <View style={styles.toolsRow}>
-                <Text style={styles.toolsTitle}>TOOLS</Text>
-                <View style={styles.toolTags}>
-                  <View style={styles.toolTag}><Text style={styles.toolTagText}>Dumbbell</Text></View>
-                  <View style={styles.toolTag}><Text style={styles.toolTagText}>Flat Bench</Text></View>
+              <View style={s.toolsRow}>
+                <Text style={s.toolsTitle}>TOOLS</Text>
+                <View style={s.toolTags}>
+                  <View style={s.toolTag}><Text style={s.toolTagText}>Dumbbell</Text></View>
+                  <View style={s.toolTag}><Text style={s.toolTagText}>Flat Bench</Text></View>
                 </View>
               </View>
             </View>
 
             {/* EXERCISE 2 */}
-            <View style={styles.exerciseCard}>
-              <View style={styles.exerciseCardTop}>
-                <View style={styles.exerciseIcon}>
+            <View style={s.exerciseCard}>
+              <View style={s.exerciseCardTop}>
+                <View style={s.exerciseIcon}>
                   <Svg width={40} height={50} viewBox="0 0 100 120">
                     <Ellipse cx="50" cy="18" rx="10" ry="12" fill="#e2e8f0" />
                     <Path d="M44 32 L56 32 L54 42 L46 42 Z" fill="#e2e8f0" />
@@ -216,28 +220,28 @@ export default function WorkoutDetailsScreen() {
                     <Path d="M66 55 C70 75 64 100 52 105 C52 88 60 68 66 55 Z" fill="#f97316" />
                   </Svg>
                 </View>
-                <View style={styles.exerciseDetails}>
-                  <Text style={styles.exerciseTitle}>2. Meadows Row</Text>
-                  <View style={styles.exerciseStats}>
-                    <Text style={styles.statText}>2 sets</Text>
-                    <Text style={styles.statText}>10 reps</Text>
+                <View style={s.exerciseDetails}>
+                  <Text style={s.exerciseTitle}>2. Meadows Row</Text>
+                  <View style={s.exerciseStats}>
+                    <Text style={s.statText}>2 sets</Text>
+                    <Text style={s.statText}>10 reps</Text>
                   </View>
-                  <View style={styles.exerciseTime}>
-                    <Text style={styles.playIcon}>▶</Text>
-                    <Text style={styles.timeText}>0:09–0:11</Text>
+                  <View style={s.exerciseTime}>
+                    <Text style={s.playIcon}>▶</Text>
+                    <Text style={s.timeText}>0:09–0:11</Text>
                   </View>
                 </View>
               </View>
-              <Text style={styles.exerciseDesc}>A single-arm barbell row variation, typically performed with a landmine attachment.</Text>
-              <View style={styles.stepsRow}>
-                <Text style={styles.stepsText}>Steps · 4</Text>
+              <Text style={s.exerciseDesc}>A single-arm barbell row variation, typically performed with a landmine attachment.</Text>
+              <View style={s.stepsRow}>
+                <Text style={s.stepsText}>Steps · 4</Text>
                 <ChevronDown size={16} color="#9CA3AF" />
               </View>
-              <View style={styles.toolsRow}>
-                <Text style={styles.toolsTitle}>TOOLS</Text>
-                <View style={styles.toolTags}>
-                  <View style={styles.toolTag}><Text style={styles.toolTagText}>Barbell</Text></View>
-                  <View style={styles.toolTag}><Text style={styles.toolTagText}>Weight Plates</Text></View>
+              <View style={s.toolsRow}>
+                <Text style={s.toolsTitle}>TOOLS</Text>
+                <View style={s.toolTags}>
+                  <View style={s.toolTag}><Text style={s.toolTagText}>Barbell</Text></View>
+                  <View style={s.toolTag}><Text style={s.toolTagText}>Weight Plates</Text></View>
                 </View>
               </View>
             </View>
@@ -249,9 +253,9 @@ export default function WorkoutDetailsScreen() {
         </ScrollView>
 
         {/* Sticky Bottom Bar */}
-        <View style={styles.bottomBar}>
-          <TouchableOpacity style={styles.saveBtn} activeOpacity={0.9} onPress={() => router.replace('/library')}>
-            <Text style={styles.saveBtnText}>Save workout</Text>
+        <View style={s.bottomBar}>
+          <TouchableOpacity style={s.saveBtn} activeOpacity={0.9} onPress={() => router.replace('/library')}>
+            <Text style={s.saveBtnText}>Save workout</Text>
           </TouchableOpacity>
         </View>
 
@@ -260,14 +264,14 @@ export default function WorkoutDetailsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ReturnType<typeof import("../contexts/ThemeContext").useTheme>["colors"]) => StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.card,
   },
   container: {
     flex: 1,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: colors.skeleton,
   },
   header: {
     flexDirection: 'row',
@@ -275,18 +279,18 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 20,
     paddingVertical: 16,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.card,
   },
   headerTitle: {
     fontSize: 24,
     fontWeight: '800',
-    color: '#111827',
+    color: colors.textPrimary,
   },
   closeBtn: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: colors.skeleton,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -310,9 +314,9 @@ const styles = StyleSheet.create({
     width: 96,
     height: 96,
     borderRadius: 16,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: colors.skeleton,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: colors.cardBorder,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -320,7 +324,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 4,
     right: 4,
-    backgroundColor: '#ff5e00',
+    backgroundColor: colors.accent,
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 10,
@@ -337,7 +341,7 @@ const styles = StyleSheet.create({
   workoutTitle: {
     fontSize: 20,
     fontWeight: '800',
-    color: '#111827',
+    color: colors.textPrimary,
     lineHeight: 24,
   },
   metadataRow: {
@@ -371,16 +375,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: colors.skeleton,
     paddingVertical: 12,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: colors.cardBorder,
   },
   actionPillText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#1F2937',
+    color: colors.textPrimary,
   },
   section: {
     marginTop: 16,
@@ -391,7 +395,7 @@ const styles = StyleSheet.create({
   sectionHeader: {
     fontSize: 18,
     fontWeight: '800',
-    color: '#111827',
+    color: colors.textPrimary,
     letterSpacing: 0.5,
     marginBottom: 8,
   },
@@ -403,16 +407,16 @@ const styles = StyleSheet.create({
   showMoreText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#111827',
+    color: colors.textPrimary,
     textDecorationLine: 'underline',
     marginTop: 4,
   },
   musclesDisplayBox: {
-    backgroundColor: '#F9FAFB',
+    backgroundColor: colors.inputBackground,
     borderRadius: 16,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#F3F4F6',
+    borderColor: colors.navBorder,
     flexDirection: 'row',
     justifyContent: 'space-around',
     alignItems: 'center',
@@ -423,7 +427,7 @@ const styles = StyleSheet.create({
   figureLabel: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#9CA3AF',
+    color: colors.textTertiary,
     letterSpacing: 1,
     marginBottom: 4,
   },
@@ -437,7 +441,7 @@ const styles = StyleSheet.create({
   legendText: {
     fontSize: 12,
     fontWeight: '500',
-    color: '#6B7280',
+    color: colors.textSecondary,
   },
   legendBar: {
     flex: 1,
@@ -454,14 +458,14 @@ const styles = StyleSheet.create({
   exerciseCount: {
     fontSize: 24,
     fontWeight: '800',
-    color: '#9CA3AF',
+    color: colors.textTertiary,
   },
   exerciseCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.card,
     borderRadius: 16,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#F3F4F6',
+    borderColor: colors.navBorder,
     marginBottom: 16,
   },
   exerciseCardTop: {
@@ -471,10 +475,10 @@ const styles = StyleSheet.create({
   exerciseIcon: {
     width: 64,
     height: 80,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: colors.inputBackground,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#F3F4F6',
+    borderColor: colors.navBorder,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -484,7 +488,7 @@ const styles = StyleSheet.create({
   exerciseTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#111827',
+    color: colors.textPrimary,
   },
   exerciseStats: {
     flexDirection: 'row',
@@ -504,7 +508,7 @@ const styles = StyleSheet.create({
   },
   playIcon: {
     fontSize: 12,
-    color: '#111827',
+    color: colors.textPrimary,
   },
   timeText: {
     fontSize: 12,
@@ -529,7 +533,7 @@ const styles = StyleSheet.create({
   stepsText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#1F2937',
+    color: colors.textPrimary,
     textDecorationLine: 'underline',
   },
   toolsRow: {
@@ -538,7 +542,7 @@ const styles = StyleSheet.create({
   toolsTitle: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#9CA3AF',
+    color: colors.textTertiary,
     letterSpacing: 1,
     marginBottom: 6,
   },
@@ -548,7 +552,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   toolTag: {
-    backgroundColor: '#F3F4F6',
+    backgroundColor: colors.skeleton,
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 8,
@@ -556,7 +560,7 @@ const styles = StyleSheet.create({
   toolTagText: {
     fontSize: 12,
     fontWeight: '500',
-    color: '#1F2937',
+    color: colors.textPrimary,
     fontStyle: 'italic',
   },
   bottomBar: {

@@ -1,3 +1,5 @@
+import { hapticSelection } from '../../../utils/haptics';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { Check } from 'lucide-react-native';
@@ -39,6 +41,11 @@ const GOALS = [
 export function GoalsSelector({ onNext, onBack }: { onNext: () => void, onBack: () => void }) {
   const [selectedGoal, setSelectedGoal] = useState<string>('build_muscle');
 
+  const handleContinue = async () => {
+    await AsyncStorage.setItem('@onboarding_primary_goal', JSON.stringify(selectedGoal));
+    onNext();
+  };
+
   return (
     <View style={styles.container}>
       <Header currentStep={4} onBack={onBack} />
@@ -64,8 +71,9 @@ export function GoalsSelector({ onNext, onBack }: { onNext: () => void, onBack: 
               <TouchableOpacity
                 key={goal.id}
                 activeOpacity={0.8}
-                onPress={() => {
+                onPress={async () => { hapticSelection(); 
                   setSelectedGoal(goal.id);
+                  await AsyncStorage.setItem('@onboarding_primary_goal', JSON.stringify(goal.id));
                   setTimeout(() => {
                     onNext();
                   }, 300);

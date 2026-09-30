@@ -1,3 +1,4 @@
+import { hapticSelection } from '../../../utils/haptics';
 import React from 'react';
 import { View, Text, StyleSheet, Image, ScrollView, Dimensions } from 'react-native';
 import { Header } from '../Header';

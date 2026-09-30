@@ -1,3 +1,5 @@
+import { hapticSelection } from '../../../utils/haptics';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { Check } from 'lucide-react-native';
@@ -20,6 +22,11 @@ export function TrainingFrequency({ onNext, onBack }: { onNext: () => void, onBa
     }, 300);
   };
 
+  const handleContinue = async () => {
+    await AsyncStorage.setItem('@onboarding_training_frequency', JSON.stringify(selectedFreq));
+    onNext();
+  };
+
   return (
     <View style={styles.container}>
       <Header currentStep={11} onBack={onBack} />
@@ -39,11 +46,16 @@ export function TrainingFrequency({ onNext, onBack }: { onNext: () => void, onBa
         <View style={styles.optionsList}>
           {FREQUENCIES.map((freq) => {
             const isSelected = selectedFreq === freq.id;
-            return (
+            const handleContinue = async () => {
+    await AsyncStorage.setItem('@onboarding_training_frequency', JSON.stringify(selectedFreq));
+    onNext();
+  };
+
+  return (
               <TouchableOpacity
                 key={freq.id}
                 activeOpacity={0.8}
-                onPress={() => handleSelect(freq.id)}
+                onPress={() => { hapticSelection(); handleSelect(freq.id); }}
                 style={[
                   styles.optionCard,
                   isSelected && styles.optionCardSelected

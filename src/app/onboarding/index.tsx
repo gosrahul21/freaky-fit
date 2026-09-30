@@ -23,8 +23,8 @@ export default function OnboardingScreen() {
     if (currentStep < 13) {
       setCurrentStep(prev => prev + 1);
     } else {
-      // Finished onboarding, go to main app
-      router.replace('/home');
+      // Finished onboarding, go to Paywall
+      router.replace('/paywall');
     }
   };
 

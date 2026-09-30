@@ -1,3 +1,5 @@
+import { hapticSelection } from '../../../utils/haptics';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity } from 'react-native';
 import { Check } from 'lucide-react-native';
@@ -12,6 +14,11 @@ const GENDERS = [
 
 export function GenderSelector({ onNext, onBack }: { onNext: () => void, onBack: () => void }) {
   const [selectedGender, setSelectedGender] = useState<string>('private');
+
+  const handleContinue = async () => {
+    await AsyncStorage.setItem('@onboarding_gender', JSON.stringify(selectedGender));
+    onNext();
+  };
 
   return (
     <View style={styles.container}>
@@ -54,8 +61,9 @@ export function GenderSelector({ onNext, onBack }: { onNext: () => void, onBack:
                 <TouchableOpacity
                   key={gender.id}
                   activeOpacity={0.8}
-                  onPress={() => {
+                  onPress={async () => { hapticSelection(); 
                     setSelectedGender(gender.id);
+                    await AsyncStorage.setItem('@onboarding_gender', JSON.stringify(gender.id));
                     setTimeout(() => {
                       onNext();
                     }, 300);

@@ -1,3 +1,4 @@
+import { hapticSelection } from '../../../utils/haptics';
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { Check } from 'lucide-react-native';
@@ -62,6 +63,7 @@ export function SmartImporter({ onNext, onBack }: { onNext: () => void, onBack: 
   const [selected, setSelected] = useState<string[]>(['social_media', 'websites_blogs']);
 
   const toggleSelection = (id: string) => {
+    hapticSelection();
     setSelected((prev) => 
       prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
     );
@@ -100,7 +102,7 @@ export function SmartImporter({ onNext, onBack }: { onNext: () => void, onBack: 
               <TouchableOpacity
                 key={source.id}
                 activeOpacity={0.8}
-                onPress={() => toggleSelection(source.id)}
+                onPress={() => { hapticSelection(); toggleSelection(source.id); }}
                 style={[
                   styles.optionCard,
                   isSelected && styles.optionCardSelected

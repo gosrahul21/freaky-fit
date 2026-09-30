@@ -1,3 +1,5 @@
+import { hapticSelection } from '../../../utils/haptics';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image } from 'react-native';
 import { Check } from 'lucide-react-native';
@@ -18,9 +20,15 @@ export function TargetMuscleFocus({ onNext, onBack }: { onNext: () => void, onBa
   const [viewAngle, setViewAngle] = useState<'front' | 'back'>('front');
 
   const toggleSelection = (id: string) => {
+    hapticSelection();
     setSelected(prev => 
       prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
     );
+  };
+
+  const handleContinue = async () => {
+    await AsyncStorage.setItem('@onboarding_target_muscles', JSON.stringify(selected));
+    onNext();
   };
 
   return (
@@ -43,7 +51,7 @@ export function TargetMuscleFocus({ onNext, onBack }: { onNext: () => void, onBa
           <View style={styles.viewToggle}>
             <TouchableOpacity 
               style={[styles.toggleBtn, viewAngle === 'front' && styles.toggleBtnActive]}
-              onPress={() => setViewAngle('front')}
+              onPress={() => { hapticSelection(); setViewAngle('front'); }}
             >
               {viewAngle === 'front' && <View style={styles.toggleDot} />}
               <Text style={[styles.toggleBtnText, viewAngle === 'front' && styles.toggleBtnTextActive]}>
@@ -52,7 +60,7 @@ export function TargetMuscleFocus({ onNext, onBack }: { onNext: () => void, onBa
             </TouchableOpacity>
             <TouchableOpacity 
               style={[styles.toggleBtn, viewAngle === 'back' && styles.toggleBtnActive]}
-              onPress={() => setViewAngle('back')}
+              onPress={() => { hapticSelection(); setViewAngle('back'); }}
             >
               {viewAngle === 'back' && <View style={styles.toggleDot} />}
               <Text style={[styles.toggleBtnText, viewAngle === 'back' && styles.toggleBtnTextActive]}>
@@ -66,11 +74,16 @@ export function TargetMuscleFocus({ onNext, onBack }: { onNext: () => void, onBa
           <View style={styles.optionsCol}>
             {MUSCLES.map((muscle) => {
               const isSelected = selected.includes(muscle.id);
-              return (
+              const handleContinue = async () => {
+    await AsyncStorage.setItem('@onboarding_target_muscles', JSON.stringify(selected));
+    onNext();
+  };
+
+  return (
                 <TouchableOpacity
                   key={muscle.id}
                   activeOpacity={0.8}
-                  onPress={() => toggleSelection(muscle.id)}
+                  onPress={() => { hapticSelection(); toggleSelection(muscle.id); }}
                   style={[
                     styles.muscleCard,
                     isSelected && styles.muscleCardSelected
@@ -102,7 +115,7 @@ export function TargetMuscleFocus({ onNext, onBack }: { onNext: () => void, onBa
         </View>
       </ScrollView>
 
-      <ContinueButton onPress={onNext} title={`Continue (${selected.length} selected)`} />
+      <ContinueButton onPress={handleContinue} title={`Continue (${selected.length} selected)`} />
     </View>
   );
 }

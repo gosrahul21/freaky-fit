@@ -1,0 +1,313 @@
+-- ============================================================
+-- FreakyFit — Final Supabase SQL Schema (Multi-Tenant Edition)
+-- Run this in: Supabase Dashboard → SQL Editor
+-- ============================================================
+
+-- Enable UUID generation globally
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+-- Create the dedicated schema for FreakyFit
+CREATE SCHEMA IF NOT EXISTS freakyfit;
+
+-- ============================================================
+-- HELPER: auto-update updated_at timestamp
+-- ============================================================
+CREATE OR REPLACE FUNCTION freakyfit.handle_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = NOW();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- ============================================================
+-- TABLE 1: profiles
+-- Extends auth.users with onboarding answers and user info
+-- ============================================================
+CREATE TABLE IF NOT EXISTS freakyfit.profiles (
+  id                  UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  display_name        TEXT,
+  avatar_url          TEXT,
+  gender              TEXT,
+  age                 INTEGER,
+  height_cm           NUMERIC(5, 2),
+  weight_kg           NUMERIC(5, 2),
+  primary_goal        TEXT,
+  training_frequency  TEXT,
+  target_muscles      TEXT[],
+  referral_source     TEXT,
+  created_at          TIMESTAMPTZ DEFAULT NOW(),
+  updated_at          TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TRIGGER on_profiles_updated
+  BEFORE UPDATE ON freakyfit.profiles
+  FOR EACH ROW EXECUTE FUNCTION freakyfit.handle_updated_at();
+
+-- Trigger removed: Profiles will now be created manually by the app at the end of the FreakyFit onboarding flow.
+
+-- ============================================================
+-- TABLE 2: workouts
+-- Parent record for every workout (AI-imported or manual)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS freakyfit.workouts (
+  id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id          UUID NOT NULL REFERENCES freakyfit.profiles(id) ON DELETE CASCADE,
+  title            TEXT NOT NULL,
+  description      TEXT,
+  is_ai_generated  BOOLEAN DEFAULT FALSE,
+  source_type      TEXT CHECK (source_type IN ('youtube','instagram','tiktok','url','manual')),
+  source_url       TEXT,
+  source_platform  TEXT,
+  status           TEXT DEFAULT 'ready' CHECK (status IN ('processing','ready','saved')),
+  created_at       TIMESTAMPTZ DEFAULT NOW(),
+  updated_at       TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_workouts_user_id ON freakyfit.workouts(user_id);
+CREATE INDEX idx_workouts_status ON freakyfit.workouts(status);
+
+CREATE TRIGGER on_workouts_updated
+  BEFORE UPDATE ON freakyfit.workouts
+  FOR EACH ROW EXECUTE FUNCTION freakyfit.handle_updated_at();
+
+-- ============================================================
+-- TABLE 3: exercises  (Global Master Dictionary)
+-- Shared across all users. Grows as users import new workouts.
+-- ============================================================
+CREATE TABLE IF NOT EXISTS freakyfit.exercises (
+  id                 UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name               TEXT NOT NULL UNIQUE,
+  description        TEXT,
+  primary_muscle     TEXT,
+  secondary_muscles  TEXT[],
+  equipment          TEXT[],
+  steps              JSONB,
+  is_verified        BOOLEAN DEFAULT FALSE,
+  created_at         TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_exercises_name ON freakyfit.exercises(name);
+
+-- ============================================================
+-- TABLE 4: workout_exercises  (Bridge: Workout + Exercise)
+-- Each exercise in a workout with its specific configuration
+-- ============================================================
+CREATE TABLE IF NOT EXISTS freakyfit.workout_exercises (
+  id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  workout_id       UUID NOT NULL REFERENCES freakyfit.workouts(id) ON DELETE CASCADE,
+  exercise_id      UUID NOT NULL REFERENCES freakyfit.exercises(id) ON DELETE RESTRICT,
+  order_index      INTEGER NOT NULL DEFAULT 1,
+  sets             INTEGER,
+  reps             TEXT,
+  timestamp_start  TEXT,
+  timestamp_end    TEXT,
+  notes            TEXT
+);
+
+CREATE INDEX idx_workout_exercises_workout_id ON freakyfit.workout_exercises(workout_id);
+
+-- ============================================================
+-- TABLE 5: collections
+-- User-created folders to organise exercises
+-- ============================================================
+CREATE TABLE IF NOT EXISTS freakyfit.collections (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id     UUID NOT NULL REFERENCES freakyfit.profiles(id) ON DELETE CASCADE,
+  title       TEXT NOT NULL,
+  icon        TEXT,
+  color       TEXT,
+  created_at  TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_collections_user_id ON freakyfit.collections(user_id);
+
+-- ============================================================
+-- TABLE 6: collection_exercises  (Bridge: Collection + Exercises)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS freakyfit.collection_exercises (
+  id                   UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  collection_id        UUID NOT NULL REFERENCES freakyfit.collections(id) ON DELETE CASCADE,
+  workout_exercise_id  UUID NOT NULL REFERENCES freakyfit.workout_exercises(id) ON DELETE CASCADE,
+  added_at             TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE (collection_id, workout_exercise_id)
+);
+
+CREATE INDEX idx_collection_exercises_collection_id ON freakyfit.collection_exercises(collection_id);
+
+-- ============================================================
+-- TABLE 7: workout_logs  (Session Parent)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS freakyfit.workout_logs (
+  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id           UUID NOT NULL REFERENCES freakyfit.profiles(id) ON DELETE CASCADE,
+  workout_id        UUID REFERENCES freakyfit.workouts(id) ON DELETE SET NULL,
+  started_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  completed_at      TIMESTAMPTZ,
+  duration_seconds  INTEGER,
+  notes             TEXT
+);
+
+CREATE INDEX idx_workout_logs_user_id ON freakyfit.workout_logs(user_id);
+CREATE INDEX idx_workout_logs_completed_at ON freakyfit.workout_logs(completed_at);
+
+-- ============================================================
+-- TABLE 8: exercise_logs  (Per-Exercise Tracking)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS freakyfit.exercise_logs (
+  id                   UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  workout_log_id       UUID NOT NULL REFERENCES freakyfit.workout_logs(id) ON DELETE CASCADE,
+  workout_exercise_id  UUID NOT NULL REFERENCES freakyfit.workout_exercises(id) ON DELETE CASCADE,
+  status               TEXT DEFAULT 'completed' CHECK (status IN ('completed','partial','skipped')),
+  actual_sets          INTEGER,
+  actual_reps          TEXT,
+  actual_weight_kg     TEXT,
+  notes                TEXT
+);
+
+CREATE INDEX idx_exercise_logs_workout_log_id ON freakyfit.exercise_logs(workout_log_id);
+
+-- ============================================================
+-- TABLE 9: planner
+-- ============================================================
+CREATE TABLE IF NOT EXISTS freakyfit.planner (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id         UUID NOT NULL REFERENCES freakyfit.profiles(id) ON DELETE CASCADE,
+  title           TEXT NOT NULL,
+  description     TEXT,
+  duration_weeks  INTEGER DEFAULT 4,
+  start_date      DATE,
+  status          TEXT DEFAULT 'active' CHECK (status IN ('active','paused','completed')),
+  created_at      TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_planner_user_id ON freakyfit.planner(user_id);
+
+-- ============================================================
+-- TABLE 10: planner_sessions
+-- ============================================================
+CREATE TABLE IF NOT EXISTS freakyfit.planner_sessions (
+  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  planner_id        UUID NOT NULL REFERENCES freakyfit.planner(id) ON DELETE CASCADE,
+  title             TEXT,
+  week_number       INTEGER NOT NULL,
+  day_of_week       TEXT NOT NULL CHECK (day_of_week IN ('monday','tuesday','wednesday','thursday','friday','saturday','sunday')),
+  status            TEXT DEFAULT 'planned' CHECK (status IN ('planned','completed','skipped')),
+  completed_log_id  UUID REFERENCES freakyfit.workout_logs(id) ON DELETE SET NULL,
+  notes             TEXT
+);
+
+CREATE INDEX idx_planner_sessions_planner_id ON freakyfit.planner_sessions(planner_id);
+
+-- ============================================================
+-- TABLE 11: planner_session_exercises
+-- ============================================================
+CREATE TABLE IF NOT EXISTS freakyfit.planner_session_exercises (
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  session_id   UUID NOT NULL REFERENCES freakyfit.planner_sessions(id) ON DELETE CASCADE,
+  exercise_id  UUID NOT NULL REFERENCES freakyfit.exercises(id) ON DELETE RESTRICT,
+  order_index  INTEGER NOT NULL DEFAULT 1,
+  sets         INTEGER,
+  reps         TEXT,
+  notes        TEXT
+);
+
+CREATE INDEX idx_planner_session_exercises_session_id ON freakyfit.planner_session_exercises(session_id);
+
+-- ============================================================
+-- ROW LEVEL SECURITY (RLS)
+-- ============================================================
+
+ALTER TABLE freakyfit.profiles                  ENABLE ROW LEVEL SECURITY;
+ALTER TABLE freakyfit.workouts                  ENABLE ROW LEVEL SECURITY;
+ALTER TABLE freakyfit.exercises                 ENABLE ROW LEVEL SECURITY;
+ALTER TABLE freakyfit.workout_exercises         ENABLE ROW LEVEL SECURITY;
+ALTER TABLE freakyfit.collections               ENABLE ROW LEVEL SECURITY;
+ALTER TABLE freakyfit.collection_exercises      ENABLE ROW LEVEL SECURITY;
+ALTER TABLE freakyfit.workout_logs              ENABLE ROW LEVEL SECURITY;
+ALTER TABLE freakyfit.exercise_logs             ENABLE ROW LEVEL SECURITY;
+ALTER TABLE freakyfit.planner                   ENABLE ROW LEVEL SECURITY;
+ALTER TABLE freakyfit.planner_sessions          ENABLE ROW LEVEL SECURITY;
+ALTER TABLE freakyfit.planner_session_exercises ENABLE ROW LEVEL SECURITY;
+
+-- profiles
+CREATE POLICY "Users manage own profile"
+  ON freakyfit.profiles FOR ALL USING (auth.uid() = id);
+
+-- workouts
+CREATE POLICY "Users manage own workouts"
+  ON freakyfit.workouts FOR ALL USING (auth.uid() = user_id);
+
+-- workout_exercises
+CREATE POLICY "Users access own workout_exercises"
+  ON freakyfit.workout_exercises FOR ALL
+  USING (EXISTS (
+    SELECT 1 FROM freakyfit.workouts
+    WHERE workouts.id = workout_exercises.workout_id
+      AND workouts.user_id = auth.uid()
+  ));
+
+-- exercises — PUBLIC READ, service_role WRITE
+CREATE POLICY "Anyone can read exercises"
+  ON freakyfit.exercises FOR SELECT USING (true);
+CREATE POLICY "Service role writes exercises"
+  ON freakyfit.exercises FOR INSERT WITH CHECK (auth.role() = 'service_role');
+CREATE POLICY "Service role updates exercises"
+  ON freakyfit.exercises FOR UPDATE USING (auth.role() = 'service_role');
+
+-- collections
+CREATE POLICY "Users manage own collections"
+  ON freakyfit.collections FOR ALL USING (auth.uid() = user_id);
+
+-- collection_exercises
+CREATE POLICY "Users access own collection_exercises"
+  ON freakyfit.collection_exercises FOR ALL
+  USING (EXISTS (
+    SELECT 1 FROM freakyfit.collections
+    WHERE collections.id = collection_exercises.collection_id
+      AND collections.user_id = auth.uid()
+  ));
+
+-- workout_logs
+CREATE POLICY "Users manage own workout_logs"
+  ON freakyfit.workout_logs FOR ALL USING (auth.uid() = user_id);
+
+-- exercise_logs
+CREATE POLICY "Users access own exercise_logs"
+  ON freakyfit.exercise_logs FOR ALL
+  USING (EXISTS (
+    SELECT 1 FROM freakyfit.workout_logs
+    WHERE workout_logs.id = exercise_logs.workout_log_id
+      AND workout_logs.user_id = auth.uid()
+  ));
+
+-- planner
+CREATE POLICY "Users manage own planner"
+  ON freakyfit.planner FOR ALL USING (auth.uid() = user_id);
+
+-- planner_sessions
+CREATE POLICY "Users access own planner_sessions"
+  ON freakyfit.planner_sessions FOR ALL
+  USING (EXISTS (
+    SELECT 1 FROM freakyfit.planner
+    WHERE planner.id = planner_sessions.planner_id
+      AND planner.user_id = auth.uid()
+  ));
+
+-- planner_session_exercises
+CREATE POLICY "Users access own planner_session_exercises"
+  ON freakyfit.planner_session_exercises FOR ALL
+  USING (EXISTS (
+    SELECT 1 FROM freakyfit.planner_sessions
+    JOIN freakyfit.planner ON planner.id = planner_sessions.planner_id
+    WHERE planner_sessions.id = planner_session_exercises.session_id
+      AND planner.user_id = auth.uid()
+  ));
+
+-- ============================================================
+-- GRANTS FOR API ACCESS
+-- ============================================================
+GRANT USAGE ON SCHEMA freakyfit TO anon, authenticated, service_role;
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA freakyfit TO anon, authenticated, service_role;
+GRANT ALL PRIVILEGES ON ALL ROUTINES IN SCHEMA freakyfit TO anon, authenticated, service_role;
+GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA freakyfit TO anon, authenticated, service_role;

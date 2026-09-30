@@ -1,3 +1,5 @@
+import { hapticSelection } from '../../../utils/haptics';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { useState, useRef, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, Dimensions, NativeSyntheticEvent, NativeScrollEvent, TouchableOpacity } from 'react-native';
 import { Header } from '../Header';
@@ -30,12 +32,22 @@ export function WeightCalibration({ onNext, onBack }: { onNext: () => void, onBa
 
   const getDisplayWeight = () => {
     if (unit === 'kg') return weight.toFixed(1);
-    return (weight * 2.20462).toFixed(1);
+    const handleContinue = async () => {
+    await AsyncStorage.setItem('@onboarding_weight_kg', JSON.stringify(weight));
+    onNext();
+  };
+
+  return (weight * 2.20462).toFixed(1);
   };
 
   const getEquivalent = () => {
     if (unit === 'kg') return `${(weight * 2.20462).toFixed(1)} lbs`;
     return `${weight.toFixed(1)} kg`;
+  };
+
+  const handleContinue = async () => {
+    await AsyncStorage.setItem('@onboarding_weight_kg', JSON.stringify(weight));
+    onNext();
   };
 
   return (
@@ -53,13 +65,13 @@ export function WeightCalibration({ onNext, onBack }: { onNext: () => void, onBa
         <View style={styles.unitToggleGroup}>
           <TouchableOpacity 
             style={[styles.toggleBtn, unit === 'lbs' && styles.toggleBtnActive]} 
-            onPress={() => toggleUnit('lbs')}
+            onPress={() => { hapticSelection(); toggleUnit('lbs'); }}
           >
             <Text style={[styles.toggleBtnText, unit === 'lbs' && styles.toggleBtnTextActive]}>LBS</Text>
           </TouchableOpacity>
           <TouchableOpacity 
             style={[styles.toggleBtn, unit === 'kg' && styles.toggleBtnActive]} 
-            onPress={() => toggleUnit('kg')}
+            onPress={() => { hapticSelection(); toggleUnit('kg'); }}
           >
             <Text style={[styles.toggleBtnText, unit === 'kg' && styles.toggleBtnTextActive]}>KG</Text>
           </TouchableOpacity>
@@ -101,7 +113,12 @@ export function WeightCalibration({ onNext, onBack }: { onNext: () => void, onBa
             {Array.from({ length: TOTAL_TICKS }).map((_, i) => {
               const currentTick = MIN_KG + i;
               const isMajor = currentTick % 5 === 0;
-              return (
+              const handleContinue = async () => {
+    await AsyncStorage.setItem('@onboarding_weight_kg', JSON.stringify(weight));
+    onNext();
+  };
+
+  return (
                 <View key={i} style={styles.tickContainer}>
                   <View style={[styles.tickLine, isMajor ? styles.tickMajor : styles.tickMinor]} />
                   {isMajor ? (
@@ -116,7 +133,7 @@ export function WeightCalibration({ onNext, onBack }: { onNext: () => void, onBa
         </View>
       </View>
 
-      <ContinueButton onPress={onNext} />
+      <ContinueButton onPress={handleContinue} />
     </View>
   );
 }

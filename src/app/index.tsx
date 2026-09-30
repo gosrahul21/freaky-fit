@@ -1,82 +1,86 @@
+import { SafeAreaView } from 'react-native-safe-area-context';
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, Dimensions } from 'react-native';
+import { useTheme } from '../contexts/ThemeContext';
+import { View, Text, StyleSheet, TouchableOpacity, Dimensions } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Zap, ArrowRight } from 'lucide-react-native';
 
 const { width } = Dimensions.get('window');
 
 export default function SplashScreen() {
+  const { colors } = useTheme();
+  const s = makeStyles(colors);
   const router = useRouter();
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <View style={styles.container}>
+    <SafeAreaView style={s.safeArea}>
+      <View style={s.container}>
         
         {/* Top Mockup Showcase Section */}
-        <View style={styles.mockupSection}>
-          <View style={styles.phoneFrame}>
-            <View style={styles.phoneScreen}>
+        <View style={s.mockupSection}>
+          <View style={s.phoneFrame}>
+            <View style={s.phoneScreen}>
               
               {/* Dynamic Island Notch Mock */}
-              <View style={styles.notchContainer}>
-                <View style={styles.notch} />
+              <View style={s.notchContainer}>
+                <View style={s.notch} />
               </View>
 
               {/* Bolt Emblem */}
-              <View style={styles.emblemWrapper}>
-                <View style={styles.emblemInner}>
-                  <Zap size={32} color="#ff5e00" fill="#ff5e00" style={styles.boltIcon} />
+              <View style={s.emblemWrapper}>
+                <View style={s.emblemInner}>
+                  <Zap size={32} color={colors.accent} fill={colors.accent} style={s.boltIcon} />
                 </View>
               </View>
 
-              <Text style={styles.mockupTitle}>
-                <Text style={styles.mockupTitleBlack}>FREAKY</Text>
-                <Text style={styles.mockupTitleOrange}>FIT</Text>
+              <Text style={s.mockupTitle}>
+                <Text style={s.mockupTitleBlack}>FREAKY</Text>
+                <Text style={s.mockupTitleOrange}>FIT</Text>
               </Text>
 
               {/* Decorative Tagline inside Mockup */}
-              <View style={styles.mockupTaglineBox}>
-                <View style={styles.mockupTagBadge}>
-                  <Text style={styles.mockupTagBadgeText}>SMART SCANNER</Text>
+              <View style={s.mockupTaglineBox}>
+                <View style={s.mockupTagBadge}>
+                  <Text style={s.mockupTagBadgeText}>SMART SCANNER</Text>
                 </View>
-                <Text style={styles.mockupTagText}>
+                <Text style={s.mockupTagText}>
                   HAVE{'\n'}
-                  <Text style={styles.mockupTagTextOrange}>THOUSANDS OF</Text>{'\n'}
+                  <Text style={s.mockupTagTextOrange}>THOUSANDS OF</Text>{'\n'}
                   WORKOUT{'\n'}
                   VIDEOS?
                 </Text>
               </View>
 
               {/* Mockup home indicator */}
-              <View style={styles.mockupHomeIndicator} />
+              <View style={s.mockupHomeIndicator} />
             </View>
           </View>
         </View>
 
         {/* Value Proposition & CTA Section */}
-        <View style={styles.ctaSection}>
-          <Text style={styles.heroTitle}>
-            TURN ANY <Text style={styles.heroTitleHighlight}>VIDEO</Text>{'\n'}
+        <View style={s.ctaSection}>
+          <Text style={s.heroTitle}>
+            TURN ANY <Text style={s.heroTitleHighlight}>VIDEO</Text>{'\n'}
             INTO WORKOUT PLANS
           </Text>
           
-          <Text style={styles.heroSubtitle}>
+          <Text style={s.heroSubtitle}>
             Instant AI exercise extraction from TikTok, Instagram Reels & YouTube.
           </Text>
 
           <TouchableOpacity 
-            style={styles.getStartedBtn} 
+            style={s.getStartedBtn} 
             activeOpacity={0.9} 
-            onPress={() => router.push('/welcome')}
+            onPress={() => router.push('/onboarding')}
           >
-            <Text style={styles.getStartedText}>Get Started</Text>
-            <ArrowRight size={18} color="#FFFFFF" strokeWidth={2.5} />
+            <Text style={s.getStartedText}>Get Started</Text>
+            <ArrowRight size={18} color={colors.background} strokeWidth={2.5} />
           </TouchableOpacity>
 
-          <View style={styles.signInRow}>
-            <Text style={styles.signInTextPrompt}>Already have an account?</Text>
+          <View style={s.signInRow}>
+            <Text style={s.signInTextPrompt}>Already have an account?</Text>
             <TouchableOpacity onPress={() => router.push('/welcome')}>
-              <Text style={styles.signInTextAction}>Sign In</Text>
+              <Text style={s.signInTextAction}>Log in</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -86,14 +90,14 @@ export default function SplashScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ReturnType<typeof import("../contexts/ThemeContext").useTheme>["colors"]) => StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.card,
   },
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.card,
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 24,
@@ -114,7 +118,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#111317',
     borderRadius: 42,
     padding: 8,
-    shadowColor: '#ff5e00',
+    shadowColor: colors.accent,
     shadowOffset: { width: 0, height: 12 },
     shadowOpacity: 0.15,
     shadowRadius: 24,
@@ -147,7 +151,7 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 16,
-    backgroundColor: '#ff5e00',
+    backgroundColor: colors.accent,
     padding: 2,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
@@ -157,7 +161,7 @@ const styles = StyleSheet.create({
   },
   emblemInner: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.card,
     borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
@@ -175,7 +179,7 @@ const styles = StyleSheet.create({
     color: '#111317',
   },
   mockupTitleOrange: {
-    color: '#ff5e00',
+    color: colors.accent,
   },
   mockupTaglineBox: {
     marginTop: 'auto',
@@ -190,7 +194,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   mockupTagBadgeText: {
-    color: '#ff5e00',
+    color: colors.accent,
     fontSize: 9,
     fontWeight: '800',
     letterSpacing: 1,
@@ -204,7 +208,7 @@ const styles = StyleSheet.create({
     letterSpacing: -0.5,
   },
   mockupTagTextOrange: {
-    color: '#ff5e00',
+    color: colors.accent,
   },
   mockupHomeIndicator: {
     width: 96,
@@ -221,18 +225,18 @@ const styles = StyleSheet.create({
   heroTitle: {
     fontSize: 36,
     fontWeight: '800',
-    color: '#111317',
+    color: colors.textPrimary,
     textAlign: 'center',
     lineHeight: 40,
     letterSpacing: -0.5,
   },
   heroTitleHighlight: {
-    color: '#ff5e00',
+    color: colors.accent,
   },
   heroSubtitle: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#64748B',
+    color: colors.textSecondary,
     textAlign: 'center',
     marginTop: 10,
     lineHeight: 20,
@@ -243,19 +247,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#111317',
+    backgroundColor: colors.accent,
     paddingVertical: 18,
     borderRadius: 32,
     marginTop: 24,
     gap: 8,
-    shadowColor: '#111317',
+    shadowColor: colors.textPrimary,
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.2,
     shadowRadius: 16,
     elevation: 8,
   },
   getStartedText: {
-    color: '#FFFFFF',
+    color: colors.background,
     fontSize: 16,
     fontWeight: '700',
     letterSpacing: 0.5,
@@ -275,6 +279,6 @@ const styles = StyleSheet.create({
   signInTextAction: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#ff5e00',
+    color: colors.accent,
   },
 });

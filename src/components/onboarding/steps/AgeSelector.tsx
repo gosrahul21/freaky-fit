@@ -1,3 +1,5 @@
+import { hapticSelection } from '../../../utils/haptics';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { useState, useRef, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, Dimensions, NativeSyntheticEvent, NativeScrollEvent } from 'react-native';
 import { Header } from '../Header';
@@ -28,6 +30,11 @@ export function AgeSelector({ onNext, onBack }: { onNext: () => void, onBack: ()
     // if (age < 36) return 'Optimal strength & density phase';
     // if (age < 48) return 'Joint longevity & sustained output';
     return '';
+  };
+
+  const handleContinue = async () => {
+    await AsyncStorage.setItem('@onboarding_age', JSON.stringify(age));
+    onNext();
   };
 
   return (
@@ -77,7 +84,12 @@ export function AgeSelector({ onNext, onBack }: { onNext: () => void, onBack: ()
               {Array.from({ length: TOTAL_TICKS }).map((_, i) => {
                 const currentTickAge = MIN_AGE + i;
                 const isMajor = currentTickAge % 5 === 0;
-                return (
+                const handleContinue = async () => {
+    await AsyncStorage.setItem('@onboarding_age', JSON.stringify(age));
+    onNext();
+  };
+
+  return (
                   <View key={i} style={styles.tickContainer}>
                     <View style={[styles.tickLine, isMajor ? styles.tickMajor : styles.tickMinor]} />
                     {isMajor ? (
@@ -104,7 +116,7 @@ export function AgeSelector({ onNext, onBack }: { onNext: () => void, onBack: ()
         </View>
       </View>
 
-      <ContinueButton onPress={onNext} />
+      <ContinueButton onPress={handleContinue} />
     </View>
   );
 }

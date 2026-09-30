@@ -1,3 +1,4 @@
+import { hapticSelection } from '../../../utils/haptics';
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView, Image } from 'react-native';
 import { Star } from 'lucide-react-native';

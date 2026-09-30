@@ -1,3 +1,4 @@
+import { hapticImpactLight } from '../../utils/haptics';
 import React from 'react';
 import { TouchableOpacity, Text, StyleSheet, View } from 'react-native';
 import { ArrowRight } from 'lucide-react-native';
@@ -17,7 +18,10 @@ export function ContinueButton({ onPress, label = 'Continue', disabled = false, 
     <View style={[styles.container, { paddingBottom: Math.max(insets.bottom, 24) }]}>
       <TouchableOpacity 
         style={[styles.button, style, disabled && styles.disabledButton]}
-        onPress={onPress}
+        onPress={() => {
+          hapticImpactLight();
+          onPress();
+        }}
         activeOpacity={0.8}
         disabled={disabled}
       >
@@ -42,7 +46,7 @@ const styles = StyleSheet.create({
     zIndex: 30,
   },
   button: {
-    backgroundColor: '#111111',
+    backgroundColor: '#ff5e00',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',

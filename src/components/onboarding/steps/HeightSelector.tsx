@@ -1,3 +1,5 @@
+import { hapticSelection } from '../../../utils/haptics';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { useState, useRef, useCallback } from 'react';
 import { View, Text, StyleSheet, Image, TouchableOpacity, ScrollView, Dimensions, NativeSyntheticEvent, NativeScrollEvent } from 'react-native';
 import { Header } from '../Header';
@@ -54,6 +56,11 @@ export function HeightSelector({ onNext, onBack }: { onNext: () => void, onBack:
 
   const scaleFactor = 0.85 + ((heightCm - MIN_HEIGHT) / (MAX_HEIGHT - MIN_HEIGHT)) * 0.25;
 
+  const handleContinue = async () => {
+    await AsyncStorage.setItem('@onboarding_height_cm', JSON.stringify(heightCm));
+    onNext();
+  };
+
   return (
     <View style={styles.container}>
       <Header currentStep={8} onBack={onBack} />
@@ -70,13 +77,13 @@ export function HeightSelector({ onNext, onBack }: { onNext: () => void, onBack:
       <View style={styles.unitToggleGroup}>
         <TouchableOpacity 
           style={[styles.toggleBtn, unit === 'imperial' && styles.toggleBtnActive]} 
-          onPress={() => toggleUnit('imperial')}
+          onPress={() => { hapticSelection(); toggleUnit('imperial'); }}
         >
           <Text style={[styles.toggleBtnText, unit === 'imperial' && styles.toggleBtnTextActive]}>ft / in</Text>
         </TouchableOpacity>
         <TouchableOpacity 
           style={[styles.toggleBtn, unit === 'metric' && styles.toggleBtnActive]} 
-          onPress={() => toggleUnit('metric')}
+          onPress={() => { hapticSelection(); toggleUnit('metric'); }}
         >
           <Text style={[styles.toggleBtnText, unit === 'metric' && styles.toggleBtnTextActive]}>cm</Text>
         </TouchableOpacity>
@@ -124,7 +131,12 @@ export function HeightSelector({ onNext, onBack }: { onNext: () => void, onBack:
                   const currentTickHeight = MAX_HEIGHT - i;
                   const isMajor = currentTickHeight % 10 === 0;
                   const isMid = currentTickHeight % 5 === 0 && !isMajor;
-                  return (
+                  const handleContinue = async () => {
+    await AsyncStorage.setItem('@onboarding_height_cm', JSON.stringify(heightCm));
+    onNext();
+  };
+
+  return (
                     <View key={i} style={styles.tickContainer}>
                       <Text style={isMajor ? styles.tickLabel : styles.tickLabelHidden}>
                         {currentTickHeight}
@@ -142,7 +154,7 @@ export function HeightSelector({ onNext, onBack }: { onNext: () => void, onBack:
         </View>
       </View>
 
-      <ContinueButton onPress={onNext} />
+      <ContinueButton onPress={handleContinue} />
     </View>
   );
 }
