@@ -5,14 +5,7 @@ import { Search, Filter, Play, Plus, Dumbbell } from 'lucide-react-native';
 import { useTheme } from '../../contexts/ThemeContext';
 import { hapticSelection } from '../../utils/haptics';
 
-// Mock data
-const EXERCISES = [
-  { id: '1', name: 'Barbell Bench Press', muscle: 'Chest', equipment: 'Barbell' },
-  { id: '2', name: 'Incline Dumbbell Press', muscle: 'Chest', equipment: 'Dumbbell' },
-  { id: '3', name: 'Cable Crossover', muscle: 'Chest', equipment: 'Cable' },
-  { id: '4', name: 'Pull-up', muscle: 'Back', equipment: 'Bodyweight' },
-  { id: '5', name: 'Barbell Squat', muscle: 'Legs', equipment: 'Barbell' },
-];
+import { supabase } from '../../lib/supabase';
 
 const MUSCLES = ['All', 'Chest', 'Back', 'Legs', 'Shoulders', 'Arms', 'Core'];
 
@@ -22,9 +15,22 @@ export default function ExploreScreen() {
   const [search, setSearch] = useState('');
   const [activeMuscle, setActiveMuscle] = useState('All');
 
-  const filtered = EXERCISES.filter(e => 
-    e.name.toLowerCase().includes(search.toLowerCase()) && 
-    (activeMuscle === 'All' || e.muscle === activeMuscle)
+  const [exercises, setExercises] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  React.useEffect(() => {
+    const fetchExercises = async () => {
+      setLoading(true);
+      const { data } = await supabase.from('exercises').select('*');
+      if (data) setExercises(data);
+      setLoading(false);
+    };
+    fetchExercises();
+  }, []);
+
+  const filtered = exercises.filter(e => 
+    e.name?.toLowerCase().includes(search.toLowerCase()) && 
+    (activeMuscle === 'All' || e.muscle_group === activeMuscle)
   );
 
   return (
@@ -77,7 +83,7 @@ export default function ExploreScreen() {
               </View>
               <View style={s.exInfo}>
                 <Text style={s.exName}>{ex.name}</Text>
-                <Text style={s.exMeta}>{ex.muscle} • {ex.equipment}</Text>
+                <Text style={s.exMeta}>{ex.muscle_group || 'Any'} • {ex.category || 'Any'}</Text>
               </View>
               <TouchableOpacity style={s.exAddBtn}>
                 <Plus size={20} color={colors.accent} />

@@ -1,6 +1,6 @@
 import { SafeAreaView } from 'react-native-safe-area-context';
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
 import { } from 'react-native-safe-area-context';
 import { ChevronLeft } from 'lucide-react-native';
 import { ProgressBar } from './ProgressBar';
@@ -28,9 +28,11 @@ export function Header({ currentStep, showBack = true, onBack }: HeaderProps) {
         )}
         
         <View style={styles.logoContainer}>
-          <Text style={styles.logoText}>
-            FREAKY<Text style={styles.logoHighlight}>FIT</Text>
-          </Text>
+          <Image 
+            source={require('../../../assets/logo/png/freakyfit-orange-logo-text-onlight-800.png')}
+            style={styles.headerLogo}
+            resizeMode="contain"
+          />
         </View>
 
         <View style={styles.spacer} />
@@ -65,15 +67,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
-  logoText: {
-    fontStyle: 'italic',
-    fontWeight: '900',
-    fontSize: 24,
-    letterSpacing: -1.2,
-    color: '#0A0A0A',
-  },
-  logoHighlight: {
-    color: '#ff5e00',
+  headerLogo: {
+    width: 120,
+    height: 30,
   },
   spacer: {
     width: 40,

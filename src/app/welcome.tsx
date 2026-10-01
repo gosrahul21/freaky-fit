@@ -1,6 +1,6 @@
 import React from 'react';
 import { useTheme } from '../contexts/ThemeContext';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Zap, Mail } from 'lucide-react-native';
 
@@ -129,14 +129,13 @@ export default function WelcomeScreen() {
         
         {/* Top Brand & Welcome Area */}
         <View style={s.headerSection}>
-          <View style={s.iconBadge}>
-            <Zap size={32} color="#FFFFFF" fill="#FFFFFF" />
-            <View style={s.pingDot} />
-            <View style={s.solidDot} />
-          </View>
+          <Image 
+            source={require('../../assets/logo/png/freakyfit-orange-logo-transparent-512.png')}
+            style={s.welcomeLogo}
+            resizeMode="contain"
+          />
           
-          <Text style={s.preTitle}>Welcome to</Text>
-          <Text style={s.title}>FreakyFit</Text>
+          <Text style={s.preTitle}>Welcome to FreakyFit</Text>
           
           <Text style={s.subtitle}>
             Save, organize, and plan your workouts with precision.
@@ -213,38 +212,10 @@ const makeStyles = (colors: ReturnType<typeof import("../contexts/ThemeContext")
     alignItems: 'center',
     marginTop: 24,
   },
-  iconBadge: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: colors.accent,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
+  welcomeLogo: {
+    width: 140,
+    height: 140,
     marginBottom: 24,
-  },
-  pingDot: {
-    position: 'absolute',
-    top: -4,
-    right: -4,
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    backgroundColor: '#fe893c',
-    opacity: 0.75,
-  },
-  solidDot: {
-    position: 'absolute',
-    top: -4,
-    right: -4,
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    backgroundColor: '#fe893c',
   },
   preTitle: {
     fontSize: 28,

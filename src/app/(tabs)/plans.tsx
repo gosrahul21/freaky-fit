@@ -4,11 +4,42 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, } from 'react-nat
 import { Home as HomeIcon, Bookmark, Plus, CalendarDays, Flame, ChevronRight, Play, MoreHorizontal } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { useTheme } from '../../contexts/ThemeContext';
+import { supabase } from '../../lib/supabase';
 
 export default function PlansScreen() {
   const { colors } = useTheme();
   const s = makeStyles(colors);
   const router = useRouter();
+  
+  const [activePlan, setActivePlan] = React.useState<any>(null);
+  const [loading, setLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    fetchActivePlan();
+  }, []);
+
+  const fetchActivePlan = async () => {
+    setLoading(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data } = await supabase
+        .from('planner')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('status', 'active')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+      
+      setActivePlan(data);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <SafeAreaView style={[s.safeArea, { backgroundColor: colors.background }]}>
@@ -21,58 +52,55 @@ export default function PlansScreen() {
           </View>
 
           {/* Active Plan Dashboard */}
-          <View style={s.section}>
-            <View style={s.sectionHeader}>
-              <Text style={s.sectionTitle}>Active Plan</Text>
-              <TouchableOpacity>
-                <Text style={s.sectionAction}>Manage</Text>
+          {activePlan ? (
+            <View style={s.section}>
+              <View style={s.sectionHeader}>
+                <Text style={s.sectionTitle}>Active Plan</Text>
+                <TouchableOpacity>
+                  <Text style={s.sectionAction}>Manage</Text>
+                </TouchableOpacity>
+              </View>
+
+              <View style={s.activePlanCard}>
+                <View style={s.activePlanTopRow}>
+                  <View>
+                    <Text style={s.activePlanName}>{activePlan.title}</Text>
+                    <Text style={s.activePlanDuration}>{activePlan.duration_weeks} Weeks</Text>
+                  </View>
+                  <View style={s.progressCircle}>
+                    <Text style={s.progressCircleText}>0%</Text>
+                  </View>
+                </View>
+
+                <View style={s.weekProgressBar}>
+                  {Array.from({ length: Math.min(12, activePlan.duration_weeks || 4) }).map((_, i) => (
+                    <View key={i} style={[s.weekNode, i === 0 && s.weekNodeActive]} />
+                  ))}
+                </View>
+                
+                <Text style={s.weekLabel}>Week 1 of {activePlan.duration_weeks}</Text>
+              </View>
+
+              {/* Next Up */}
+              <Text style={s.subSectionTitle}>Up Next</Text>
+              <TouchableOpacity style={s.nextWorkoutCard} activeOpacity={0.9} onPress={() => router.push('/workout/active')}>
+                <View style={s.nextWorkoutLeft}>
+                  <View style={s.nextWorkoutIconWrapper}>
+                    <CalendarDays size={20} color={colors.accent} />
+                  </View>
+                  <View>
+                    <Text style={s.nextWorkoutDay}>Next Session</Text>
+                    <Text style={s.nextWorkoutTitle}>Start Next Workout</Text>
+                  </View>
+                </View>
+                <ChevronRight size={20} color={colors.textTertiary} />
               </TouchableOpacity>
             </View>
-
-            <View style={s.activePlanCard}>
-              <View style={s.activePlanTopRow}>
-                <View>
-                  <Text style={s.activePlanName}>Hypertrophy Block v2</Text>
-                  <Text style={s.activePlanDuration}>12 Weeks • 5 days/wk</Text>
-                </View>
-                <View style={s.progressCircle}>
-                  <Text style={s.progressCircleText}>25%</Text>
-                </View>
-              </View>
-
-              <View style={s.weekProgressBar}>
-                <View style={[s.weekNode, s.weekNodeCompleted]} />
-                <View style={[s.weekNode, s.weekNodeCompleted]} />
-                <View style={[s.weekNode, s.weekNodeActive]} />
-                <View style={s.weekNode} />
-                <View style={s.weekNode} />
-                <View style={s.weekNode} />
-                <View style={s.weekNode} />
-                <View style={s.weekNode} />
-                <View style={s.weekNode} />
-                <View style={s.weekNode} />
-                <View style={s.weekNode} />
-                <View style={s.weekNode} />
-              </View>
-              
-              <Text style={s.weekLabel}>Week 3 of 12</Text>
+          ) : (
+            <View style={[s.section, { alignItems: 'center', paddingVertical: 20 }]}>
+              <Text style={{color: colors.textSecondary, marginBottom: 8}}>You don't have an active plan yet.</Text>
             </View>
-
-            {/* Next Up */}
-            <Text style={s.subSectionTitle}>Up Next</Text>
-            <TouchableOpacity style={s.nextWorkoutCard} activeOpacity={0.9}>
-              <View style={s.nextWorkoutLeft}>
-                <View style={s.nextWorkoutIconWrapper}>
-                  <CalendarDays size={20} color={colors.accent} />
-                </View>
-                <View>
-                  <Text style={s.nextWorkoutDay}>Tomorrow</Text>
-                  <Text style={s.nextWorkoutTitle}>Pull Day (Back & Biceps)</Text>
-                </View>
-              </View>
-              <ChevronRight size={20} color={colors.textTertiary} />
-            </TouchableOpacity>
-          </View>
+          )}
 
           {/* Discover Templates */}
           <View style={s.section}>
@@ -106,7 +134,7 @@ export default function PlansScreen() {
             <View style={s.sectionHeader}>
               <Text style={s.sectionTitle}>Custom Builder</Text>
             </View>
-            <TouchableOpacity style={s.customBuilderCard} activeOpacity={0.9}>
+            <TouchableOpacity style={s.customBuilderCard} activeOpacity={0.9} onPress={() => router.push('/plan-builder')}>
               <View style={s.customBuilderIcon}>
                 <Plus size={24} color={colors.textPrimary} />
               </View>

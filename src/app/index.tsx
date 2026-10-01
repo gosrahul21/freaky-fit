@@ -1,9 +1,9 @@
 import { SafeAreaView } from 'react-native-safe-area-context';
 import React from 'react';
 import { useTheme } from '../contexts/ThemeContext';
-import { View, Text, StyleSheet, TouchableOpacity, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Dimensions, Image } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Zap, ArrowRight } from 'lucide-react-native';
+import { ArrowRight } from 'lucide-react-native';
 
 const { width } = Dimensions.get('window');
 
@@ -26,17 +26,12 @@ export default function SplashScreen() {
                 <View style={s.notch} />
               </View>
 
-              {/* Bolt Emblem */}
-              <View style={s.emblemWrapper}>
-                <View style={s.emblemInner}>
-                  <Zap size={32} color={colors.accent} fill={colors.accent} style={s.boltIcon} />
-                </View>
-              </View>
-
-              <Text style={s.mockupTitle}>
-                <Text style={s.mockupTitleBlack}>FREAKY</Text>
-                <Text style={s.mockupTitleOrange}>FIT</Text>
-              </Text>
+              {/* Logo */}
+              <Image 
+                source={require('../../assets/logo/png/freakyfit-orange-logo-text-onlight-800.png')} 
+                style={s.actualLogo}
+                resizeMode="contain"
+              />
 
               {/* Decorative Tagline inside Mockup */}
               <View style={s.mockupTaglineBox}>
@@ -147,39 +142,10 @@ const makeStyles = (colors: ReturnType<typeof import("../contexts/ThemeContext")
     backgroundColor: '#000000',
     borderRadius: 11,
   },
-  emblemWrapper: {
-    width: 64,
-    height: 64,
-    borderRadius: 16,
-    backgroundColor: colors.accent,
-    padding: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    marginTop: 8,
-  },
-  emblemInner: {
-    flex: 1,
-    backgroundColor: colors.card,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  boltIcon: {
-    transform: [{ rotate: '-6deg' }],
-  },
-  mockupTitle: {
-    fontSize: 24,
-    fontWeight: '800',
+  actualLogo: {
+    width: 140,
+    height: 70,
     marginTop: 12,
-    letterSpacing: -0.5,
-  },
-  mockupTitleBlack: {
-    color: '#111317',
-  },
-  mockupTitleOrange: {
-    color: colors.accent,
   },
   mockupTaglineBox: {
     marginTop: 'auto',

@@ -4,30 +4,12 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { X, Check, Timer, Play, Pause, ChevronRight } from 'lucide-react-native';
 import { useTheme } from '../../contexts/ThemeContext';
 import { hapticImpactLight, hapticSelection } from '../../utils/haptics';
+import { supabase } from '../../lib/supabase';
 
-// Mock data until we integrate Supabase
-const MOCK_WORKOUT = {
-  title: "Hypertrophy Push Day",
-  exercises: [
-    {
-      id: "e1",
-      name: "Incline Dumbbell Press",
-      sets: [
-        { id: "s1", reps: "10", weight: "25", completed: false },
-        { id: "s2", reps: "10", weight: "25", completed: false },
-        { id: "s3", reps: "8", weight: "27.5", completed: false },
-      ]
-    },
-    {
-      id: "e2",
-      name: "Overhead Tricep Extension",
-      sets: [
-        { id: "s4", reps: "12", weight: "15", completed: false },
-        { id: "s5", reps: "12", weight: "15", completed: false },
-        { id: "s6", reps: "10", weight: "17.5", completed: false },
-      ]
-    }
-  ]
+// Initial state
+const INITIAL_WORKOUT = {
+  title: "Loading Workout...",
+  exercises: []
 };
 
 export default function WorkoutSessionScreen() {
@@ -35,10 +17,75 @@ export default function WorkoutSessionScreen() {
   const { colors } = useTheme();
   const s = makeStyles(colors);
   const router = useRouter();
-  
-  const [workout, setWorkout] = useState(MOCK_WORKOUT);
+  const [workout, setWorkout] = useState<any>(INITIAL_WORKOUT);
   const [seconds, setSeconds] = useState(0);
   const [isRunning, setIsRunning] = useState(true);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (id) fetchWorkout();
+  }, [id]);
+
+  const fetchWorkout = async () => {
+    if (id === 'active') {
+      // If we clicked 'Start Session' from home without a specific workout ID,
+      // just load a mock for now or fetch the active plan's next session.
+      setWorkout({
+        title: "Quick Workout",
+        exercises: []
+      });
+      setLoading(false);
+      return;
+    }
+
+    try {
+      // Fetch workout details
+      const { data: wData } = await supabase
+        .from('workouts')
+        .select('*')
+        .eq('id', id)
+        .single();
+      
+      if (!wData) return;
+
+      // Fetch exercises for this workout
+      const { data: exData } = await supabase
+        .from('workout_exercises')
+        .select(`
+          id,
+          sets,
+          reps,
+          exercises ( id, name )
+        `)
+        .eq('workout_id', id);
+
+      const formattedExercises = (exData || []).map((we: any, idx: number) => {
+        // Create an array of sets based on the `sets` integer
+        const setsCount = we.sets || 3;
+        const setsArray = Array.from({ length: setsCount }).map((_, i) => ({
+          id: `s${idx}-${i}`,
+          reps: String(we.reps || '10'),
+          weight: '', // Empty weight to start
+          completed: false
+        }));
+
+        return {
+          id: we.id,
+          name: we.exercises?.name || 'Unknown Exercise',
+          sets: setsArray
+        };
+      });
+
+      setWorkout({
+        title: wData.title,
+        exercises: formattedExercises
+      });
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -94,7 +141,11 @@ export default function WorkoutSessionScreen() {
         </View>
 
         <ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
-          {workout.exercises.map((exercise, eIdx) => (
+          {workout.exercises.length === 0 && (
+            <Text style={{textAlign: 'center', marginTop: 20, color: colors.textSecondary}}>No exercises in this workout yet.</Text>
+          )}
+
+          {workout.exercises.map((exercise: any, eIdx: number) => (
             <View key={exercise.id} style={s.exerciseCard}>
               <View style={s.exerciseHeader}>
                 <Text style={s.exerciseName}>{exercise.name}</Text>
@@ -110,7 +161,7 @@ export default function WorkoutSessionScreen() {
                 <Text style={[s.tableCol, s.colCheck]}><Check size={16} color={colors.textTertiary} /></Text>
               </View>
 
-              {exercise.sets.map((set, sIdx) => (
+              {exercise.sets.map((set: any, sIdx: number) => (
                 <View key={set.id} style={[s.setRow, set.completed && s.setRowCompleted]}>
                   <Text style={[s.tableCol, s.colSet, s.setNumber, set.completed && s.setNumberCompleted]}>
                     {sIdx + 1}

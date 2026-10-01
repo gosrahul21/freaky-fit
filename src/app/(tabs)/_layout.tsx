@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Modal, Pressable } from 'react-native';
-import { Tabs, useRouter, usePathname } from 'expo-router';
-import { Home as HomeIcon, CalendarDays, Bookmark, Flame, Plus, Download, FolderPlus, CalendarPlus } from 'lucide-react-native';
+import { Tabs, usePathname, useRouter } from 'expo-router';
+import { Bookmark, CalendarDays, CalendarPlus, Download, Flame, FolderPlus, Home as HomeIcon, Plus } from 'lucide-react-native';
+import { useState } from 'react';
+import { Modal, Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useTheme } from '../../contexts/ThemeContext';
 import { hapticImpactLight } from '../../utils/haptics';
 
@@ -24,19 +24,19 @@ export default function TabsLayout() {
 
       {/* Bottom Navigation Bar */}
       <View style={s.bottomNav}>
-        <TouchableOpacity style={s.navItem} onPress={() => { hapticImpactLight(); router.replace('/home')} }>
+        <TouchableOpacity style={s.navItem} onPress={() => { hapticImpactLight(); router.replace('/home') }}>
           <HomeIcon size={20} color={pathname === '/home' ? colors.accent : colors.textTertiary} strokeWidth={2.5} />
           <Text style={[s.navLabel, pathname === '/home' && s.navLabelActive]}>Home</Text>
         </TouchableOpacity>
-        
-        <TouchableOpacity style={s.navItem} onPress={() => { hapticImpactLight(); router.replace('/plans')} }>
+
+        <TouchableOpacity style={s.navItem} onPress={() => { hapticImpactLight(); router.replace('/plans') }}>
           <CalendarDays size={20} color={pathname === '/plans' ? colors.accent : colors.textTertiary} strokeWidth={2} />
           <Text style={[s.navLabel, pathname === '/plans' && s.navLabelActive]}>Plans</Text>
         </TouchableOpacity>
 
         <View style={s.centerAddBtnWrapper}>
-          <TouchableOpacity 
-            style={s.centerAddBtn} 
+          <TouchableOpacity
+            style={s.centerAddBtn}
             activeOpacity={0.8}
             onPress={() => { hapticImpactLight(); setShowAddModal(true); }}
           >
@@ -44,12 +44,12 @@ export default function TabsLayout() {
           </TouchableOpacity>
         </View>
 
-        <TouchableOpacity style={s.navItem} onPress={() => { hapticImpactLight(); router.replace('/library')} }>
+        <TouchableOpacity style={s.navItem} onPress={() => { hapticImpactLight(); router.replace('/library') }}>
           <Bookmark size={20} color={pathname === '/library' ? colors.accent : colors.textTertiary} strokeWidth={2} />
           <Text style={[s.navLabel, pathname === '/library' && s.navLabelActive]}>Library</Text>
         </TouchableOpacity>
-        
-        <TouchableOpacity style={s.navItem} onPress={() => { hapticImpactLight(); router.replace('/streaks')} }>
+
+        <TouchableOpacity style={s.navItem} onPress={() => { hapticImpactLight(); router.replace('/streaks') }}>
           <Flame size={20} color={pathname === '/streaks' ? colors.accent : colors.textTertiary} strokeWidth={2} />
           <Text style={[s.navLabel, pathname === '/streaks' && s.navLabelActive]}>Streaks</Text>
         </TouchableOpacity>
@@ -72,9 +72,9 @@ export default function TabsLayout() {
             <View style={s.dragHandleContainer}>
               <View style={s.dragHandle} />
             </View>
-            
+
             <Text style={s.sheetTitle}>What would you like to add?</Text>
-            
+
             <View style={s.sheetOptionsContainer}>
               {/* Option 1 */}
               <TouchableOpacity style={s.sheetOption} activeOpacity={0.7} onPress={() => { setShowAddModal(false); router.push('/importer'); }}>
@@ -99,7 +99,7 @@ export default function TabsLayout() {
               </TouchableOpacity>
 
               {/* Option 3 */}
-              <TouchableOpacity style={s.sheetOption} activeOpacity={0.7} onPress={() => setShowAddModal(false)}>
+              <TouchableOpacity style={s.sheetOption} activeOpacity={0.7} onPress={() => { setShowAddModal(false); router.push('/plan-builder'); }}>
                 <View style={s.sheetOptionIcon}>
                   <CalendarPlus size={24} color={colors.textPrimary} strokeWidth={2.2} />
                 </View>
@@ -109,7 +109,7 @@ export default function TabsLayout() {
                 </View>
               </TouchableOpacity>
             </View>
-            
+
             <View style={s.homeIndicatorSpaceSheet}>
               <View style={s.homeIndicator} />
             </View>

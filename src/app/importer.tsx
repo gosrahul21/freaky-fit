@@ -7,6 +7,8 @@ import { FontAwesome5 } from '@expo/vector-icons';
 import { useTheme } from '../contexts/ThemeContext';
 import { hapticImpactLight } from '../utils/haptics';
 
+import { supabase } from '../lib/supabase';
+
 export default function ImporterScreen() {
   const { colors } = useTheme();
   const s = makeStyles(colors);
@@ -14,17 +16,68 @@ export default function ImporterScreen() {
   const [url, setUrl] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
 
-  const handleImport = () => {
+  const handleImport = async () => {
     if (!url) return;
     hapticImpactLight();
     setIsProcessing(true);
     
     // Simulate AI extraction delay
-    setTimeout(() => {
-      setIsProcessing(false);
-      // For now, just go back. Later we will route to the extracted workout screen.
-      router.back();
-    }, 3000);
+    setTimeout(async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          let type = 'url';
+          if (url.includes('instagram')) type = 'instagram';
+          if (url.includes('tiktok')) type = 'tiktok';
+          if (url.includes('youtube') || url.includes('youtu.be')) type = 'youtube';
+
+          const { data: workoutData } = await supabase.from('workouts').insert([
+            {
+              user_id: user.id,
+              title: "AI Extracted Workout (Dummy)",
+              description: "This is a mock workout generated from the importer.",
+              is_ai_generated: true,
+              source_type: type,
+              source_url: url,
+              status: 'ready'
+            }
+          ]).select().single();
+
+          if (workoutData) {
+            // Check if we have any exercises, if not create a dummy one
+            let { data: exerciseList } = await supabase.from('exercises').select('id').limit(1);
+            let exerciseId = null;
+
+            if (!exerciseList || exerciseList.length === 0) {
+              const { data: newExercise } = await supabase.from('exercises').insert([
+                { name: 'Dumbbell Curls (AI)', muscle_group: 'Arms', category: 'Dumbbell' }
+              ]).select().single();
+              if (newExercise) exerciseId = newExercise.id;
+            } else {
+              exerciseId = exerciseList[0].id;
+            }
+
+            if (exerciseId) {
+              await supabase.from('workout_exercises').insert([
+                {
+                  workout_id: workoutData.id,
+                  exercise_id: exerciseId,
+                  order_index: 1,
+                  sets: 3,
+                  reps: '10-12',
+                  notes: 'Extracted automatically from video.'
+                }
+              ]);
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Import error:", err);
+      } finally {
+        setIsProcessing(false);
+        router.replace('/library');
+      }
+    }, 2500);
   };
 
   return (
