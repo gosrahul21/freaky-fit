@@ -13,10 +13,22 @@ export default function PlansScreen() {
   
   const [activePlan, setActivePlan] = React.useState<any>(null);
   const [loading, setLoading] = React.useState(true);
+  const [currentWeek, setCurrentWeek] = React.useState(1);
 
   React.useEffect(() => {
     fetchActivePlan();
   }, []);
+
+  const calculateCurrentWeek = (startDateStr: string, totalWeeks: number) => {
+    if (!startDateStr) return 1;
+    const start = new Date(startDateStr).getTime();
+    const now = new Date().getTime();
+    const diffTime = now - start;
+    if (diffTime < 0) return 1;
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    const week = Math.floor(diffDays / 7) + 1;
+    return Math.min(week, totalWeeks || 4);
+  };
 
   const fetchActivePlan = async () => {
     setLoading(true);
@@ -33,7 +45,10 @@ export default function PlansScreen() {
         .limit(1)
         .single();
       
-      setActivePlan(data);
+      if (data) {
+        setActivePlan(data);
+        setCurrentWeek(calculateCurrentWeek(data.start_date, data.duration_weeks));
+      }
     } catch (err) {
       console.error(err);
     } finally {
@@ -56,7 +71,7 @@ export default function PlansScreen() {
             <View style={s.section}>
               <View style={s.sectionHeader}>
                 <Text style={s.sectionTitle}>Active Plan</Text>
-                <TouchableOpacity>
+                <TouchableOpacity onPress={() => router.push(`/plan/${activePlan.id}`)}>
                   <Text style={s.sectionAction}>Manage</Text>
                 </TouchableOpacity>
               </View>
@@ -68,33 +83,23 @@ export default function PlansScreen() {
                     <Text style={s.activePlanDuration}>{activePlan.duration_weeks} Weeks</Text>
                   </View>
                   <View style={s.progressCircle}>
-                    <Text style={s.progressCircleText}>0%</Text>
+                    <Text style={s.progressCircleText}>{Math.round(((currentWeek - 1) / (activePlan.duration_weeks || 4)) * 100)}%</Text>
                   </View>
                 </View>
 
                 <View style={s.weekProgressBar}>
                   {Array.from({ length: Math.min(12, activePlan.duration_weeks || 4) }).map((_, i) => (
-                    <View key={i} style={[s.weekNode, i === 0 && s.weekNodeActive]} />
+                    <View key={i} style={[
+                      s.weekNode, 
+                      i + 1 < currentWeek && s.weekNodeCompleted,
+                      i + 1 === currentWeek && s.weekNodeActive
+                    ]} />
                   ))}
                 </View>
                 
-                <Text style={s.weekLabel}>Week 1 of {activePlan.duration_weeks}</Text>
+                <Text style={s.weekLabel}>Week {currentWeek} of {activePlan.duration_weeks}</Text>
               </View>
 
-              {/* Next Up */}
-              <Text style={s.subSectionTitle}>Up Next</Text>
-              <TouchableOpacity style={s.nextWorkoutCard} activeOpacity={0.9} onPress={() => router.push('/workout/active')}>
-                <View style={s.nextWorkoutLeft}>
-                  <View style={s.nextWorkoutIconWrapper}>
-                    <CalendarDays size={20} color={colors.accent} />
-                  </View>
-                  <View>
-                    <Text style={s.nextWorkoutDay}>Next Session</Text>
-                    <Text style={s.nextWorkoutTitle}>Start Next Workout</Text>
-                  </View>
-                </View>
-                <ChevronRight size={20} color={colors.textTertiary} />
-              </TouchableOpacity>
             </View>
           ) : (
             <View style={[s.section, { alignItems: 'center', paddingVertical: 20 }]}>

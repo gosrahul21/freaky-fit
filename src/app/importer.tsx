@@ -21,63 +21,57 @@ export default function ImporterScreen() {
     hapticImpactLight();
     setIsProcessing(true);
     
-    // Simulate AI extraction delay
-    setTimeout(async () => {
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          let type = 'url';
-          if (url.includes('instagram')) type = 'instagram';
-          if (url.includes('tiktok')) type = 'tiktok';
-          if (url.includes('youtube') || url.includes('youtu.be')) type = 'youtube';
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
 
-          const { data: workoutData } = await supabase.from('workouts').insert([
-            {
-              user_id: user.id,
-              title: "AI Extracted Workout (Dummy)",
-              description: "This is a mock workout generated from the importer.",
-              is_ai_generated: true,
-              source_type: type,
-              source_url: url,
-              status: 'ready'
-            }
-          ]).select().single();
+      const apiUrl = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000';
+      
+      const response = await fetch(`${apiUrl}/api/extract-workout`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url, user_id: user.id }),
+      });
 
-          if (workoutData) {
-            // Check if we have any exercises, if not create a dummy one
-            let { data: exerciseList } = await supabase.from('exercises').select('id').limit(1);
-            let exerciseId = null;
-
-            if (!exerciseList || exerciseList.length === 0) {
-              const { data: newExercise } = await supabase.from('exercises').insert([
-                { name: 'Dumbbell Curls (AI)', muscle_group: 'Arms', category: 'Dumbbell' }
-              ]).select().single();
-              if (newExercise) exerciseId = newExercise.id;
-            } else {
-              exerciseId = exerciseList[0].id;
-            }
-
-            if (exerciseId) {
-              await supabase.from('workout_exercises').insert([
-                {
-                  workout_id: workoutData.id,
-                  exercise_id: exerciseId,
-                  order_index: 1,
-                  sets: 3,
-                  reps: '10-12',
-                  notes: 'Extracted automatically from video.'
-                }
-              ]);
-            }
-          }
-        }
-      } catch (err) {
-        console.error("Import error:", err);
-      } finally {
-        setIsProcessing(false);
-        router.replace('/library');
+      if (!response.ok) {
+        throw new Error('Failed to start extraction');
       }
-    }, 2500);
+
+      const { job_id } = await response.json();
+
+      // Poll for job status
+      const pollStatus = async () => {
+        try {
+          const statusRes = await fetch(`${apiUrl}/api/job-status/${job_id}`);
+          if (!statusRes.ok) throw new Error('Failed to fetch job status');
+          
+          const statusData = await statusRes.json();
+
+          if (statusData.state === 'completed') {
+            setIsProcessing(false);
+            // Result should contain the inserted workout details
+            router.replace('/library');
+          } else if (statusData.state === 'failed') {
+            throw new Error(statusData.failedReason || 'Extraction failed');
+          } else {
+            // Still processing (waiting, active, etc.)
+            setTimeout(pollStatus, 2000);
+          }
+        } catch (err) {
+          console.error("Polling error:", err);
+          setIsProcessing(false);
+          alert('Error checking extraction status');
+        }
+      };
+
+      // Start polling
+      setTimeout(pollStatus, 2000);
+
+    } catch (err) {
+      console.error("Import error:", err);
+      setIsProcessing(false);
+      alert('Failed to start extraction');
+    }
   };
 
   return (

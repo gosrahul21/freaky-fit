@@ -13,7 +13,7 @@ const FREQUENCIES = [
 ];
 
 export function TrainingFrequency({ onNext, onBack }: { onNext: () => void, onBack: () => void }) {
-  const [selectedFreq, setSelectedFreq] = useState<string>('3-4');
+  const [selectedFreq, setSelectedFreq] = useState<string>('');
 
   const handleSelect = (id: string) => {
     setSelectedFreq(id);
@@ -46,12 +46,7 @@ export function TrainingFrequency({ onNext, onBack }: { onNext: () => void, onBa
         <View style={styles.optionsList}>
           {FREQUENCIES.map((freq) => {
             const isSelected = selectedFreq === freq.id;
-            const handleContinue = async () => {
-    await AsyncStorage.setItem('@onboarding_training_frequency', JSON.stringify(selectedFreq));
-    onNext();
-  };
-
-  return (
+            return (
               <TouchableOpacity
                 key={freq.id}
                 activeOpacity={0.8}

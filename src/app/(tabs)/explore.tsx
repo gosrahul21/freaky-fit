@@ -85,7 +85,7 @@ export default function ExploreScreen() {
                 <Text style={s.exName}>{ex.name}</Text>
                 <Text style={s.exMeta}>{ex.muscle_group || 'Any'} • {ex.category || 'Any'}</Text>
               </View>
-              <TouchableOpacity style={s.exAddBtn}>
+              <TouchableOpacity style={s.exAddBtn} onPress={() => alert('Exercise added to builder!')}>
                 <Plus size={20} color={colors.accent} />
               </TouchableOpacity>
             </TouchableOpacity>

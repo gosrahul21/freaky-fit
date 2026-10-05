@@ -60,7 +60,7 @@ const SOURCES = [
 ];
 
 export function SmartImporter({ onNext, onBack }: { onNext: () => void, onBack: () => void }) {
-  const [selected, setSelected] = useState<string[]>(['social_media', 'websites_blogs']);
+  const [selected, setSelected] = useState<string[]>([]);
 
   const toggleSelection = (id: string) => {
     hapticSelection();

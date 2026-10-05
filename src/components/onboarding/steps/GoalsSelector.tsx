@@ -39,7 +39,7 @@ const GOALS = [
 ];
 
 export function GoalsSelector({ onNext, onBack }: { onNext: () => void, onBack: () => void }) {
-  const [selectedGoal, setSelectedGoal] = useState<string>('build_muscle');
+  const [selectedGoal, setSelectedGoal] = useState<string>('');
 
   const handleContinue = async () => {
     await AsyncStorage.setItem('@onboarding_primary_goal', JSON.stringify(selectedGoal));

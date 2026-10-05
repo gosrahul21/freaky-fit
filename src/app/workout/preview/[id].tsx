@@ -1,15 +1,72 @@
 import { SafeAreaView } from 'react-native-safe-area-context';
 import React from 'react';
-import { useTheme } from '../contexts/ThemeContext';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, StatusBar } from 'react-native';
-import { X, PlayCircle, Plus, LayoutGrid, CheckSquare, ChevronDown, List as ListIcon, Activity } from 'lucide-react-native';
-import { useRouter } from 'expo-router';
+import { useTheme } from '../../../contexts/ThemeContext';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, StatusBar, ActivityIndicator, Modal } from 'react-native';
+import { X, PlayCircle, Plus, LayoutGrid, CheckSquare, ChevronDown, List as ListIcon, Activity, FolderPlus } from 'lucide-react-native';
+import { useRouter, useLocalSearchParams } from 'expo-router';
+import { supabase } from '../../../lib/supabase';
 import Svg, { Path, Ellipse, Circle, Rect, Line, Defs, LinearGradient as SvgLinearGradient, Stop } from 'react-native-svg';
 
 export default function WorkoutDetailsScreen() {
   const { colors } = useTheme();
   const s = makeStyles(colors);
   const router = useRouter();
+  const { id } = useLocalSearchParams();
+  
+  const [workout, setWorkout] = React.useState<any>(null);
+  const [loading, setLoading] = React.useState(true);
+  const [collections, setCollections] = React.useState<any[]>([]);
+  const [showCollectionModal, setShowCollectionModal] = React.useState(false);
+  const [selectedExerciseId, setSelectedExerciseId] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    if (id) fetchWorkout();
+  }, [id]);
+
+  const fetchWorkout = async () => {
+    setLoading(true);
+    const { data: wData } = await supabase
+      .from('workouts')
+      .select('*, workout_exercises(*, exercises(*))')
+      .eq('id', id)
+      .single();
+    if (wData) {
+      // Sort exercises by order_index
+      wData.workout_exercises = (wData.workout_exercises || []).sort((a: any, b: any) => a.order_index - b.order_index);
+      setWorkout(wData);
+    }
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      const { data: cData } = await supabase
+        .from('collections')
+        .select('*')
+        .eq('user_id', user.id);
+      if (cData) setCollections(cData);
+    }
+    setLoading(false);
+  };
+
+  const handleSaveToCollection = async (collectionId: string) => {
+    if (!selectedExerciseId) return;
+    const { error } = await supabase
+      .from('collection_exercises')
+      .insert([{ collection_id: collectionId, workout_exercise_id: selectedExerciseId }]);
+    
+    setShowCollectionModal(false);
+    setSelectedExerciseId(null);
+    if (error && error.code !== '23505') { // Ignore unique violation
+      alert('Failed to save to collection: ' + error.message);
+    }
+  };
+
+  if (loading || !workout) {
+    return (
+      <SafeAreaView style={[s.safeArea, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" color={colors.accent} />
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={s.safeArea}>
@@ -45,16 +102,16 @@ export default function WorkoutDetailsScreen() {
               </View>
 
               <View style={s.heroTextInfo}>
-                <Text style={s.workoutTitle} numberOfLines={2}>Build a Bigger Back: Upper, La...</Text>
+                <Text style={s.workoutTitle} numberOfLines={2}>{workout.title}</Text>
                 <View style={s.metadataRow}>
                   <View style={s.metaBadge}>
                     <ListIcon size={14} color="#374151" strokeWidth={2.5} />
-                    <Text style={s.metaBadgeText}>4 exercises</Text>
+                    <Text style={s.metaBadgeText}>{workout.workout_exercises?.length || 0} exercises</Text>
                   </View>
                   <Text style={s.metaDot}>•</Text>
                   <View style={s.metaBadge}>
                     <PlayCircle size={16} color="#DC2626" />
-                    <Text style={s.metaBadgeText}>YouTube</Text>
+                    <Text style={s.metaBadgeText}>{workout.source_type}</Text>
                   </View>
                 </View>
               </View>
@@ -76,7 +133,7 @@ export default function WorkoutDetailsScreen() {
           <View style={s.section}>
             <Text style={s.sectionHeader}>ABOUT THIS WORKOUT</Text>
             <Text style={s.aboutText}>
-              This workout focuses on comprehensively developing a bigger and stronger back by specifically targeting the upper back, lats, and rhomboids...
+              {workout.description || 'No description available for this workout.'}
             </Text>
             <TouchableOpacity>
               <Text style={s.showMoreText}>Show more</Text>
@@ -165,86 +222,60 @@ export default function WorkoutDetailsScreen() {
               <Text style={s.exerciseCount}>4</Text>
             </View>
 
-            {/* EXERCISE 1 */}
-            <View style={s.exerciseCard}>
-              <View style={s.exerciseCardTop}>
-                <View style={s.exerciseIcon}>
-                  <Svg width={40} height={50} viewBox="0 0 100 120">
-                    <Ellipse cx="50" cy="18" rx="10" ry="12" fill="#e2e8f0" />
-                    <Path d="M44 32 L56 32 L54 42 L46 42 Z" fill="#e2e8f0" />
-                    <Path d="M38 42 C48 38 52 38 62 42 C58 55 42 55 38 42 Z" fill="#7f1d1d" />
-                    <Path d="M26 44 C20 54 22 68 28 72 C32 68 34 56 36 44 Z" fill="#ea580c" />
-                    <Path d="M74 44 C80 54 78 68 72 72 C68 68 66 56 64 44 Z" fill="#ea580c" />
-                    <Path d="M38 44 C45 56 50 75 50 90 C50 75 55 56 62 44 Z" fill="#991b1b" />
-                    <Path d="M34 55 C30 75 36 100 48 105 C48 88 40 68 34 55 Z" fill="#b91c1c" />
-                    <Path d="M66 55 C70 75 64 100 52 105 C52 88 60 68 66 55 Z" fill="#b91c1c" />
-                    <Path d="M22 75 C16 90 18 105 22 115 Z" fill="#e2e8f0" />
-                    <Path d="M78 75 C84 90 82 105 78 115 Z" fill="#e2e8f0" />
-                  </Svg>
-                </View>
-                <View style={s.exerciseDetails}>
-                  <Text style={s.exerciseTitle}>1. Wide Dumbbell Rows</Text>
-                  <View style={s.exerciseStats}>
-                    <Text style={s.statText}>2 sets</Text>
-                    <Text style={s.statText}>10 reps</Text>
+            {workout.workout_exercises?.map((we: any, idx: number) => {
+              const ex = we.exercises;
+              return (
+                <View key={we.id} style={s.exerciseCard}>
+                  <View style={s.exerciseCardTop}>
+                    <View style={s.exerciseIcon}>
+                      <Activity size={24} color="#f97316" />
+                    </View>
+                    <View style={s.exerciseDetails}>
+                      <Text style={s.exerciseTitle}>{idx + 1}. {ex?.name || 'Unknown Exercise'}</Text>
+                      <View style={s.exerciseStats}>
+                        <Text style={s.statText}>{we.sets} sets</Text>
+                        <Text style={s.statText}>{we.reps} reps</Text>
+                      </View>
+                      {(we.timestamp_start || we.timestamp_end) && (
+                        <View style={s.exerciseTime}>
+                          <Text style={s.playIcon}>▶</Text>
+                          <Text style={s.timeText}>{we.timestamp_start}–{we.timestamp_end}</Text>
+                        </View>
+                      )}
+                    </View>
+                    <TouchableOpacity 
+                      style={s.saveExerciseBtn} 
+                      activeOpacity={0.7}
+                      onPress={() => {
+                        setSelectedExerciseId(we.id);
+                        setShowCollectionModal(true);
+                      }}
+                    >
+                      <FolderPlus size={20} color="#9CA3AF" />
+                    </TouchableOpacity>
                   </View>
-                  <View style={s.exerciseTime}>
-                    <Text style={s.playIcon}>▶</Text>
-                    <Text style={s.timeText}>0:05–0:09</Text>
-                  </View>
+                  <Text style={s.exerciseDesc}>{ex?.description || 'No description available.'}</Text>
+                  
+                  {ex?.steps && (
+                    <View style={s.stepsRow}>
+                      <Text style={s.stepsText}>Steps · {Array.isArray(ex.steps) ? ex.steps.length : 1}</Text>
+                      <ChevronDown size={16} color="#9CA3AF" />
+                    </View>
+                  )}
+                  
+                  {ex?.equipment && ex.equipment.length > 0 && (
+                    <View style={s.toolsRow}>
+                      <Text style={s.toolsTitle}>TOOLS</Text>
+                      <View style={s.toolTags}>
+                        {ex.equipment.map((eq: string, i: number) => (
+                          <View key={i} style={s.toolTag}><Text style={s.toolTagText}>{eq}</Text></View>
+                        ))}
+                      </View>
+                    </View>
+                  )}
                 </View>
-              </View>
-              <Text style={s.exerciseDesc}>A dumbbell row variation targeting the upper back, emphasizing a wider pull.</Text>
-              <View style={s.stepsRow}>
-                <Text style={s.stepsText}>Steps · 4</Text>
-                <ChevronDown size={16} color="#9CA3AF" />
-              </View>
-              <View style={s.toolsRow}>
-                <Text style={s.toolsTitle}>TOOLS</Text>
-                <View style={s.toolTags}>
-                  <View style={s.toolTag}><Text style={s.toolTagText}>Dumbbell</Text></View>
-                  <View style={s.toolTag}><Text style={s.toolTagText}>Flat Bench</Text></View>
-                </View>
-              </View>
-            </View>
-
-            {/* EXERCISE 2 */}
-            <View style={s.exerciseCard}>
-              <View style={s.exerciseCardTop}>
-                <View style={s.exerciseIcon}>
-                  <Svg width={40} height={50} viewBox="0 0 100 120">
-                    <Ellipse cx="50" cy="18" rx="10" ry="12" fill="#e2e8f0" />
-                    <Path d="M44 32 L56 32 L54 42 L46 42 Z" fill="#e2e8f0" />
-                    <Path d="M38 42 C48 38 52 38 62 42 C58 55 42 55 38 42 Z" fill="#991b1b" />
-                    <Path d="M34 55 C30 75 36 100 48 105 C48 88 40 68 34 55 Z" fill="#ea580c" />
-                    <Path d="M66 55 C70 75 64 100 52 105 C52 88 60 68 66 55 Z" fill="#f97316" />
-                  </Svg>
-                </View>
-                <View style={s.exerciseDetails}>
-                  <Text style={s.exerciseTitle}>2. Meadows Row</Text>
-                  <View style={s.exerciseStats}>
-                    <Text style={s.statText}>2 sets</Text>
-                    <Text style={s.statText}>10 reps</Text>
-                  </View>
-                  <View style={s.exerciseTime}>
-                    <Text style={s.playIcon}>▶</Text>
-                    <Text style={s.timeText}>0:09–0:11</Text>
-                  </View>
-                </View>
-              </View>
-              <Text style={s.exerciseDesc}>A single-arm barbell row variation, typically performed with a landmine attachment.</Text>
-              <View style={s.stepsRow}>
-                <Text style={s.stepsText}>Steps · 4</Text>
-                <ChevronDown size={16} color="#9CA3AF" />
-              </View>
-              <View style={s.toolsRow}>
-                <Text style={s.toolsTitle}>TOOLS</Text>
-                <View style={s.toolTags}>
-                  <View style={s.toolTag}><Text style={s.toolTagText}>Barbell</Text></View>
-                  <View style={s.toolTag}><Text style={s.toolTagText}>Weight Plates</Text></View>
-                </View>
-              </View>
-            </View>
+              );
+            })}
 
             {/* Extra padding for bottom nav */}
             <View style={{ height: 40 }} />
@@ -260,11 +291,47 @@ export default function WorkoutDetailsScreen() {
         </View>
 
       </View>
+
+      <Modal
+        visible={showCollectionModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowCollectionModal(false)}
+      >
+        <TouchableOpacity style={s.modalBackdrop} activeOpacity={1} onPress={() => setShowCollectionModal(false)}>
+          <TouchableOpacity style={s.modalContent} activeOpacity={1}>
+            <View style={s.modalHeader}>
+              <Text style={s.modalTitle}>Save to Collection</Text>
+              <TouchableOpacity onPress={() => setShowCollectionModal(false)}>
+                <X size={20} color="#9CA3AF" />
+              </TouchableOpacity>
+            </View>
+            
+            <ScrollView style={s.collectionList}>
+              {collections.length === 0 ? (
+                <Text style={s.emptyCollectionText}>No collections found. Create one in your library first!</Text>
+              ) : (
+                collections.map((c) => (
+                  <TouchableOpacity 
+                    key={c.id} 
+                    style={s.collectionRow} 
+                    onPress={() => handleSaveToCollection(c.id)}
+                  >
+                    <FolderPlus size={20} color="#f97316" />
+                    <Text style={s.collectionName}>{c.title}</Text>
+                  </TouchableOpacity>
+                ))
+              )}
+            </ScrollView>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
+
     </SafeAreaView>
   );
 }
 
-const makeStyles = (colors: ReturnType<typeof import("../contexts/ThemeContext").useTheme>["colors"]) => StyleSheet.create({
+const makeStyles = (colors: ReturnType<typeof import("../../../contexts/ThemeContext").useTheme>["colors"]) => StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: colors.card,
@@ -584,5 +651,55 @@ const makeStyles = (colors: ReturnType<typeof import("../contexts/ThemeContext")
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '700',
+  },
+  saveExerciseBtn: {
+    padding: 8,
+    backgroundColor: '#F3F4F6',
+    borderRadius: 8,
+    marginLeft: 8,
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+    maxHeight: '60%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#111827',
+  },
+  collectionList: {
+    marginBottom: 20,
+  },
+  collectionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+    gap: 12,
+  },
+  collectionName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#374151',
+  },
+  emptyCollectionText: {
+    color: '#9CA3AF',
+    textAlign: 'center',
+    marginTop: 20,
   }
 });

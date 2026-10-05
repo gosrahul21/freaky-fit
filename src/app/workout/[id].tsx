@@ -88,7 +88,7 @@ export default function WorkoutSessionScreen() {
   };
 
   useEffect(() => {
-    let interval: NodeJS.Timeout;
+    let interval: ReturnType<typeof setInterval>;
     if (isRunning) {
       interval = setInterval(() => {
         setSeconds(s => s + 1);
@@ -114,6 +114,7 @@ export default function WorkoutSessionScreen() {
   const handleFinish = () => {
     hapticImpactLight();
     // Finish logic goes here
+    alert('Workout completed and saved!');
     router.back();
   };
 

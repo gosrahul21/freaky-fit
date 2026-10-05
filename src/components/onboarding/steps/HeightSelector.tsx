@@ -131,12 +131,7 @@ export function HeightSelector({ onNext, onBack }: { onNext: () => void, onBack:
                   const currentTickHeight = MAX_HEIGHT - i;
                   const isMajor = currentTickHeight % 10 === 0;
                   const isMid = currentTickHeight % 5 === 0 && !isMajor;
-                  const handleContinue = async () => {
-    await AsyncStorage.setItem('@onboarding_height_cm', JSON.stringify(heightCm));
-    onNext();
-  };
-
-  return (
+                  return (
                     <View key={i} style={styles.tickContainer}>
                       <Text style={isMajor ? styles.tickLabel : styles.tickLabelHidden}>
                         {currentTickHeight}

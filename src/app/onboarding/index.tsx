@@ -39,7 +39,7 @@ export default function OnboardingScreen() {
   const renderStep = () => {
     switch (currentStep) {
       case 1:
-        return <SocialProof onNext={handleNext} />;
+        return <SocialProof onNext={handleNext} onBack={handleBack} />;
       case 2:
         return <SmartImporter onNext={handleNext} onBack={handleBack} />;
       case 3:

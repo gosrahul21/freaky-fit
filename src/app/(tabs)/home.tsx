@@ -16,6 +16,19 @@ export default function HomeScreen() {
   const [profile, setProfile] = useState<any>(null);
   const [activePlan, setActivePlan] = useState<any>(null);
 
+  const getWeekDates = () => {
+    const dates = [];
+    const today = new Date();
+    const currentDayIndex = today.getDay() === 0 ? 6 : today.getDay() - 1; // Mon = 0, Sun = 6
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(today);
+      d.setDate(today.getDate() - currentDayIndex + i);
+      dates.push(d);
+    }
+    return { dates, currentDayIndex };
+  };
+  const { dates: weekDates, currentDayIndex } = getWeekDates();
+
   React.useEffect(() => {
     fetchHomeData();
   }, []);
@@ -84,8 +97,8 @@ export default function HomeScreen() {
                   <Text style={s.activePlanExerciseText}>Your next session is ready.</Text>
                 </View>
                 
-                <TouchableOpacity style={s.activePlanBtn} activeOpacity={0.8} onPress={() => router.push('/workout/active')}>
-                  <Text style={s.activePlanBtnText}>START NEXT WORKOUT</Text>
+                <TouchableOpacity style={s.activePlanBtn} activeOpacity={0.8} onPress={() => router.push(`/plan/${activePlan.id}`)}>
+                  <Text style={s.activePlanBtnText}>VIEW PLAN</Text>
                 </TouchableOpacity>
               </>
             ) : (
@@ -109,8 +122,8 @@ export default function HomeScreen() {
           {/* Calendar Strip */}
           <View style={s.calendarStrip}>
             {['M','T','W','T','F','S','S'].map((day, i) => {
-              const isToday = i === 6;
-              const date = 21 + i;
+              const isToday = i === currentDayIndex;
+              const date = weekDates[i].getDate();
               return (
                 <TouchableOpacity key={i} style={s.calendarDay}>
                   {isToday ? (
@@ -145,7 +158,7 @@ export default function HomeScreen() {
               contentContainerStyle={s.recentScrollContent}
             >
               {/* Card 1: Import */}
-              <TouchableOpacity style={s.recentCard} activeOpacity={0.9} onPress={() => router.push('/workout-details')}>
+              <TouchableOpacity style={s.recentCard} activeOpacity={0.9} onPress={() => router.push('/importer')}>
                 <View style={[s.recentCardImage, { backgroundColor: colors.skeleton }]}>
                   <View style={s.importCardVisual}>
                     <View style={s.importPlusBtn}>
@@ -158,7 +171,7 @@ export default function HomeScreen() {
               </TouchableOpacity>
               
               {/* Card 2 */}
-              <TouchableOpacity style={s.recentCard} activeOpacity={0.9} onPress={() => router.push('/workout-details')}>
+              <TouchableOpacity style={s.recentCard} activeOpacity={0.9} onPress={() => router.push('/workout/preview/mock')}>
                 <View style={s.recentCardImage}>
                   <Text style={s.recentCardIconText}>💪</Text>
                   <Text style={s.recentCardTag}>BACK & PULL</Text>
@@ -168,7 +181,7 @@ export default function HomeScreen() {
               </TouchableOpacity>
               
               {/* Card 3 */}
-              <TouchableOpacity style={s.recentCard} activeOpacity={0.9} onPress={() => router.push('/workout-details')}>
+              <TouchableOpacity style={s.recentCard} activeOpacity={0.9} onPress={() => router.push('/workout/preview/mock')}>
                 <View style={s.recentCardImage}>
                   <Text style={s.recentCardIconText}>🔥</Text>
                   <Text style={s.recentCardTag}>HYPERTROPHY</Text>
@@ -179,114 +192,12 @@ export default function HomeScreen() {
             </ScrollView>
           </View>
 
-          {/* Progress Section */}
-          <View style={s.section}>
-            <View style={s.sectionHeader}>
-              <Text style={s.sectionTitle}>Progress</Text>
-            </View>
-            
-            <View style={s.progressGrid}>
-              <TouchableOpacity style={s.progressCard} activeOpacity={0.9}>
-                <View style={s.progressCardVisual}>
-                  <Camera size={24} color={colors.textSecondary} />
-                </View>
-                <Text style={s.progressCardTitle}>Progress Gallery</Text>
-              </TouchableOpacity>
 
-              <TouchableOpacity style={s.progressCard} activeOpacity={0.9}>
-                <View style={[s.progressCardVisual, { justifyContent: 'center' }]}>
-                  <View style={s.scaleIconRow}>
-                    <View style={s.scaleIconWrapper}>
-                      <Scale size={16} color={colors.textPrimary} />
-                    </View>
-                    <View style={s.trendDotWrapper}>
-                      <View style={s.trendDot} />
-                    </View>
-                  </View>
-                  <Text style={s.progressCardHint}>Log your weight to see a trend</Text>
-                </View>
-              </TouchableOpacity>
-            </View>
-          </View>
 
-          {/* Today / Active Routine Section */}
-          <View style={s.section}>
-            <View style={s.todayHeader}>
-              <View style={s.todayHeaderLeft}>
-                <Text style={s.todayTitle}>TODAY</Text>
-                <ChevronRight size={20} color={colors.textSecondary} />
-                <Text style={s.todayDate}>Sep 27</Text>
-              </View>
-              <TouchableOpacity style={s.calendarBtn}>
-                <CalendarDays size={16} color={colors.textSecondary} />
-              </TouchableOpacity>
-            </View>
 
-            <View style={s.activeRoutineCard}>
-              <View style={s.activeRoutineHeader}>
-                <View style={s.activeRoutineTags}>
-                  <View style={s.tagBadge}>
-                    <Text style={s.tagBadgeText}>LEGS & CORE</Text>
-                  </View>
-                  <Text style={s.routineDuration}>50 mins</Text>
-                </View>
-                <TouchableOpacity>
-                  <MoreHorizontal size={20} color={colors.textTertiary} />
-                </TouchableOpacity>
-              </View>
-              
-              <Text style={s.routineTitle}>Hypertrophy Lower Quad Focus</Text>
-              <Text style={s.routineDesc}>Barbell Squats, Romanian Deadlifts, Bulgarian Split Squats</Text>
-              
-              <TouchableOpacity style={s.startSessionFooter} activeOpacity={0.8} onPress={() => router.push('/workout/active')}>
-                <View style={s.avatarStack}>
-                  <View style={s.miniAvatar}><Text style={s.miniAvatarText}>1</Text></View>
-                  <View style={[s.miniAvatar, { marginLeft: -8 }]}><Text style={s.miniAvatarText}>2</Text></View>
-                  <View style={[s.miniAvatar, { marginLeft: -8 }]}><Text style={s.miniAvatarText}>3</Text></View>
-                </View>
-                <View style={s.startBtnContent}>
-                  <Text style={s.startBtnText}>Start Session</Text>
-                  <ChevronRight size={16} color={colors.accent} />
-                </View>
-              </TouchableOpacity>
-            </View>
-
-          </View>
         </ScrollView>
 
-        {/* Feedback Tour Tooltip Modal */}
-        {showFeedbackTour && (
-          <View style={s.feedbackTooltip}>
-            <View style={s.tooltipTopRow}>
-              <View style={s.tooltipLeft}>
-                <View style={s.tooltipIconBadge}>
-                  <MessageSquare size={20} color={colors.textPrimary} />
-                </View>
-                <View style={s.tooltipTextContent}>
-                  <Text style={s.tooltipTitle}>Share your feedback</Text>
-                  <Text style={s.tooltipDesc}>
-                    Found a bug or have an idea? Tap here anytime — you can also drag the button anywhere.
-                  </Text>
-                </View>
-              </View>
-              <TouchableOpacity style={s.tooltipCloseBtn} onPress={() => setShowFeedbackTour(false)}>
-                <X size={16} color={colors.textSecondary} strokeWidth={2.5} />
-              </TouchableOpacity>
-            </View>
-            
-            <View style={s.tooltipBottomRow}>
-              <Text style={s.tooltipStepText}>1 of 3</Text>
-              <TouchableOpacity onPress={() => setShowFeedbackTour(false)}>
-                <Text style={s.tooltipNextText}>Next</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        )}
 
-        {/* Floating Feedback Button */}
-        <TouchableOpacity style={s.feedbackFloatBtn} activeOpacity={0.9} onPress={() => setShowFeedbackTour(true)}>
-          <Text style={s.feedbackFloatText}>Feedback</Text>
-        </TouchableOpacity>
 
         </View>
     </SafeAreaView>

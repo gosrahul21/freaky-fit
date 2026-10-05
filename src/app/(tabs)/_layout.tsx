@@ -88,7 +88,7 @@ export default function TabsLayout() {
               </TouchableOpacity>
 
               {/* Option 2 */}
-              <TouchableOpacity style={s.sheetOption} activeOpacity={0.7} onPress={() => setShowAddModal(false)}>
+              <TouchableOpacity style={s.sheetOption} activeOpacity={0.7} onPress={() => { setShowAddModal(false); router.push({ pathname: '/library', params: { action: 'create_collection' } }); }}>
                 <View style={s.sheetOptionIcon}>
                   <FolderPlus size={24} color={colors.textPrimary} strokeWidth={2} />
                 </View>

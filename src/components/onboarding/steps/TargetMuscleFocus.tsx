@@ -16,7 +16,7 @@ const MUSCLES = [
 ];
 
 export function TargetMuscleFocus({ onNext, onBack }: { onNext: () => void, onBack: () => void }) {
-  const [selected, setSelected] = useState<string[]>(['chest', 'shoulders']);
+  const [selected, setSelected] = useState<string[]>([]);
   const [viewAngle, setViewAngle] = useState<'front' | 'back'>('front');
 
   const toggleSelection = (id: string) => {
@@ -74,12 +74,7 @@ export function TargetMuscleFocus({ onNext, onBack }: { onNext: () => void, onBa
           <View style={styles.optionsCol}>
             {MUSCLES.map((muscle) => {
               const isSelected = selected.includes(muscle.id);
-              const handleContinue = async () => {
-    await AsyncStorage.setItem('@onboarding_target_muscles', JSON.stringify(selected));
-    onNext();
-  };
-
-  return (
+              return (
                 <TouchableOpacity
                   key={muscle.id}
                   activeOpacity={0.8}
@@ -103,7 +98,7 @@ export function TargetMuscleFocus({ onNext, onBack }: { onNext: () => void, onBa
           <View style={styles.graphicCol}>
             <View style={styles.graphicGlow} />
             <Image
-              source={{ uri: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDFdK7-60U8XvNqM0x9tVwX8k-G65-xG_J_E93k41t2Z9D-X7Hw5U6H1h4c29m1K1X0l1oQvH5D-k4s0q9E65w3v1sO8h8J_T2F7D6e5f1W6o8oO1q5e3k8d_x4v2e6p3H1y4t9a5s8d2H1_u2u2_j3D9K1g1O9I2x5R_G4o9T7x4E' }} 
+              source={viewAngle === 'front' ? require('../../../../assets/images/anterior_anatomy.jpg') : require('../../../../assets/images/posterior_anatomy.jpg')} 
               style={styles.anatomyImage}
               resizeMode="contain"
             />
@@ -115,7 +110,7 @@ export function TargetMuscleFocus({ onNext, onBack }: { onNext: () => void, onBa
         </View>
       </ScrollView>
 
-      <ContinueButton onPress={handleContinue} title={`Continue (${selected.length} selected)`} />
+      <ContinueButton onPress={handleContinue} label={`Continue (${selected.length} selected)`} />
     </View>
   );
 }

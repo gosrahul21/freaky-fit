@@ -12,7 +12,6 @@ export default function PlanBuilderScreen() {
   const router = useRouter();
 
   const [title, setTitle] = useState('');
-  const [weeks, setWeeks] = useState('4');
   const [loading, setLoading] = useState(false);
 
   const handleCreate = async () => {
@@ -24,15 +23,21 @@ export default function PlanBuilderScreen() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      const duration = parseInt(weeks) || 4;
+      // 1. Deactivate any existing active plans for this user
+      await supabase
+        .from('planner')
+        .update({ status: 'inactive' })
+        .eq('user_id', user.id)
+        .eq('status', 'active');
 
+      // 2. Insert the new active plan
       const { data, error } = await supabase
         .from('planner')
         .insert([
           {
             user_id: user.id,
             title: title.trim(),
-            duration_weeks: duration,
+            start_date: new Date().toISOString().split('T')[0],
             status: 'active'
           }
         ])
@@ -80,16 +85,6 @@ export default function PlanBuilderScreen() {
               autoFocus
             />
 
-            <Text style={[s.label, { marginTop: 24 }]}>Duration (Weeks)</Text>
-            <TextInput
-              style={s.input}
-              placeholder="4"
-              placeholderTextColor={colors.textTertiary}
-              value={weeks}
-              onChangeText={setWeeks}
-              keyboardType="number-pad"
-              maxLength={2}
-            />
           </View>
         </View>
 

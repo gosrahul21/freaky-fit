@@ -113,12 +113,7 @@ export function WeightCalibration({ onNext, onBack }: { onNext: () => void, onBa
             {Array.from({ length: TOTAL_TICKS }).map((_, i) => {
               const currentTick = MIN_KG + i;
               const isMajor = currentTick % 5 === 0;
-              const handleContinue = async () => {
-    await AsyncStorage.setItem('@onboarding_weight_kg', JSON.stringify(weight));
-    onNext();
-  };
-
-  return (
+              return (
                 <View key={i} style={styles.tickContainer}>
                   <View style={[styles.tickLine, isMajor ? styles.tickMajor : styles.tickMinor]} />
                   {isMajor ? (

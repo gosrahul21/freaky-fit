@@ -13,7 +13,7 @@ const GENDERS = [
 ];
 
 export function GenderSelector({ onNext, onBack }: { onNext: () => void, onBack: () => void }) {
-  const [selectedGender, setSelectedGender] = useState<string>('private');
+  const [selectedGender, setSelectedGender] = useState<string>('');
 
   const handleContinue = async () => {
     await AsyncStorage.setItem('@onboarding_gender', JSON.stringify(selectedGender));

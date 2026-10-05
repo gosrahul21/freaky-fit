@@ -79,7 +79,7 @@ export default function SettingsScreen() {
             <Text style={s.profileName}>{userName || 'Guest User'}</Text>
             <Text style={s.profileEmail}>{userEmail || 'Not logged in'}</Text>
           </View>
-          <TouchableOpacity style={s.editProfileBtn}>
+          <TouchableOpacity style={s.editProfileBtn} onPress={() => Alert.alert('Edit Profile', 'Profile editing coming soon!')}>
             <Text style={s.editProfileText}>Edit</Text>
           </TouchableOpacity>
         </View>
@@ -118,7 +118,13 @@ export default function SettingsScreen() {
         <View style={s.section}>
           <Text style={s.sectionLabel}>NOTIFICATIONS</Text>
           <View style={s.settingsCard}>
-            <TouchableOpacity style={s.settingsRow}>
+            <TouchableOpacity style={s.settingsRow} onPress={async () => {
+              const { registerForPushNotificationsAsync } = await import('../utils/notifications');
+              const token = await registerForPushNotificationsAsync();
+              if (token) {
+                Alert.alert('Success', 'Push notifications enabled!');
+              }
+            }}>
               <View style={s.settingsRowLeft}>
                 <View style={[s.iconBadge, { backgroundColor: '#1a2a1a' }]}>
                   <Bell size={18} color={colors.success} />
@@ -137,7 +143,7 @@ export default function SettingsScreen() {
         <View style={s.section}>
           <Text style={s.sectionLabel}>ACCOUNT</Text>
           <View style={s.settingsCard}>
-            <TouchableOpacity style={s.settingsRow}>
+            <TouchableOpacity style={s.settingsRow} onPress={() => Alert.alert('Privacy', 'Opening privacy policy...')}>
               <View style={s.settingsRowLeft}>
                 <View style={[s.iconBadge, { backgroundColor: '#1a1a2a' }]}>
                   <Shield size={18} color="#818CF8" />

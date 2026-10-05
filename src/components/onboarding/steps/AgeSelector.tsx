@@ -84,12 +84,7 @@ export function AgeSelector({ onNext, onBack }: { onNext: () => void, onBack: ()
               {Array.from({ length: TOTAL_TICKS }).map((_, i) => {
                 const currentTickAge = MIN_AGE + i;
                 const isMajor = currentTickAge % 5 === 0;
-                const handleContinue = async () => {
-    await AsyncStorage.setItem('@onboarding_age', JSON.stringify(age));
-    onNext();
-  };
-
-  return (
+                return (
                   <View key={i} style={styles.tickContainer}>
                     <View style={[styles.tickLine, isMajor ? styles.tickMajor : styles.tickMinor]} />
                     {isMajor ? (

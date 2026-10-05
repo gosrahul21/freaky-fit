@@ -5,7 +5,7 @@ import { Star } from 'lucide-react-native';
 import { Header } from '../Header';
 import { ContinueButton } from '../ContinueButton';
 
-export function SocialProof({ onNext }: { onNext: () => void }) {
+export function SocialProof({ onNext, onBack }: { onNext: () => void, onBack: () => void }) {
   const renderStars = () => (
     <View style={styles.starsContainer}>
       {[1, 2, 3, 4, 5].map((i) => (
@@ -16,7 +16,7 @@ export function SocialProof({ onNext }: { onNext: () => void }) {
 
   return (
     <View style={styles.container}>
-      <Header currentStep={1} showBack={false} />
+      <Header currentStep={1} showBack={true} onBack={onBack} />
       
       <ScrollView 
         style={styles.scrollView}
