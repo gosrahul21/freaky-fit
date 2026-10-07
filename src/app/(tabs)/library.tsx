@@ -1,8 +1,8 @@
 import { SafeAreaView } from 'react-native-safe-area-context';
 import React, { useState } from 'react';
 import { useTheme } from '../../contexts/ThemeContext';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, Modal, TextInput, Alert } from 'react-native';
-import { Search, Plus, Home as HomeIcon, Bookmark, User, CalendarDays, List, Edit3, ChevronRight, FolderPlus, Download, Zap, MessageSquare, Flame, Compass, X, Trash2 } from 'lucide-react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, Modal, TextInput, Alert, Image } from 'react-native';
+import { Search, Plus, Home as HomeIcon, Bookmark, User, CalendarDays, List, Edit3, ChevronRight, FolderPlus, Download, Zap, MessageSquare, Flame, Compass, X, Trash2, PlaySquare, Camera, Smartphone } from 'lucide-react-native';
 import { useRouter, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { supabase } from '../../lib/supabase';
 
@@ -200,22 +200,46 @@ export default function LibraryScreen() {
           {activeTab === 'workouts' && (
             filteredWorkouts.length > 0 ? (
               <View style={{ gap: 12 }}>
-                {filteredWorkouts.map(w => (
-                  <TouchableOpacity 
-                    key={w.id} 
-                    style={s.folderRow} 
-                    activeOpacity={0.8} 
-                    onPress={() => !isEditMode && router.push(`/workout/${w.id}`)}
-                  >
-                    <View style={s.folderRowLeft}>
-                      <View style={s.folderIconBadge}>
-                        <Zap size={20} color={colors.accent} fill={colors.accent} />
+                {filteredWorkouts.map(w => {
+                  let PlatformIcon = Zap;
+                  let iconColor = colors.accent;
+                  
+                  if (w.source_url?.includes('youtube.com') || w.source_url?.includes('youtu.be')) {
+                    PlatformIcon = PlaySquare;
+                    iconColor = '#FF0000'; // YouTube Red
+                  } else if (w.source_url?.includes('instagram.com')) {
+                    PlatformIcon = Camera;
+                    iconColor = '#E1306C'; // Instagram Pink
+                  } else if (w.source_url?.includes('tiktok.com')) {
+                    PlatformIcon = Smartphone;
+                    iconColor = '#000000'; // TikTok Black (or white in dark mode, but let's use textPrimary)
+                  }
+
+                  return (
+                    <TouchableOpacity 
+                      key={w.id} 
+                      style={s.folderRow} 
+                      activeOpacity={0.8} 
+                      onPress={() => !isEditMode && router.push(`/workout/${w.id}`)}
+                    >
+                      <View style={s.folderRowLeft}>
+                        {w.thumbnail_url ? (
+                          <View style={{ position: 'relative', marginRight: 16 }}>
+                            <Image source={{ uri: w.thumbnail_url }} style={[s.workoutThumbnail, { marginRight: 0 }]} />
+                            <View style={[s.platformBadgeOverlay, { backgroundColor: iconColor }]}>
+                              <PlatformIcon size={10} color="#FFFFFF" />
+                            </View>
+                          </View>
+                        ) : (
+                          <View style={[s.folderIconBadge, { backgroundColor: `${iconColor}15` }]}>
+                            <PlatformIcon size={20} color={w.source_url?.includes('tiktok.com') ? colors.textPrimary : iconColor} />
+                          </View>
+                        )}
+                        <View style={{flex: 1}}>
+                          <Text style={s.folderName} numberOfLines={1}>{w.title}</Text>
+                          <Text style={s.folderDesc}>{w.source_type || 'Custom Workout'}</Text>
+                        </View>
                       </View>
-                      <View>
-                        <Text style={s.folderName}>{w.title}</Text>
-                        <Text style={s.folderDesc}>{w.source_type}</Text>
-                      </View>
-                    </View>
                     {isEditMode ? (
                       <TouchableOpacity onPress={() => handleDelete(w.id, 'workout')} style={{padding: 8}}>
                         <Trash2 size={20} color="#ef4444" />
@@ -224,7 +248,8 @@ export default function LibraryScreen() {
                       <ChevronRight size={20} color="#9CA3AF" />
                     )}
                   </TouchableOpacity>
-                ))}
+                  );
+                })}
               </View>
             ) : (
               <View style={s.centeredState}>
@@ -644,6 +669,25 @@ const makeStyles = (colors: ReturnType<typeof import("../../contexts/ThemeContex
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
+    flex: 1,
+  },
+  workoutThumbnail: {
+    width: 40,
+    height: 40,
+    borderRadius: 8,
+    backgroundColor: colors.skeleton,
+  },
+  platformBadgeOverlay: {
+    position: 'absolute',
+    bottom: -4,
+    right: -4,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: colors.card,
   },
   folderIconBadge: {
     width: 40,

@@ -1,9 +1,10 @@
 import { SafeAreaView } from 'react-native-safe-area-context';
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions } from 'react-native';
 import { Flame, Trophy, TrendingUp, Calendar, CalendarDays, Home as HomeIcon, Bookmark, Plus, Activity, Compass } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { useTheme } from '../../contexts/ThemeContext';
+import { supabase } from '../../lib/supabase';
 
 const { width } = Dimensions.get('window');
 
@@ -12,11 +13,96 @@ export default function StreaksScreen() {
   const s = makeStyles(colors);
   const router = useRouter();
 
-  // Mock heatmap data (30 days)
-  const heatmapData = Array.from({ length: 30 }, (_, i) => ({
-    date: i + 1,
-    intensity: Math.random() > 0.4 ? Math.floor(Math.random() * 3) + 1 : 0, // 0 to 3
-  }));
+  const [logs, setLogs] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  React.useEffect(() => {
+    fetchLogs();
+  }, []);
+
+  const fetchLogs = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      
+      const { data, error } = await supabase
+        .from('workout_logs')
+        .select('*')
+        .eq('user_id', user.id)
+        .not('completed_at', 'is', null)
+        .order('completed_at', { ascending: false });
+        
+      if (error) throw error;
+      setLogs(data || []);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Calculations
+  const formatYMD = (date: Date) => {
+    const offset = date.getTimezoneOffset();
+    const localDate = new Date(date.getTime() - (offset * 60 * 1000));
+    return localDate.toISOString().split('T')[0];
+  };
+  const logDates = logs.map(log => formatYMD(new Date(log.completed_at)));
+  const uniqueLogDates = Array.from(new Set(logDates)); // Already sorted descending
+
+  // 1. Current Streak
+  let currentStreak = 0;
+  let d = new Date();
+  if (!uniqueLogDates.includes(formatYMD(d))) {
+    d.setDate(d.getDate() - 1); // shift to yesterday if no workout today
+  }
+  while (uniqueLogDates.includes(formatYMD(d))) {
+    currentStreak++;
+    d.setDate(d.getDate() - 1);
+  }
+
+  // 2. Best Streak
+  let bestStreak = 0;
+  if (uniqueLogDates.length > 0) {
+    let currentBest = 1;
+    bestStreak = 1;
+    for (let i = 0; i < uniqueLogDates.length - 1; i++) {
+      const d1 = new Date(uniqueLogDates[i]);
+      const d2 = new Date(uniqueLogDates[i + 1]);
+      const diffTime = Math.abs(d1.getTime() - d2.getTime());
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+      if (diffDays === 1) {
+        currentBest++;
+        if (currentBest > bestStreak) bestStreak = currentBest;
+      } else {
+        currentBest = 1;
+      }
+    }
+  }
+
+  // 3. Consistency (last 30 days)
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+  const activeDaysInLast30 = uniqueLogDates.filter(dateStr => new Date(dateStr) >= thirtyDaysAgo).length;
+  const consistency = Math.round((activeDaysInLast30 / 30) * 100);
+
+  // 4. Heatmap Data (Last 30 days up to today)
+  const heatmapData = Array.from({ length: 30 }, (_, i) => {
+    const targetDate = new Date();
+    targetDate.setDate(targetDate.getDate() - (29 - i));
+    const ymd = formatYMD(targetDate);
+    
+    const logsOnDay = logDates.filter(dateStr => dateStr === ymd).length;
+    let intensity = 0;
+    if (logsOnDay === 1) intensity = 1;
+    else if (logsOnDay === 2) intensity = 2;
+    else if (logsOnDay >= 3) intensity = 3;
+    
+    return {
+      date: targetDate.getDate(),
+      intensity
+    };
+  });
 
   return (
     <SafeAreaView style={[s.safeArea, { backgroundColor: colors.background }]}>
@@ -34,20 +120,22 @@ export default function StreaksScreen() {
             <View style={s.streakIconWrapper}>
               <Flame size={48} color="#ff5e00" fill="#ff5e00" />
             </View>
-            <Text style={s.streakNumber}>14<Text style={s.streakSuffix}> Days</Text></Text>
-            <Text style={s.streakSubtitle}>You're on fire! Keep it going.</Text>
+            <Text style={s.streakNumber}>{currentStreak}<Text style={s.streakSuffix}> Days</Text></Text>
+            <Text style={s.streakSubtitle}>
+              {currentStreak > 0 ? "You're on fire! Keep it going." : "Start your streak today!"}
+            </Text>
           </View>
 
           {/* Stat Row */}
           <View style={s.statsRow}>
             <View style={s.statBox}>
               <Trophy size={20} color={colors.accent} />
-              <Text style={s.statValue}>21</Text>
+              <Text style={s.statValue}>{bestStreak}</Text>
               <Text style={s.statLabel}>Best Streak</Text>
             </View>
             <View style={s.statBox}>
               <Activity size={20} color={colors.success} />
-              <Text style={s.statValue}>85%</Text>
+              <Text style={s.statValue}>{consistency}%</Text>
               <Text style={s.statLabel}>Consistency</Text>
             </View>
           </View>
@@ -86,25 +174,35 @@ export default function StreaksScreen() {
           <View style={s.section}>
             <Text style={s.sectionTitle}>Milestones</Text>
             
-            <View style={s.milestoneRow}>
-              <View style={[s.milestoneIcon, { backgroundColor: 'rgba(255, 94, 0, 0.15)' }]}>
-                <Flame size={20} color={colors.accent} />
+            {logs.length > 0 ? (
+              <>
+                <View style={s.milestoneRow}>
+                  <View style={[s.milestoneIcon, { backgroundColor: 'rgba(255, 94, 0, 0.15)' }]}>
+                    <Flame size={20} color={colors.accent} />
+                  </View>
+                  <View style={s.milestoneTextContainer}>
+                    <Text style={s.milestoneTitle}>
+                      {bestStreak >= 10 ? '10+ Day Streak' : `${bestStreak} Day Best Streak`}
+                    </Text>
+                    <Text style={s.milestoneDesc}>Personal Record</Text>
+                  </View>
+                </View>
+                
+                <View style={s.milestoneRow}>
+                  <View style={[s.milestoneIcon, { backgroundColor: 'rgba(34, 197, 94, 0.15)' }]}>
+                    <TrendingUp size={20} color={colors.success} />
+                  </View>
+                  <View style={s.milestoneTextContainer}>
+                    <Text style={s.milestoneTitle}>{logs.length} Workouts Total</Text>
+                    <Text style={s.milestoneDesc}>Since {formatYMD(new Date(logs[logs.length-1].completed_at))}</Text>
+                  </View>
+                </View>
+              </>
+            ) : (
+              <View style={[s.milestoneRow, { justifyContent: 'center' }]}>
+                <Text style={{color: colors.textSecondary}}>Complete workouts to unlock milestones!</Text>
               </View>
-              <View style={s.milestoneTextContainer}>
-                <Text style={s.milestoneTitle}>10 Day Streak</Text>
-                <Text style={s.milestoneDesc}>Achieved on Sep 26, 2026</Text>
-              </View>
-            </View>
-            
-            <View style={s.milestoneRow}>
-              <View style={[s.milestoneIcon, { backgroundColor: 'rgba(34, 197, 94, 0.15)' }]}>
-                <TrendingUp size={20} color={colors.success} />
-              </View>
-              <View style={s.milestoneTextContainer}>
-                <Text style={s.milestoneTitle}>50 Workouts Total</Text>
-                <Text style={s.milestoneDesc}>Achieved on Sep 20, 2026</Text>
-              </View>
-            </View>
+            )}
           </View>
 
           <View style={{ height: 100 }} />

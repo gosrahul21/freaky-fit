@@ -171,7 +171,7 @@ export default function WelcomeScreen() {
           {/* Continue with Email */}
           <TouchableOpacity style={s.emailBtn} activeOpacity={0.8} onPress={handleContinue}>
             <Mail size={20} color="#5b4137" />
-            <Text style={s.emailText}>Continue with Email</Text>
+            <Text style={s.emailText}>Continue with email login/signup</Text>
           </TouchableOpacity>
         </View>
 
@@ -184,6 +184,13 @@ export default function WelcomeScreen() {
           </Text>
           
           <View style={s.loginRow}>
+            <Text style={s.loginTextPrompt}>Don't have an account?</Text>
+            <TouchableOpacity onPress={handleContinue}>
+              <Text style={s.loginTextAction}>Sign up</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={[s.loginRow, { marginTop: 12 }]}>
             <Text style={s.loginTextPrompt}>Already have an account?</Text>
             <TouchableOpacity onPress={handleContinue}>
               <Text style={s.loginTextAction}>Log in</Text>

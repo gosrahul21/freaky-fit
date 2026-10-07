@@ -16,9 +16,9 @@ export default function TabsLayout() {
     <>
       <Tabs screenOptions={{ headerShown: false }} tabBar={() => null}>
         <Tabs.Screen name="home" />
-        <Tabs.Screen name="plans" />
-        <Tabs.Screen name="streaks" />
         <Tabs.Screen name="library" />
+        <Tabs.Screen name="streaks" />
+        <Tabs.Screen name="plans" />
         <Tabs.Screen name="explore" />
       </Tabs>
 
@@ -29,9 +29,9 @@ export default function TabsLayout() {
           <Text style={[s.navLabel, pathname === '/home' && s.navLabelActive]}>Home</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={s.navItem} onPress={() => { hapticImpactLight(); router.replace('/plans') }}>
-          <CalendarDays size={20} color={pathname === '/plans' ? colors.accent : colors.textTertiary} strokeWidth={2} />
-          <Text style={[s.navLabel, pathname === '/plans' && s.navLabelActive]}>Plans</Text>
+        <TouchableOpacity style={s.navItem} onPress={() => { hapticImpactLight(); router.replace('/library') }}>
+          <Bookmark size={20} color={pathname === '/library' ? colors.accent : colors.textTertiary} strokeWidth={2} />
+          <Text style={[s.navLabel, pathname === '/library' && s.navLabelActive]}>Library</Text>
         </TouchableOpacity>
 
         <View style={s.centerAddBtnWrapper}>
@@ -44,9 +44,9 @@ export default function TabsLayout() {
           </TouchableOpacity>
         </View>
 
-        <TouchableOpacity style={s.navItem} onPress={() => { hapticImpactLight(); router.replace('/library') }}>
-          <Bookmark size={20} color={pathname === '/library' ? colors.accent : colors.textTertiary} strokeWidth={2} />
-          <Text style={[s.navLabel, pathname === '/library' && s.navLabelActive]}>Library</Text>
+        <TouchableOpacity style={s.navItem} onPress={() => { hapticImpactLight(); router.replace('/plans') }}>
+          <CalendarDays size={20} color={pathname === '/plans' ? colors.accent : colors.textTertiary} strokeWidth={2} />
+          <Text style={[s.navLabel, pathname === '/plans' && s.navLabelActive]}>Plans</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={s.navItem} onPress={() => { hapticImpactLight(); router.replace('/streaks') }}>

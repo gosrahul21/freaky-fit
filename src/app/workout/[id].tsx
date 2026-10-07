@@ -206,10 +206,6 @@ export default function WorkoutSessionScreen() {
               </TouchableOpacity>
             </View>
           ))}
-          
-          <TouchableOpacity style={s.addExerciseBtn}>
-            <Text style={s.addExerciseText}>+ Add Exercise</Text>
-          </TouchableOpacity>
           <View style={{ height: 40 }} />
         </ScrollView>
       </KeyboardAvoidingView>

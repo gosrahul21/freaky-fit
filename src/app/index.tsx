@@ -2,6 +2,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import React from 'react';
 import { useTheme } from '../contexts/ThemeContext';
 import { View, Text, StyleSheet, TouchableOpacity, Dimensions, Image } from 'react-native';
+import { supabase } from '../lib/supabase';
 import { useRouter } from 'expo-router';
 import { ArrowRight } from 'lucide-react-native';
 
@@ -11,6 +12,14 @@ export default function SplashScreen() {
   const { colors } = useTheme();
   const s = makeStyles(colors);
   const router = useRouter();
+
+  React.useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        router.replace('/home');
+      }
+    });
+  }, []);
 
   return (
     <SafeAreaView style={s.safeArea}>

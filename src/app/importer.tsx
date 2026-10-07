@@ -88,61 +88,75 @@ export default function ImporterScreen() {
           </TouchableOpacity>
         </View>
 
-        <View style={s.content}>
-          <View style={s.illustrationContainer}>
+        {isProcessing ? (
+          <View style={[s.content, { justifyContent: 'center', alignItems: 'center', flex: 1, paddingBottom: 100 }]}>
             <View style={s.iconCircle}>
-              <Wand2 size={40} color="#FFFFFF" />
+              <ActivityIndicator color="#FFFFFF" size="large" />
             </View>
-            <Text style={s.title}>Extract Any Workout</Text>
+            <Text style={s.title}>Scanning Video...</Text>
             <Text style={s.subtitle}>
-              Paste a link from Instagram, TikTok, or YouTube. Our AI will extract the exercises, sets, and reps automatically.
+              You can close this screen and let it scan in the background. We will notify you when it's ready!
             </Text>
+            
+            <TouchableOpacity 
+              style={[s.importBtn, { marginTop: 40 }]} 
+              onPress={() => router.back()}
+            >
+              <Text style={s.importBtnText}>Continue in Background</Text>
+            </TouchableOpacity>
           </View>
+        ) : (
+          <>
+            <View style={s.content}>
+              <View style={s.illustrationContainer}>
+                <View style={s.iconCircle}>
+                  <Wand2 size={40} color="#FFFFFF" />
+                </View>
+                <Text style={s.title}>Extract Any Workout</Text>
+                <Text style={s.subtitle}>
+                  Paste a link from Instagram, TikTok, or YouTube. Our AI will extract the exercises, sets, and reps automatically.
+                </Text>
+              </View>
 
-          <View style={s.inputSection}>
-            <View style={s.inputContainer}>
-              <LinkIcon size={20} color={colors.textTertiary} style={s.inputIcon} />
-              <TextInput
-                style={s.input}
-                placeholder="https://instagram.com/p/..."
-                placeholderTextColor={colors.textTertiary}
-                value={url}
-                onChangeText={setUrl}
-                autoCapitalize="none"
-                autoCorrect={false}
-                clearButtonMode="while-editing"
-              />
-            </View>
+              <View style={s.inputSection}>
+                <View style={s.inputContainer}>
+                  <LinkIcon size={20} color={colors.textTertiary} style={s.inputIcon} />
+                  <TextInput
+                    style={s.input}
+                    placeholder="https://instagram.com/p/..."
+                    placeholderTextColor={colors.textTertiary}
+                    value={url}
+                    onChangeText={setUrl}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    clearButtonMode="while-editing"
+                  />
+                </View>
 
-            <View style={s.supportedPlatforms}>
-              <Text style={s.supportedText}>Supported platforms:</Text>
-              <View style={s.platformIcons}>
-                <FontAwesome5 name="instagram" size={16} color={colors.textSecondary} />
-                <FontAwesome5 name="youtube" size={16} color={colors.textSecondary} />
-                <FontAwesome5 name="tiktok" size={14} color={colors.textSecondary} />
+                <View style={s.supportedPlatforms}>
+                  <Text style={s.supportedText}>Supported platforms:</Text>
+                  <View style={s.platformIcons}>
+                    <FontAwesome5 name="instagram" size={16} color={colors.textSecondary} />
+                    <FontAwesome5 name="youtube" size={16} color={colors.textSecondary} />
+                    <FontAwesome5 name="tiktok" size={14} color={colors.textSecondary} />
+                  </View>
+                </View>
               </View>
             </View>
-          </View>
 
-        </View>
-
-        <View style={s.footer}>
-          <TouchableOpacity 
-            style={[s.importBtn, !url && s.importBtnDisabled]} 
-            activeOpacity={0.8}
-            disabled={!url || isProcessing}
-            onPress={handleImport}
-          >
-            {isProcessing ? (
-              <ActivityIndicator color="#FFFFFF" />
-            ) : (
-              <>
+            <View style={s.footer}>
+              <TouchableOpacity 
+                style={[s.importBtn, !url && s.importBtnDisabled]} 
+                activeOpacity={0.8}
+                disabled={!url || isProcessing}
+                onPress={handleImport}
+              >
                 <Wand2 size={20} color="#FFFFFF" />
                 <Text style={s.importBtnText}>Extract Workout</Text>
-              </>
-            )}
-          </TouchableOpacity>
-        </View>
+              </TouchableOpacity>
+            </View>
+          </>
+        )}
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
