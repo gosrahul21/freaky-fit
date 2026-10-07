@@ -5,6 +5,7 @@ import { View, Text, StyleSheet, TouchableOpacity, Dimensions, Image } from 'rea
 import { supabase } from '../lib/supabase';
 import { useRouter } from 'expo-router';
 import { ArrowRight } from 'lucide-react-native';
+import Purchases from 'react-native-purchases';
 
 const { width } = Dimensions.get('window');
 
@@ -14,11 +15,24 @@ export default function SplashScreen() {
   const router = useRouter();
 
   React.useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    const checkAccess = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
       if (session) {
-        router.replace('/home');
+        try {
+          const customerInfo = await Purchases.getCustomerInfo();
+          // Check if they have an active subscription
+          if (Object.keys(customerInfo.entitlements.active).length > 0) {
+            router.replace('/home'); // Active user, let them in
+          } else {
+            router.replace('/paywall'); // Trial ended or no sub, send to paywall
+          }
+        } catch (e) {
+          // If RC fails (no internet), fallback to paywall or let them in? Better to paywall or retry.
+          router.replace('/paywall');
+        }
       }
-    });
+    };
+    checkAccess();
   }, []);
 
   return (

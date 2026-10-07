@@ -1,10 +1,11 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Dimensions } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Dimensions, ActivityIndicator, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTheme } from '../contexts/ThemeContext';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Check, Star, Zap } from 'lucide-react-native';
 import { hapticImpactLight } from '../utils/haptics';
+import Purchases, { PurchasesPackage } from 'react-native-purchases';
 
 const { width } = Dimensions.get('window');
 
@@ -12,24 +13,59 @@ export default function PaywallScreen() {
   const router = useRouter();
   const { colors } = useTheme();
 
-  const handleSubscribe = () => {
-    hapticImpactLight();
-    // Proceed to sign in / sign up
-    router.replace('/welcome');
-  };
+  const [currentPackage, setCurrentPackage] = useState<PurchasesPackage | null>(null);
+  const [isFetching, setIsFetching] = useState(true);
+  const [isPurchasing, setIsPurchasing] = useState(false);
 
-  const handleSkip = () => {
-    // Proceed to sign in / sign up anyway, or let them use it for free
-    router.replace('/welcome');
+  useEffect(() => {
+    const fetchOfferings = async () => {
+      try {
+        const offerings = await Purchases.getOfferings();
+        if (offerings.current !== null && offerings.current.availablePackages.length !== 0) {
+          // Display the primary package (usually annual or monthly)
+          setCurrentPackage(offerings.current.availablePackages[0]);
+        }
+      } catch (e) {
+        console.error("Error fetching offerings", e);
+      } finally {
+        setIsFetching(false);
+      }
+    };
+    fetchOfferings();
+  }, []);
+
+  const handleSubscribe = async () => {
+    hapticImpactLight();
+    
+    // Fallback if packages aren't loaded or configured yet
+    if (!currentPackage) {
+      Alert.alert("Setup Incomplete", "Please configure RevenueCat products first.");
+      return;
+    }
+
+    try {
+      setIsPurchasing(true);
+      const { customerInfo } = await Purchases.purchasePackage(currentPackage);
+      
+      // Check if user got the entitlement (we assume the entitlement ID is 'pro' or 'Premium' in RevenueCat dashboard)
+      // Usually you unlock the app if object has keys
+      if (Object.keys(customerInfo.entitlements.active).length > 0) {
+        router.replace('/welcome');
+      }
+    } catch (e: any) {
+      if (!e.userCancelled) {
+        Alert.alert("Purchase Error", e.message);
+      }
+    } finally {
+      setIsPurchasing(false);
+    }
   };
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
       <View style={styles.container}>
         <View style={styles.header}>
-          <TouchableOpacity onPress={handleSkip}>
-            <Text style={styles.skipText}>Skip</Text>
-          </TouchableOpacity>
+          {/* Hard Paywall: Skip button removed */}
         </View>
 
         <View style={styles.content}>
@@ -50,17 +86,32 @@ export default function PaywallScreen() {
         </View>
 
         <View style={styles.footer}>
-          <TouchableOpacity 
-            style={[styles.subscribeBtn, { backgroundColor: colors.accent }]} 
-            onPress={handleSubscribe}
-            activeOpacity={0.9}
-          >
-            <Zap size={20} color="#FFFFFF" fill="#FFFFFF" />
-            <Text style={styles.subscribeText}>Start 7-Day Free Trial</Text>
-          </TouchableOpacity>
-          <Text style={styles.footerText}>
-            Then $9.99/month. Cancel anytime.
-          </Text>
+          {isFetching ? (
+            <ActivityIndicator size="large" color={colors.accent} style={{ marginBottom: 24 }} />
+          ) : (
+            <>
+              <TouchableOpacity 
+                style={[styles.subscribeBtn, { backgroundColor: colors.accent }]} 
+                onPress={handleSubscribe}
+                activeOpacity={0.9}
+                disabled={isPurchasing}
+              >
+                {isPurchasing ? (
+                  <ActivityIndicator color="#FFFFFF" />
+                ) : (
+                  <>
+                    <Zap size={20} color="#FFFFFF" fill="#FFFFFF" />
+                    <Text style={styles.subscribeText}>
+                      {currentPackage ? `Start ${currentPackage.product.introPrice?.periodNumberOfUnits || 3}-Day Free Trial` : 'Start Free Trial'}
+                    </Text>
+                  </>
+                )}
+              </TouchableOpacity>
+              <Text style={styles.footerText}>
+                {currentPackage ? `Then ${currentPackage.product.priceString}/month. Cancel anytime.` : 'Cancel anytime.'}
+              </Text>
+            </>
+          )}
         </View>
       </View>
     </SafeAreaView>
