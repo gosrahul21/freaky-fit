@@ -3,6 +3,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Zap, Mail } from 'lucide-react-native';
+import { GoogleIcon, AppleIcon } from '../components/icons';
 
 import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
@@ -152,13 +153,13 @@ export default function WelcomeScreen() {
           
           {/* Continue with Google */}
           <TouchableOpacity style={s.googleBtn} activeOpacity={0.8} onPress={handleGoogleLogin}>
-            <Text style={s.googleIcon}>G</Text>
+            <GoogleIcon size={20} />
             <Text style={s.googleText}>Continue with Google</Text>
           </TouchableOpacity>
           
           {/* Continue with Apple */}
           <TouchableOpacity style={s.appleBtn} activeOpacity={0.8} onPress={handleContinue}>
-            <Text style={s.appleIcon}></Text>
+            <AppleIcon size={20} color="#FFFFFF" />
             <Text style={s.appleText}>Continue with Apple</Text>
           </TouchableOpacity>
           
@@ -278,11 +279,6 @@ const makeStyles = (colors: ReturnType<typeof import("../contexts/ThemeContext")
     shadowRadius: 8,
     elevation: 2,
   },
-  googleIcon: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: '#4285F4',
-  },
   googleText: {
     fontSize: 16,
     fontWeight: '700',
@@ -301,11 +297,6 @@ const makeStyles = (colors: ReturnType<typeof import("../contexts/ThemeContext")
     shadowOpacity: 0.15,
     shadowRadius: 8,
     elevation: 3,
-  },
-  appleIcon: {
-    fontSize: 22,
-    color: '#FFFFFF',
-    paddingBottom: 2,
   },
   appleText: {
     fontSize: 16,
