@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, KeyboardAvoidingView, Platform, SafeAreaView } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, KeyboardAvoidingView, Platform, SafeAreaView, Linking } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { X, Check, Timer, Play, Pause, ChevronRight } from 'lucide-react-native';
+import { X, Check, Timer, Play, Pause, ChevronRight, Video, ExternalLink } from 'lucide-react-native';
+import * as WebBrowser from 'expo-web-browser';
 import { useTheme } from '../../contexts/ThemeContext';
 import { hapticImpactLight, hapticSelection } from '../../utils/haptics';
 import { supabase } from '../../lib/supabase';
@@ -9,6 +10,9 @@ import { supabase } from '../../lib/supabase';
 // Initial state
 const INITIAL_WORKOUT = {
   title: "Loading Workout...",
+  source_url: '',
+  source_type: '',
+  thumbnail_url: '',
   exercises: []
 };
 
@@ -28,10 +32,11 @@ export default function WorkoutSessionScreen() {
 
   const fetchWorkout = async () => {
     if (id === 'active') {
-      // If we clicked 'Start Session' from home without a specific workout ID,
-      // just load a mock for now or fetch the active plan's next session.
       setWorkout({
         title: "Quick Workout",
+        source_url: '',
+        source_type: '',
+        thumbnail_url: '',
         exercises: []
       });
       setLoading(false);
@@ -55,14 +60,14 @@ export default function WorkoutSessionScreen() {
           id,
           sets,
           reps,
+          notes,
           timestamp_start,
           timestamp_end,
-          exercises ( id, name )
+          exercises ( id, name, description, steps )
         `)
         .eq('workout_id', id);
 
       const formattedExercises = (exData || []).map((we: any, idx: number) => {
-        // Create an array of sets based on the `sets` integer
         const setsCount = we.sets || 3;
         const setsArray = Array.from({ length: setsCount }).map((_, i) => ({
           id: `s${idx}-${i}`,
@@ -71,9 +76,12 @@ export default function WorkoutSessionScreen() {
           completed: false
         }));
 
+        const desc = we.notes || we.exercises?.description || (Array.isArray(we.exercises?.steps) ? we.exercises.steps.join(' ') : we.exercises?.steps) || '';
+
         return {
           id: we.id,
           name: we.exercises?.name || 'Unknown Exercise',
+          description: desc,
           timestamp_start: we.timestamp_start,
           timestamp_end: we.timestamp_end,
           sets: setsArray
@@ -82,12 +90,40 @@ export default function WorkoutSessionScreen() {
 
       setWorkout({
         title: wData.title,
+        source_url: wData.source_url || '',
+        source_type: wData.source_type || '',
+        thumbnail_url: wData.thumbnail_url || '',
         exercises: formattedExercises
       });
     } catch (err) {
       console.error(err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const openVideoAtTimestamp = async (startTimeStr?: string) => {
+    if (!workout.source_url) return;
+    hapticSelection();
+    let url = workout.source_url;
+    if (startTimeStr) {
+      const parts = String(startTimeStr).split(':').map(Number);
+      let totalSeconds = 0;
+      if (parts.length === 3) {
+        totalSeconds = parts[0] * 3600 + parts[1] * 60 + parts[2];
+      } else if (parts.length === 2) {
+        totalSeconds = parts[0] * 60 + parts[1];
+      } else if (parts.length === 1 && !isNaN(parts[0])) {
+        totalSeconds = parts[0];
+      }
+      if (totalSeconds > 0 && (url.includes('youtube.com') || url.includes('youtu.be'))) {
+        url += (url.includes('?') ? '&' : '?') + `t=${totalSeconds}s`;
+      }
+    }
+    try {
+      await WebBrowser.openBrowserAsync(url);
+    } catch {
+      Linking.openURL(url);
     }
   };
 
@@ -117,7 +153,6 @@ export default function WorkoutSessionScreen() {
 
   const handleFinish = () => {
     hapticImpactLight();
-    // Finish logic goes here
     alert('Workout completed and saved!');
     router.back();
   };
@@ -153,18 +188,29 @@ export default function WorkoutSessionScreen() {
           {workout.exercises.map((exercise: any, eIdx: number) => (
             <View key={exercise.id} style={s.exerciseCard}>
               <View style={s.exerciseHeader}>
-                <View>
+                <View style={{ flex: 1 }}>
                   <Text style={s.exerciseName}>{exercise.name}</Text>
                   {(exercise.timestamp_start || exercise.timestamp_end) && (
-                    <Text style={s.exerciseTime}>
-                      ▶ {exercise.timestamp_start || '--:--'} – {exercise.timestamp_end || '--:--'}
-                    </Text>
+                    <TouchableOpacity 
+                      style={s.timestampBadge}
+                      activeOpacity={workout.source_url ? 0.7 : 1}
+                      onPress={() => openVideoAtTimestamp(exercise.timestamp_start)}
+                    >
+                      <Play size={10} color={colors.accent} fill={colors.accent} />
+                      <Text style={s.exerciseTime}>
+                        {exercise.timestamp_start || '--:--'} – {exercise.timestamp_end || '--:--'}
+                      </Text>
+                      {workout.source_url ? (
+                        <Text style={s.watchFormHint}>Watch Form ↗</Text>
+                      ) : null}
+                    </TouchableOpacity>
                   )}
                 </View>
-                <TouchableOpacity>
-                  <Text style={s.exerciseOptions}>Replace</Text>
-                </TouchableOpacity>
               </View>
+
+              {exercise.description ? (
+                <Text style={s.exerciseDesc}>{exercise.description}</Text>
+              ) : null}
 
               <View style={s.tableHeaderRow}>
                 <Text style={[s.tableCol, s.colSet]}>SET</Text>
@@ -304,16 +350,33 @@ const makeStyles = (colors: any) => StyleSheet.create({
     color: colors.textPrimary,
     flex: 1,
   },
-  exerciseTime: {
-    fontSize: 13,
-    color: colors.accent,
-    fontWeight: '600',
-    marginTop: 4,
+  timestampBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: colors.accentLight,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    alignSelf: 'flex-start',
+    marginTop: 6,
   },
-  exerciseOptions: {
-    fontSize: 13,
+  exerciseTime: {
+    fontSize: 12,
     color: colors.accent,
-    fontWeight: '600',
+    fontWeight: '700',
+  },
+  watchFormHint: {
+    fontSize: 11,
+    color: colors.accent,
+    fontWeight: '800',
+    marginLeft: 4,
+  },
+  exerciseDesc: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    marginBottom: 14,
+    lineHeight: 18,
   },
   tableHeaderRow: {
     flexDirection: 'row',

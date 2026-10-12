@@ -1,10 +1,12 @@
 import { SafeAreaView } from 'react-native-safe-area-context';
 import React from 'react';
 import { useTheme } from '../../../contexts/ThemeContext';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, StatusBar, ActivityIndicator, Modal, Image, Linking, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, StatusBar, ActivityIndicator, Modal, Image, Linking, Alert, TextInput } from 'react-native';
 import { X, PlayCircle, Plus, LayoutGrid, CheckSquare, ChevronDown, List as ListIcon, Activity, FolderPlus, ExternalLink } from 'lucide-react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import * as WebBrowser from 'expo-web-browser';
 import { supabase } from '../../../lib/supabase';
+import { PlatformIcon } from '../../../components/icons';
 import Svg, { Path, Ellipse, Circle, Rect, Line, Defs, LinearGradient as SvgLinearGradient, Stop } from 'react-native-svg';
 
 export default function WorkoutDetailsScreen() {
@@ -18,6 +20,33 @@ export default function WorkoutDetailsScreen() {
   const [collections, setCollections] = React.useState<any[]>([]);
   const [showCollectionModal, setShowCollectionModal] = React.useState(false);
   const [selectedExerciseId, setSelectedExerciseId] = React.useState<string | null>(null);
+  const [newCollectionName, setNewCollectionName] = React.useState('');
+  const [isCreatingCollection, setIsCreatingCollection] = React.useState(false);
+  const [showCreateInput, setShowCreateInput] = React.useState(false);
+
+  const openVideoAtTimestamp = async (startTimeStr?: string) => {
+    if (!workout?.source_url) return;
+    let url = workout.source_url;
+    if (startTimeStr) {
+      const parts = String(startTimeStr).split(':').map(Number);
+      let totalSeconds = 0;
+      if (parts.length === 3) {
+        totalSeconds = parts[0] * 3600 + parts[1] * 60 + parts[2];
+      } else if (parts.length === 2) {
+        totalSeconds = parts[0] * 60 + parts[1];
+      } else if (parts.length === 1 && !isNaN(parts[0])) {
+        totalSeconds = parts[0];
+      }
+      if (totalSeconds > 0 && (url.includes('youtube.com') || url.includes('youtu.be'))) {
+        url += (url.includes('?') ? '&' : '?') + `t=${totalSeconds}s`;
+      }
+    }
+    try {
+      await WebBrowser.openBrowserAsync(url);
+    } catch {
+      Linking.openURL(url);
+    }
+  };
 
   React.useEffect(() => {
     if (id) fetchWorkout();
@@ -78,6 +107,42 @@ export default function WorkoutDetailsScreen() {
     }
   };
 
+  const handleCreateAndSave = async () => {
+    if (!newCollectionName.trim()) {
+      Alert.alert('Error', 'Please enter a collection name.');
+      return;
+    }
+    setIsCreatingCollection(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        Alert.alert('Sign In Required', 'Please sign in to save collections.', [
+          { text: 'Sign In', onPress: () => router.push('/auth/login') },
+          { text: 'Cancel', style: 'cancel' }
+        ]);
+        setIsCreatingCollection(false);
+        return;
+      }
+      const { data, error } = await supabase
+        .from('collections')
+        .insert([{ title: newCollectionName.trim(), user_id: user.id }])
+        .select()
+        .single();
+      if (error) {
+        Alert.alert('Error', error.message);
+      } else if (data) {
+        setCollections((prev: any[]) => [data, ...prev]);
+        setNewCollectionName('');
+        setShowCreateInput(false);
+        await handleSaveToCollection(data.id);
+      }
+    } catch (e: any) {
+      Alert.alert('Error', e.message || 'Failed to create collection');
+    } finally {
+      setIsCreatingCollection(false);
+    }
+  };
+
   if (loading || !workout) {
     return (
       <SafeAreaView style={[s.safeArea, { justifyContent: 'center', alignItems: 'center' }]}>
@@ -108,9 +173,7 @@ export default function WorkoutDetailsScreen() {
               <TouchableOpacity 
                 style={s.thumbnailContainer}
                 activeOpacity={workout.source_url ? 0.8 : 1}
-                onPress={() => {
-                  if (workout.source_url) Linking.openURL(workout.source_url);
-                }}
+                onPress={() => openVideoAtTimestamp()}
               >
                 {workout.thumbnail_url ? (
                   <View style={s.thumbnailWrapper}>
@@ -150,16 +213,16 @@ export default function WorkoutDetailsScreen() {
                     <TouchableOpacity 
                       style={s.metaBadge}
                       activeOpacity={0.7}
-                      onPress={() => Linking.openURL(workout.source_url)}
+                      onPress={() => openVideoAtTimestamp()}
                     >
-                      <PlayCircle size={16} color="#DC2626" />
+                      <PlatformIcon url={workout.source_url} name={workout.source_type} size={15} />
                       <Text style={[s.metaBadgeText, { color: colors.accent, fontWeight: '700' }]}>
                         Watch Video ↗
                       </Text>
                     </TouchableOpacity>
                   ) : (
                     <View style={s.metaBadge}>
-                      <PlayCircle size={16} color="#DC2626" />
+                      <PlatformIcon url={workout.source_url} name={workout.source_type} size={15} fallback={<PlayCircle size={15} color="#DC2626" />} />
                       <Text style={[s.metaBadgeText, { color: colors.textSecondary }]}>
                         {workout.source_type || 'Custom'}
                       </Text>
@@ -303,19 +366,7 @@ export default function WorkoutDetailsScreen() {
                         <TouchableOpacity 
                           style={s.exerciseTime}
                           activeOpacity={workout.source_url ? 0.7 : 1}
-                          onPress={() => {
-                            if (workout.source_url) {
-                              let url = workout.source_url;
-                              if (we.timestamp_start) {
-                                const parts = String(we.timestamp_start).split(':').map(Number);
-                                const secs = parts.length === 2 ? parts[0] * 60 + parts[1] : parts[0];
-                                if (!isNaN(secs) && (url.includes('youtube.com') || url.includes('youtu.be'))) {
-                                  url += (url.includes('?') ? '&' : '?') + `t=${secs}s`;
-                                }
-                              }
-                              Linking.openURL(url);
-                            }
-                          }}
+                          onPress={() => openVideoAtTimestamp(we.timestamp_start)}
                         >
                           <Text style={s.playIcon}>▶</Text>
                           <Text style={s.timeText}>
@@ -336,7 +387,12 @@ export default function WorkoutDetailsScreen() {
                       <FolderPlus size={20} color="#9CA3AF" />
                     </TouchableOpacity>
                   </View>
-                  <Text style={s.exerciseDesc}>{ex?.description || 'No description available.'}</Text>
+                  {(() => {
+                    const exerciseDesc = we.notes || we.description || ex?.description || (Array.isArray(ex?.steps) ? ex.steps.join(' ') : ex?.steps);
+                    return exerciseDesc ? (
+                      <Text style={s.exerciseDesc}>{exerciseDesc}</Text>
+                    ) : null;
+                  })()}
                   
                   {ex?.steps && (
                     <View style={s.stepsRow}>
@@ -385,18 +441,56 @@ export default function WorkoutDetailsScreen() {
         animationType="slide"
         onRequestClose={() => setShowCollectionModal(false)}
       >
-        <TouchableOpacity style={s.modalBackdrop} activeOpacity={1} onPress={() => setShowCollectionModal(false)}>
+        <TouchableOpacity style={s.modalBackdrop} activeOpacity={1} onPress={() => { setShowCollectionModal(false); setShowCreateInput(false); }}>
           <TouchableOpacity style={s.modalContent} activeOpacity={1}>
             <View style={s.modalHeader}>
               <Text style={s.modalTitle}>Save to Collection</Text>
-              <TouchableOpacity onPress={() => setShowCollectionModal(false)}>
+              <TouchableOpacity onPress={() => { setShowCollectionModal(false); setShowCreateInput(false); }}>
                 <X size={20} color="#9CA3AF" />
               </TouchableOpacity>
             </View>
+
+            {/* Inline Create Collection */}
+            {showCreateInput ? (
+              <View style={s.createCollectionBox}>
+                <TextInput
+                  style={s.createCollectionInput}
+                  placeholder="Collection name (e.g. Leg Day)"
+                  placeholderTextColor="#9CA3AF"
+                  value={newCollectionName}
+                  onChangeText={setNewCollectionName}
+                  autoFocus
+                />
+                <View style={s.createActionsRow}>
+                  <TouchableOpacity 
+                    style={s.createCancelBtn}
+                    onPress={() => { setShowCreateInput(false); setNewCollectionName(''); }}
+                  >
+                    <Text style={s.createCancelText}>Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity 
+                    style={s.createConfirmBtn}
+                    onPress={handleCreateAndSave}
+                    disabled={isCreatingCollection}
+                  >
+                    <Text style={s.createConfirmText}>{isCreatingCollection ? 'Creating...' : 'Create & Add'}</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ) : (
+              <TouchableOpacity 
+                style={s.addNewCollectionRow}
+                activeOpacity={0.8}
+                onPress={() => setShowCreateInput(true)}
+              >
+                <Plus size={18} color="#EA580C" strokeWidth={2.5} />
+                <Text style={s.addNewCollectionText}>Create New Collection</Text>
+              </TouchableOpacity>
+            )}
             
             <ScrollView style={s.collectionList}>
               {collections.length === 0 ? (
-                <Text style={s.emptyCollectionText}>No collections found. Create one in your library first!</Text>
+                <Text style={s.emptyCollectionText}>No collections yet. Tap above to create one!</Text>
               ) : (
                 collections.map((c) => (
                   <TouchableOpacity 
@@ -821,5 +915,68 @@ const makeStyles = (colors: ReturnType<typeof import("../../../contexts/ThemeCon
     color: '#9CA3AF',
     textAlign: 'center',
     marginTop: 20,
-  }
+  },
+  addNewCollectionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    backgroundColor: '#FFF7ED',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#FFEDD5',
+    marginBottom: 16,
+  },
+  addNewCollectionText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#EA580C',
+  },
+  createCollectionBox: {
+    padding: 14,
+    backgroundColor: '#F9FAFB',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    marginBottom: 16,
+    gap: 12,
+  },
+  createCollectionInput: {
+    fontSize: 15,
+    color: '#111827',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  createActionsRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 10,
+  },
+  createCancelBtn: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 8,
+    backgroundColor: '#E5E7EB',
+  },
+  createCancelText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#4B5563',
+  },
+  createConfirmBtn: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+    backgroundColor: '#EA580C',
+  },
+  createConfirmText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
 });

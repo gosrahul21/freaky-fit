@@ -16,20 +16,13 @@ export default function SplashScreen() {
 
   React.useEffect(() => {
     const checkAccess = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        try {
-          const customerInfo = await Purchases.getCustomerInfo();
-          // Check if they have an active subscription
-          if (Object.keys(customerInfo.entitlements.active).length > 0) {
-            router.replace('/home'); // Active user, let them in
-          } else {
-            router.replace('/paywall'); // Trial ended or no sub, send to paywall
-          }
-        } catch (e) {
-          // If RC fails (no internet), fallback to paywall or let them in? Better to paywall or retry.
-          router.replace('/paywall');
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          router.replace('/home');
         }
+      } catch (err) {
+        console.error('Error restoring session:', err);
       }
     };
     checkAccess();

@@ -22,6 +22,7 @@ import {
   User,
   Star,
   MessageSquare,
+  FileText,
 } from 'lucide-react-native';
 import { supabase } from '../lib/supabase';
 import { useTheme } from '../contexts/ThemeContext';
@@ -143,24 +144,24 @@ export default function SettingsScreen() {
         <View style={s.section}>
           <Text style={s.sectionLabel}>ACCOUNT</Text>
           <View style={s.settingsCard}>
-            <TouchableOpacity style={s.settingsRow} onPress={() => Alert.alert('Privacy', 'Opening privacy policy...')}>
+            <TouchableOpacity style={s.settingsRow} onPress={() => router.push('/privacy')}>
               <View style={s.settingsRowLeft}>
                 <View style={[s.iconBadge, { backgroundColor: '#1a1a2a' }]}>
                   <Shield size={18} color="#818CF8" />
                 </View>
-                <Text style={s.settingsRowTitle}>Privacy & Security</Text>
+                <Text style={s.settingsRowTitle}>Privacy Policy</Text>
               </View>
               <ChevronRight size={18} color={colors.textTertiary} />
             </TouchableOpacity>
 
             <View style={s.rowDivider} />
 
-            <TouchableOpacity style={s.settingsRow}>
+            <TouchableOpacity style={s.settingsRow} onPress={() => router.push('/terms')}>
               <View style={s.settingsRowLeft}>
                 <View style={[s.iconBadge, { backgroundColor: '#1a1a2a' }]}>
-                  <User size={18} color="#818CF8" />
+                  <FileText size={18} color="#818CF8" />
                 </View>
-                <Text style={s.settingsRowTitle}>Personal Information</Text>
+                <Text style={s.settingsRowTitle}>Terms of Service</Text>
               </View>
               <ChevronRight size={18} color={colors.textTertiary} />
             </TouchableOpacity>

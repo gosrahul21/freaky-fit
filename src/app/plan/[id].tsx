@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, ActivityIndicator, Modal, Pressable } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, ActivityIndicator, Modal, Pressable, TextInput, Alert } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { X, CalendarPlus, ChevronRight, CheckCircle2, Circle, Dumbbell } from 'lucide-react-native';
+import { X, CalendarPlus, ChevronRight, CheckCircle2, Circle, Dumbbell, Trash2, Plus, Minus, Play, PlusCircle } from 'lucide-react-native';
 import { useTheme } from '../../contexts/ThemeContext';
 import { supabase } from '../../lib/supabase';
-import { hapticSelection } from '../../utils/haptics';
+import { hapticSelection, hapticImpactLight } from '../../utils/haptics';
 
 const DAYS_OF_WEEK = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
 const DAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
@@ -20,9 +20,12 @@ export default function PlanDetailsScreen() {
   const [userWorkouts, setUserWorkouts] = useState<any[]>([]);
   const [userCollections, setUserCollections] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedDayForModal, setSelectedDayForModal] = useState<string | null>(null);
 
-  // Modal states
+  // Day inspection & management modal
+  const [activeDay, setActiveDay] = useState<string | null>(null);
+
+  // Source exercise picker modal
+  const [showAddPicker, setShowAddPicker] = useState(false);
   const [modalMode, setModalMode] = useState<'sources' | 'exercises'>('sources');
   const [activeTab, setActiveTab] = useState<'workouts' | 'collections'>('workouts');
   const [selectedSource, setSelectedSource] = useState<any>(null);
@@ -38,7 +41,7 @@ export default function PlanDetailsScreen() {
   const fetchPlanData = async () => {
     setLoading(true);
     try {
-      // Fetch plan details
+      // 1. Fetch plan details
       const { data: pData } = await supabase
         .from('planner')
         .select('*')
@@ -47,15 +50,34 @@ export default function PlanDetailsScreen() {
       
       setPlan(pData);
 
-      // Fetch sessions for this plan
+      // 2. Fetch sessions with their assigned exercises
       const { data: sData } = await supabase
         .from('planner_sessions')
-        .select('*')
+        .select(`
+          *,
+          planner_session_exercises (
+            id,
+            exercise_id,
+            order_index,
+            sets,
+            reps,
+            notes,
+            exercises ( id, name, primary_muscle )
+          )
+        `)
         .eq('planner_id', id);
 
-      setSessions(sData || []);
+      // Sort exercises inside each session by order_index
+      const sortedSessions = (sData || []).map(sess => ({
+        ...sess,
+        planner_session_exercises: (sess.planner_session_exercises || []).sort(
+          (a: any, b: any) => (a.order_index || 0) - (b.order_index || 0)
+        )
+      }));
 
-      // Fetch user's workouts and collections for the modal
+      setSessions(sortedSessions);
+
+      // 3. Fetch user workouts and collections
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         const { data: wData } = await supabase
@@ -70,12 +92,200 @@ export default function PlanDetailsScreen() {
           .eq('user_id', user.id);
         setUserCollections(cData || []);
       }
-
     } catch (err) {
       console.error(err);
     } finally {
       setLoading(false);
     }
+  };
+
+  const currentSessionForActiveDay = sessions.find(s => s.day_of_week === activeDay);
+
+  const handleOpenDay = (day: string) => {
+    hapticSelection();
+    setActiveDay(day);
+  };
+
+  const handleOpenAddPicker = () => {
+    hapticSelection();
+    setModalMode('sources');
+    setSelectedSource(null);
+    setSourceExercises([]);
+    setShowAddPicker(true);
+  };
+
+  const handleSelectSource = async (source: any, type: 'workout' | 'collection') => {
+    hapticSelection();
+    setSelectedSource({ ...source, type });
+    setModalMode('exercises');
+    
+    if (type === 'workout') {
+      const { data } = await supabase
+        .from('workout_exercises')
+        .select('*, exercises(*)')
+        .eq('workout_id', source.id)
+        .order('order_index');
+      setSourceExercises(data || []);
+    } else {
+      const { data } = await supabase
+        .from('collection_exercises')
+        .select('*, workout_exercises(*, exercises(*))')
+        .eq('collection_id', source.id);
+      
+      const flat = (data || []).map(ce => ce.workout_exercises).filter(Boolean);
+      setSourceExercises(flat);
+    }
+  };
+
+  const handleAssignExercises = async (exercisesToAdd: any[]) => {
+    if (!activeDay || exercisesToAdd.length === 0) return;
+    hapticImpactLight();
+    setIsAssigning(true);
+
+    try {
+      // 1. Ensure session exists
+      let session = sessions.find(s => s.day_of_week === activeDay);
+      
+      if (!session) {
+        const { data: newSession, error } = await supabase.from('planner_sessions').insert([
+          {
+            planner_id: id,
+            title: selectedSource?.title || 'Custom Workout',
+            week_number: 1,
+            day_of_week: activeDay,
+            status: 'planned'
+          }
+        ]).select().single();
+
+        if (error) throw error;
+        session = { ...newSession, planner_session_exercises: [] };
+      }
+
+      // 2. Next order index
+      const existingList = session.planner_session_exercises || [];
+      const nextOrderIndex = existingList.length > 0 
+        ? Math.max(...existingList.map((e: any) => e.order_index || 0)) + 1 
+        : 1;
+
+      // 3. Insert exercises into planner_session_exercises
+      const inserts = exercisesToAdd.map((we, idx) => ({
+        session_id: session!.id,
+        exercise_id: we.exercise_id,
+        order_index: nextOrderIndex + idx,
+        sets: we.sets || 3,
+        reps: we.reps || '10',
+        notes: we.notes || ''
+      }));
+
+      const { data: insertedData, error: insErr } = await supabase
+        .from('planner_session_exercises')
+        .insert(inserts)
+        .select('*, exercises(*)');
+
+      if (insErr) throw insErr;
+      
+      // Update local sessions state
+      const updatedExercises = [...existingList, ...(insertedData || [])];
+      setSessions(prev => {
+        const exists = prev.some(s => s.id === session!.id);
+        if (exists) {
+          return prev.map(s => s.id === session!.id ? { ...s, planner_session_exercises: updatedExercises } : s);
+        } else {
+          return [...prev, { ...session, planner_session_exercises: updatedExercises }];
+        }
+      });
+
+      setShowAddPicker(false);
+      Alert.alert('Success', `Added ${exercisesToAdd.length} exercise(s) to ${DAY_NAMES[DAYS_OF_WEEK.indexOf(activeDay)]}!`);
+    } catch (err: any) {
+      console.error(err);
+      Alert.alert('Error', err.message || 'Failed to assign exercises.');
+    } finally {
+      setIsAssigning(false);
+    }
+  };
+
+  const handleUpdateExerciseSets = async (pseId: string, currentSets: number, delta: number) => {
+    const newSets = Math.max(1, Math.min(10, currentSets + delta));
+    if (newSets === currentSets) return;
+    hapticSelection();
+
+    // Update in Supabase
+    await supabase
+      .from('planner_session_exercises')
+      .update({ sets: newSets })
+      .eq('id', pseId);
+
+    // Update local state
+    setSessions(prev => prev.map(sess => {
+      if (sess.day_of_week === activeDay) {
+        return {
+          ...sess,
+          planner_session_exercises: sess.planner_session_exercises.map((e: any) => 
+            e.id === pseId ? { ...e, sets: newSets } : e
+          )
+        };
+      }
+      return sess;
+    }));
+  };
+
+  const handleUpdateExerciseReps = async (pseId: string, newReps: string) => {
+    await supabase
+      .from('planner_session_exercises')
+      .update({ reps: newReps })
+      .eq('id', pseId);
+
+    setSessions(prev => prev.map(sess => {
+      if (sess.day_of_week === activeDay) {
+        return {
+          ...sess,
+          planner_session_exercises: sess.planner_session_exercises.map((e: any) => 
+            e.id === pseId ? { ...e, reps: newReps } : e
+          )
+        };
+      }
+      return sess;
+    }));
+  };
+
+  const handleRemoveExercise = async (pseId: string) => {
+    hapticImpactLight();
+    await supabase
+      .from('planner_session_exercises')
+      .delete()
+      .eq('id', pseId);
+
+    setSessions(prev => prev.map(sess => {
+      if (sess.day_of_week === activeDay) {
+        return {
+          ...sess,
+          planner_session_exercises: sess.planner_session_exercises.filter((e: any) => e.id !== pseId)
+        };
+      }
+      return sess;
+    }));
+  };
+
+  const handleClearDay = async () => {
+    if (!currentSessionForActiveDay) return;
+    hapticImpactLight();
+    Alert.alert(
+      'Reset Day to Rest',
+      'Are you sure you want to remove all scheduled exercises for this day?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Reset to Rest Day', 
+          style: 'destructive',
+          onPress: async () => {
+            await supabase.from('planner_sessions').delete().eq('id', currentSessionForActiveDay.id);
+            setSessions(prev => prev.filter(s => s.id !== currentSessionForActiveDay.id));
+            setActiveDay(null);
+          }
+        }
+      ]
+    );
   };
 
   if (loading) {
@@ -94,101 +304,6 @@ export default function PlanDetailsScreen() {
     );
   }
 
-  // Filter sessions (ignoring week_number since duration is removed)
-  const weekSessions = sessions;
-
-  const handleDayPress = (day: string) => {
-    hapticSelection();
-    setSelectedDayForModal(day);
-    setModalMode('sources');
-    setSelectedSource(null);
-    setSourceExercises([]);
-  };
-
-  const handleSelectSource = async (source: any, type: 'workout' | 'collection') => {
-    hapticSelection();
-    setSelectedSource({ ...source, type });
-    setModalMode('exercises');
-    
-    // Fetch exercises for this source
-    if (type === 'workout') {
-      const { data } = await supabase
-        .from('workout_exercises')
-        .select('*, exercises(*)')
-        .eq('workout_id', source.id)
-        .order('order_index');
-      setSourceExercises(data || []);
-    } else {
-      const { data } = await supabase
-        .from('collection_exercises')
-        .select('*, workout_exercises(*, exercises(*))')
-        .eq('collection_id', source.id);
-      
-      // Flatten the structure for collection
-      const flat = (data || []).map(ce => ce.workout_exercises);
-      setSourceExercises(flat || []);
-    }
-  };
-
-  const handleAssignExercises = async (exercisesToAdd: any[]) => {
-    if (!selectedDayForModal || exercisesToAdd.length === 0) return;
-    hapticSelection();
-    setIsAssigning(true);
-
-    try {
-      // 1. First ensure a session exists for this day (or create one)
-      let session = sessions.find(s => s.day_of_week === selectedDayForModal);
-      
-      if (!session) {
-        const { data, error } = await supabase.from('planner_sessions').insert([
-          {
-            planner_id: id,
-            title: selectedSource?.title || 'Custom Session',
-            week_number: 1,
-            day_of_week: selectedDayForModal,
-            status: 'planned'
-          }
-        ]).select().single();
-
-        if (error) throw error;
-        session = data;
-        setSessions([...sessions, data]);
-      }
-
-      // 2. Fetch existing exercises for this session to determine order_index
-      const { data: existingEx } = await supabase
-        .from('planner_session_exercises')
-        .select('order_index')
-        .eq('session_id', session.id);
-      
-      const nextOrderIndex = existingEx && existingEx.length > 0 
-        ? Math.max(...existingEx.map((e: any) => e.order_index)) + 1 
-        : 1;
-
-      // 3. Insert new exercises
-      const inserts = exercisesToAdd.map((we, idx) => ({
-        session_id: session.id,
-        exercise_id: we.exercise_id,
-        order_index: nextOrderIndex + idx,
-        sets: we.sets || 3,
-        reps: we.reps || '10',
-        notes: we.notes || ''
-      }));
-
-      const { error: insErr } = await supabase.from('planner_session_exercises').insert(inserts);
-      if (insErr) throw insErr;
-      
-      alert(`Added ${exercisesToAdd.length} exercise(s) to ${DAY_NAMES[DAYS_OF_WEEK.indexOf(selectedDayForModal)]}!`);
-      
-    } catch (err) {
-      console.error(err);
-      alert('Failed to assign exercises.');
-    } finally {
-      setIsAssigning(false);
-      setSelectedDayForModal(null);
-    }
-  };
-
   return (
     <SafeAreaView style={[s.safeArea, { backgroundColor: colors.background }]}>
       {/* Header */}
@@ -200,29 +315,31 @@ export default function PlanDetailsScreen() {
         <View style={{ width: 40 }} />
       </View>
 
-
-
       <ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
-        
         <View style={s.scheduleContainer}>
-          <Text style={s.scheduleTitle}>Weekly Schedule</Text>
-          <Text style={s.scheduleDesc}>Tap a day to assign a workout from your library or create a new session.</Text>
+          <Text style={s.scheduleTitle}>Weekly Split Schedule</Text>
+          <Text style={s.scheduleDesc}>
+            Tap any day to customize target sets, reps, and exercise routines for this workout plan.
+          </Text>
 
           {DAYS_OF_WEEK.map((day, idx) => {
-            const sessionForDay = weekSessions.find(s => s.day_of_week === day);
-            const hasSession = !!sessionForDay;
+            const sessionForDay = sessions.find(s => s.day_of_week === day);
+            const exercisesCount = sessionForDay?.planner_session_exercises?.length || 0;
+            const hasSession = !!sessionForDay && exercisesCount > 0;
 
             return (
               <TouchableOpacity 
                 key={day} 
                 style={[s.dayRow, hasSession && s.dayRowHasSession]}
-                activeOpacity={0.7}
-                onPress={() => handleDayPress(day)}
+                activeOpacity={0.75}
+                onPress={() => handleOpenDay(day)}
               >
                 <View style={s.dayInfo}>
                   <Text style={s.dayName}>{DAY_NAMES[idx]}</Text>
                   {hasSession ? (
-                    <Text style={s.sessionTitle}>{sessionForDay.title || 'Scheduled Workout'}</Text>
+                    <Text style={s.sessionTitle}>
+                      {sessionForDay.title} ({exercisesCount} {exercisesCount === 1 ? 'exercise' : 'exercises'})
+                    </Text>
                   ) : (
                     <Text style={s.sessionEmpty}>Rest Day</Text>
                   )}
@@ -230,12 +347,12 @@ export default function PlanDetailsScreen() {
 
                 {hasSession ? (
                   <View style={s.statusBadge}>
-                    <CheckCircle2 size={16} color={colors.success} />
+                    <CheckCircle2 size={18} color={colors.success || '#10B981'} />
                   </View>
                 ) : (
-                  <TouchableOpacity style={s.addBtn} onPress={() => handleDayPress(day)}>
-                    <CalendarPlus size={20} color={colors.accent} />
-                  </TouchableOpacity>
+                  <View style={s.addBtn}>
+                    <CalendarPlus size={18} color={colors.accent} />
+                  </View>
                 )}
               </TouchableOpacity>
             );
@@ -245,27 +362,154 @@ export default function PlanDetailsScreen() {
         <View style={{ height: 60 }} />
       </ScrollView>
 
-      {/* Assign Workout Modal */}
+      {/* Day Routine Manager Modal */}
       <Modal
-        visible={!!selectedDayForModal}
+        visible={!!activeDay && !showAddPicker}
         transparent
         animationType="slide"
-        onRequestClose={() => setSelectedDayForModal(null)}
+        onRequestClose={() => setActiveDay(null)}
       >
-        <Pressable style={s.modalBackdrop} onPress={() => setSelectedDayForModal(null)}>
+        <Pressable style={s.modalBackdrop} onPress={() => setActiveDay(null)}>
+          <Pressable style={s.bottomSheet} onPress={(e) => e.stopPropagation()}>
+            <View style={s.dragHandleContainer}>
+              <View style={s.dragHandle} />
+            </View>
+
+            <View style={s.daySheetHeader}>
+              <View style={{ flex: 1 }}>
+                <Text style={s.daySheetSubtitle}>
+                  {activeDay ? DAY_NAMES[DAYS_OF_WEEK.indexOf(activeDay)].toUpperCase() : ''}
+                </Text>
+                <Text style={s.sheetTitle}>
+                  {currentSessionForActiveDay?.title || 'Workout Session'}
+                </Text>
+              </View>
+              <TouchableOpacity 
+                style={s.sheetCloseBtn}
+                onPress={() => setActiveDay(null)}
+              >
+                <X size={20} color={colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+
+            {/* List of Exercises for this day */}
+            <ScrollView style={s.dayExerciseScroll} showsVerticalScrollIndicator={false}>
+              {(!currentSessionForActiveDay || !currentSessionForActiveDay.planner_session_exercises || currentSessionForActiveDay.planner_session_exercises.length === 0) ? (
+                <View style={s.emptyDayContainer}>
+                  <Dumbbell size={36} color={colors.textTertiary} strokeWidth={1.5} />
+                  <Text style={s.emptyDayTitle}>Rest Day / No Exercises</Text>
+                  <Text style={s.emptyDayDesc}>
+                    Add exercises from imported workouts or collections to train on {activeDay ? DAY_NAMES[DAYS_OF_WEEK.indexOf(activeDay)] : ''}.
+                  </Text>
+                </View>
+              ) : (
+                currentSessionForActiveDay.planner_session_exercises.map((pse: any, idx: number) => (
+                  <View key={pse.id} style={s.planExerciseCard}>
+                    <View style={s.planExTopRow}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={s.planExName}>
+                          {idx + 1}. {pse.exercises?.name || 'Exercise'}
+                        </Text>
+                        {pse.exercises?.primary_muscle && (
+                          <Text style={s.planExMuscle}>{pse.exercises.primary_muscle}</Text>
+                        )}
+                      </View>
+                      <TouchableOpacity 
+                        style={s.trashBtn}
+                        onPress={() => handleRemoveExercise(pse.id)}
+                      >
+                        <Trash2 size={16} color="#EF4444" />
+                      </TouchableOpacity>
+                    </View>
+
+                    {/* Sets & Target Reps Adjuster */}
+                    <View style={s.planExControlsRow}>
+                      <View style={s.planExControlGroup}>
+                        <Text style={s.planExControlLabel}>SETS</Text>
+                        <View style={s.stepper}>
+                          <TouchableOpacity 
+                            style={s.stepperBtn}
+                            onPress={() => handleUpdateExerciseSets(pse.id, pse.sets || 3, -1)}
+                          >
+                            <Minus size={14} color={colors.textPrimary} />
+                          </TouchableOpacity>
+                          <Text style={s.stepperValue}>{pse.sets || 3}</Text>
+                          <TouchableOpacity 
+                            style={s.stepperBtn}
+                            onPress={() => handleUpdateExerciseSets(pse.id, pse.sets || 3, 1)}
+                          >
+                            <Plus size={14} color={colors.textPrimary} />
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+
+                      <View style={s.planExControlGroup}>
+                        <Text style={s.planExControlLabel}>REPS</Text>
+                        <TextInput
+                          style={s.repsInput}
+                          defaultValue={String(pse.reps || '10')}
+                          keyboardType="default"
+                          placeholder="10"
+                          placeholderTextColor={colors.textTertiary}
+                          onEndEditing={(e) => handleUpdateExerciseReps(pse.id, e.nativeEvent.text)}
+                        />
+                      </View>
+                    </View>
+                  </View>
+                ))
+              )}
+            </ScrollView>
+
+            {/* Bottom Actions */}
+            <View style={s.daySheetBottomActions}>
+              <TouchableOpacity 
+                style={s.addExercisesBtn}
+                onPress={handleOpenAddPicker}
+                activeOpacity={0.85}
+              >
+                <Plus size={18} color="#FFFFFF" />
+                <Text style={s.addExercisesBtnText}>+ Add Exercises</Text>
+              </TouchableOpacity>
+
+              {currentSessionForActiveDay && (
+                <TouchableOpacity 
+                  style={s.clearDayBtn}
+                  onPress={handleClearDay}
+                >
+                  <Text style={s.clearDayBtnText}>Set as Rest Day</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* Add Exercises From Source Modal */}
+      <Modal
+        visible={showAddPicker}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowAddPicker(false)}
+      >
+        <Pressable style={s.modalBackdrop} onPress={() => setShowAddPicker(false)}>
           <Pressable style={s.bottomSheet} onPress={(e) => e.stopPropagation()}>
             <View style={s.dragHandleContainer}>
               <View style={s.dragHandle} />
             </View>
             
-            <Text style={s.sheetTitle}>
-              {modalMode === 'sources' ? 'Assign Exercises' : selectedSource?.title}
-            </Text>
+            <View style={s.daySheetHeader}>
+              <Text style={s.sheetTitle}>
+                {modalMode === 'sources' ? 'Add From' : selectedSource?.title}
+              </Text>
+              <TouchableOpacity onPress={() => setShowAddPicker(false)}>
+                <X size={20} color={colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
             
             {modalMode === 'sources' ? (
               <>
                 <Text style={s.sheetDesc}>
-                  Select a source to pick exercises for {selectedDayForModal ? DAY_NAMES[DAYS_OF_WEEK.indexOf(selectedDayForModal)] : ''}.
+                  Select a workout or collection to assign to {activeDay ? DAY_NAMES[DAYS_OF_WEEK.indexOf(activeDay)] : ''}.
                 </Text>
 
                 <View style={s.tabContainer}>
@@ -286,33 +530,37 @@ export default function PlanDetailsScreen() {
                 <ScrollView style={s.sheetScroll} showsVerticalScrollIndicator={false}>
                   {activeTab === 'workouts' && (
                     <>
-                      {userWorkouts.length === 0 && <Text style={{textAlign: 'center', marginTop: 20, color: colors.textSecondary}}>No workouts found.</Text>}
+                      {userWorkouts.length === 0 && (
+                        <Text style={s.emptyPickerText}>No workouts in your library yet.</Text>
+                      )}
                       {userWorkouts.map(w => (
                         <TouchableOpacity key={w.id} style={s.sheetOption} onPress={() => handleSelectSource(w, 'workout')}>
-                          <View style={s.sheetOptionIcon}><Dumbbell size={24} color={colors.accent} /></View>
+                          <View style={s.sheetOptionIcon}><Dumbbell size={22} color={colors.accent} /></View>
                           <View style={s.sheetOptionTextContainer}>
                             <Text style={s.sheetOptionTitle}>{w.title}</Text>
                           </View>
-                          <ChevronRight size={20} color="#9CA3AF" />
+                          <ChevronRight size={20} color={colors.textTertiary} />
                         </TouchableOpacity>
                       ))}
                     </>
                   )}
                   {activeTab === 'collections' && (
                     <>
-                      {userCollections.length === 0 && <Text style={{textAlign: 'center', marginTop: 20, color: colors.textSecondary}}>No collections found.</Text>}
+                      {userCollections.length === 0 && (
+                        <Text style={s.emptyPickerText}>No collections in your library yet.</Text>
+                      )}
                       {userCollections.map(c => (
                         <TouchableOpacity key={c.id} style={s.sheetOption} onPress={() => handleSelectSource(c, 'collection')}>
-                          <View style={s.sheetOptionIcon}><Circle size={24} color={colors.accent} /></View>
+                          <View style={s.sheetOptionIcon}><Circle size={22} color={colors.accent} /></View>
                           <View style={s.sheetOptionTextContainer}>
                             <Text style={s.sheetOptionTitle}>{c.title}</Text>
                           </View>
-                          <ChevronRight size={20} color="#9CA3AF" />
+                          <ChevronRight size={20} color={colors.textTertiary} />
                         </TouchableOpacity>
                       ))}
                     </>
                   )}
-                  <View style={{height: 40}} />
+                  <View style={{ height: 40 }} />
                 </ScrollView>
               </>
             ) : (
@@ -321,23 +569,30 @@ export default function PlanDetailsScreen() {
                   style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }} 
                   onPress={() => setModalMode('sources')}
                 >
-                  <Text style={{ color: colors.accent, fontWeight: '600' }}>← Back to sources</Text>
+                  <Text style={{ color: colors.accent, fontWeight: '700' }}>← Back to sources</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity 
                   style={s.addAllBtn} 
                   onPress={() => handleAssignExercises(sourceExercises)}
                   disabled={isAssigning || sourceExercises.length === 0}
+                  activeOpacity={0.85}
                 >
-                  {isAssigning ? <ActivityIndicator color="#fff" /> : <Text style={s.addAllBtnText}>Add All {sourceExercises.length} Exercises</Text>}
+                  {isAssigning ? (
+                    <ActivityIndicator color="#fff" />
+                  ) : (
+                    <Text style={s.addAllBtnText}>
+                      Add All ({sourceExercises.length} Exercises)
+                    </Text>
+                  )}
                 </TouchableOpacity>
 
                 <ScrollView style={s.sheetScroll} showsVerticalScrollIndicator={false}>
                   {sourceExercises.map((we) => (
                     <View key={we.id} style={s.exerciseRow}>
                       <View style={{ flex: 1 }}>
-                        <Text style={s.exerciseRowName}>{we.exercises?.name}</Text>
-                        <Text style={s.exerciseRowDesc}>{we.sets} sets x {we.reps} reps</Text>
+                        <Text style={s.exerciseRowName}>{we.exercises?.name || 'Exercise'}</Text>
+                        <Text style={s.exerciseRowDesc}>{we.sets || 3} sets • {we.reps || 10} reps</Text>
                       </View>
                       <TouchableOpacity 
                         style={s.addSingleBtn} 
@@ -348,7 +603,7 @@ export default function PlanDetailsScreen() {
                       </TouchableOpacity>
                     </View>
                   ))}
-                  <View style={{height: 40}} />
+                  <View style={{ height: 40 }} />
                 </ScrollView>
               </>
             )}
@@ -384,35 +639,8 @@ const makeStyles = (colors: any) => StyleSheet.create({
     flex: 1,
     textAlign: 'center',
   },
-  weekSelector: {
-    borderBottomWidth: 1,
-    borderBottomColor: colors.cardBorder,
-    backgroundColor: colors.card,
-  },
-  weekScroll: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    gap: 12,
-  },
-  weekTab: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: colors.skeleton,
-  },
-  weekTabActive: {
-    backgroundColor: colors.textPrimary,
-  },
-  weekTabText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: colors.textSecondary,
-  },
-  weekTabTextActive: {
-    color: colors.background,
-  },
   content: {
-    padding: 24,
+    padding: 20,
   },
   scheduleContainer: {
     backgroundColor: colors.card,
@@ -430,14 +658,14 @@ const makeStyles = (colors: any) => StyleSheet.create({
   scheduleDesc: {
     fontSize: 13,
     color: colors.textSecondary,
-    marginBottom: 24,
-    lineHeight: 20,
+    marginBottom: 20,
+    lineHeight: 18,
   },
   dayRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 16,
+    paddingVertical: 14,
     borderBottomWidth: 1,
     borderBottomColor: colors.skeleton,
   },
@@ -450,20 +678,20 @@ const makeStyles = (colors: any) => StyleSheet.create({
     flex: 1,
   },
   dayName: {
-    fontSize: 14,
-    fontWeight: '700',
+    fontSize: 13,
+    fontWeight: '800',
     color: colors.textPrimary,
-    marginBottom: 4,
+    marginBottom: 2,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   sessionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 15,
+    fontWeight: '700',
     color: colors.accent,
   },
   sessionEmpty: {
-    fontSize: 15,
+    fontSize: 14,
     color: colors.textTertiary,
   },
   statusBadge: {
@@ -475,31 +703,31 @@ const makeStyles = (colors: any) => StyleSheet.create({
     justifyContent: 'center',
   },
   addBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     backgroundColor: colors.skeleton,
     alignItems: 'center',
     justifyContent: 'center',
   },
   modalBackdrop: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.7)",
+    backgroundColor: 'rgba(0,0,0,0.65)',
     justifyContent: 'flex-end',
   },
   bottomSheet: {
     backgroundColor: colors.card,
-    borderTopLeftRadius: 34,
-    borderTopRightRadius: 34,
-    paddingHorizontal: 24,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    paddingHorizontal: 20,
     paddingTop: 12,
-    paddingBottom: 24,
-    maxHeight: '80%',
+    paddingBottom: 32,
+    maxHeight: '85%',
   },
   dragHandleContainer: {
     width: '100%',
     alignItems: 'center',
-    paddingBottom: 12,
+    paddingBottom: 10,
   },
   dragHandle: {
     width: 40,
@@ -507,91 +735,232 @@ const makeStyles = (colors: any) => StyleSheet.create({
     backgroundColor: colors.cardBorder,
     borderRadius: 2,
   },
-  sheetTitle: {
-    fontSize: 23,
-    fontWeight: '900',
-    color: colors.textPrimary,
-    marginTop: 4,
-    letterSpacing: -0.5,
-  },
-  sheetDesc: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    marginBottom: 20,
-    marginTop: 4,
-  },
-  sheetScroll: {
-    borderTopWidth: 1,
-    borderTopColor: colors.cardBorder,
-  },
-  sheetOption: {
+  daySheetHeader: {
     flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.cardBorder,
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 16,
   },
-  sheetOptionIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+  daySheetSubtitle: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: colors.accent,
+    letterSpacing: 0.5,
+  },
+  sheetTitle: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: colors.textPrimary,
+    marginTop: 2,
+  },
+  sheetCloseBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     backgroundColor: colors.skeleton,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 16,
   },
-  sheetOptionTextContainer: {
-    flex: 1,
+  sheetDesc: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    marginBottom: 16,
   },
-  sheetOptionTitle: {
+  dayExerciseScroll: {
+    maxHeight: 380,
+  },
+  emptyDayContainer: {
+    alignItems: 'center',
+    paddingVertical: 36,
+    gap: 8,
+  },
+  emptyDayTitle: {
     fontSize: 16,
     fontWeight: '700',
     color: colors.textPrimary,
+    marginTop: 8,
   },
-  sheetOptionDesc: {
+  emptyDayDesc: {
     fontSize: 13,
     color: colors.textSecondary,
+    textAlign: 'center',
+    maxWidth: 260,
+  },
+  planExerciseCard: {
+    backgroundColor: colors.skeleton,
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+  },
+  planExTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  planExName: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.textPrimary,
+  },
+  planExMuscle: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.textTertiary,
     marginTop: 2,
+    textTransform: 'capitalize',
+  },
+  trashBtn: {
+    padding: 6,
+  },
+  planExControlsRow: {
+    flexDirection: 'row',
+    gap: 16,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: colors.cardBorder,
+  },
+  planExControlGroup: {
+    flex: 1,
+  },
+  planExControlLabel: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: colors.textTertiary,
+    marginBottom: 6,
+  },
+  stepper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.card,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+    height: 38,
+    paddingHorizontal: 4,
+  },
+  stepperBtn: {
+    width: 30,
+    height: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stepperValue: {
+    flex: 1,
+    textAlign: 'center',
+    fontSize: 14,
+    fontWeight: '800',
+    color: colors.textPrimary,
+  },
+  repsInput: {
+    height: 38,
+    backgroundColor: colors.card,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+    paddingHorizontal: 12,
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.textPrimary,
+  },
+  daySheetBottomActions: {
+    marginTop: 16,
+    gap: 10,
+  },
+  addExercisesBtn: {
+    backgroundColor: colors.accent,
+    height: 48,
+    borderRadius: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  addExercisesBtnText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  clearDayBtn: {
+    height: 40,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  clearDayBtnText: {
+    color: colors.textTertiary,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  sheetScroll: {
+    maxHeight: 340,
   },
   tabContainer: {
     flexDirection: 'row',
-    marginBottom: 16,
+    marginBottom: 12,
     backgroundColor: colors.skeleton,
-    borderRadius: 8,
-    padding: 4,
+    borderRadius: 10,
+    padding: 3,
   },
   tabBtn: {
     flex: 1,
     paddingVertical: 8,
     alignItems: 'center',
-    borderRadius: 6,
+    borderRadius: 8,
   },
   tabBtnActive: {
     backgroundColor: colors.card,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 1,
-    elevation: 2,
   },
   tabText: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: 13,
+    fontWeight: '700',
     color: colors.textSecondary,
   },
   tabTextActive: {
     color: colors.textPrimary,
   },
+  emptyPickerText: {
+    textAlign: 'center',
+    marginTop: 24,
+    color: colors.textSecondary,
+    fontSize: 13,
+  },
+  sheetOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.skeleton,
+  },
+  sheetOptionIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: colors.accentLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 14,
+  },
+  sheetOptionTextContainer: {
+    flex: 1,
+  },
+  sheetOptionTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.textPrimary,
+  },
   addAllBtn: {
     backgroundColor: colors.accent,
-    paddingVertical: 14,
+    paddingVertical: 12,
     borderRadius: 12,
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 12,
   },
   addAllBtnText: {
     color: '#FFFFFF',
-    fontWeight: '700',
+    fontWeight: '800',
     fontSize: 14,
   },
   exerciseRow: {
@@ -600,13 +969,13 @@ const makeStyles = (colors: any) => StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: colors.cardBorder,
+    borderBottomColor: colors.skeleton,
   },
   exerciseRowName: {
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '700',
     color: colors.textPrimary,
-    marginBottom: 4,
+    marginBottom: 2,
   },
   exerciseRowDesc: {
     fontSize: 12,
@@ -616,11 +985,11 @@ const makeStyles = (colors: any) => StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     backgroundColor: colors.accentLight,
-    borderRadius: 16,
+    borderRadius: 14,
   },
   addSingleBtnText: {
     color: colors.accent,
     fontSize: 12,
-    fontWeight: '700',
-  }
+    fontWeight: '800',
+  },
 });

@@ -1,28 +1,31 @@
-home screen button functioning
-next helper 
-discover plan
-from get started init page no option of going back on 2nd page 
-remove preselected option other than payment page
-target muscle page have no body highlighted skeleton
+done
+_____________________________
+email/password signup not working : done
+remove already have account: done
 
-sign up page have ugly button
-is streaks page fully functional with backend/supabase
-keep avatar icon as fixed positon for all screen in which it is visible
-create collection buton not working
-progress gallery remove kar do isko 
-A plan can add an exercise or all exercises from a workout or from a collection/workout & remove duration from plan, i.e, no. of weeks 
+in the login screen we have two text don't have account signup and already have account login, : done
+
+_____________________________
+
+create collection buton not working : done
+progress gallery remove kar do isko : done
+A plan can add an exercise or all exercises from a workout or from a collection/workout & remove duration from plan, i.e, no. of weeks : done
+
+
+
+backend changes
 in the backend, before creating exercie, check for links already available, if then refetch from yt-wlp
 
 
+********* need thinkiing *****
+keep avatar icon as fixed positon for all screen in which it is visible : done
+discover plan : done
 
-email/password signup not working : remove it
-timestamp and video rendering not working: create video rendering changes  
-in the login screen we have two text don't have account signup and already have account login, remove already have account login as we are laready in login screen
+target muscle page have body highlighted skeleton in muscle targetting front and back, we have same option for both front end back and skeleton is not visible for any of that : done
 
-terms of service and privacy policy link non -clickable
-description not visible for exercies in workout, 
+privacy policy and terms of service file creation, linking is pending : done
 
-Sets and weight update should be on workout plan only 
-
-privacy policy and terms of service file creation
-
+description not visible for exercies in workout, : testing required : done
+Sets and weight update should be on workout plan only : done
+timestamp and video rendering not working: create video rendering changes : done
+login as we are aready in login screen: save token/cookie in localstorage and fetch state from that : done

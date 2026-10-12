@@ -21,6 +21,16 @@ export default function WelcomeScreen() {
     router.replace('/home');
   };
 
+  React.useEffect(() => {
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        router.replace('/home');
+      }
+    };
+    checkSession();
+  }, []);
+
   const handleGoogleLogin = async () => {
     try {
       const redirectUrl = Linking.createURL('');
@@ -183,9 +193,9 @@ export default function WelcomeScreen() {
         {/* Bottom Legal Footer */}
         <View style={s.footerSection}>
           <Text style={s.legalText}>
-            By continuing you agree to FreakyFit's{' '}
-            <Text style={s.linkText} onPress={() => Linking.openURL('https://freakyfit.app/terms')}>Terms of Service</Text> and{' '}
-            <Text style={s.linkText} onPress={() => Linking.openURL('https://freakyfit.app/privacy')}>Privacy Policy</Text>.
+            By continuing you agree to FreakyFit&apos;s{' '}
+            <Text style={s.linkText} onPress={() => router.push('/terms')}>Terms of Service</Text> and{' '}
+            <Text style={s.linkText} onPress={() => router.push('/privacy')}>Privacy Policy</Text>.
           </Text>
           
         </View>

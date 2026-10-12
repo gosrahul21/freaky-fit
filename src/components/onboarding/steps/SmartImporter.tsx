@@ -4,6 +4,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-nati
 import { Check } from 'lucide-react-native';
 import { Header } from '../Header';
 import { ContinueButton } from '../ContinueButton';
+import { PlatformIcon } from '../../icons';
 
 const SOURCES = [
   {
@@ -129,7 +130,8 @@ export function SmartImporter({ onNext, onBack }: { onNext: () => void, onBack: 
                     {source.badges && (
                       <View style={styles.badgesRow}>
                         {source.badges.map((badge, idx) => (
-                          <View key={idx} style={[styles.badge, { backgroundColor: badge.bg }]}>
+                          <View key={idx} style={[styles.badge, { backgroundColor: badge.bg, flexDirection: 'row', alignItems: 'center', gap: 5 }]}>
+                            <PlatformIcon name={badge.text} size={12} />
                             <Text style={[styles.badgeText, { color: badge.color }]}>{badge.text}</Text>
                           </View>
                         ))}

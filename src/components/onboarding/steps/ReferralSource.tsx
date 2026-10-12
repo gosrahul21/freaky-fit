@@ -2,23 +2,56 @@ import { hapticSelection } from '../../../utils/haptics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
-import { Check } from 'lucide-react-native';
-import { FontAwesome5 } from '@expo/vector-icons';
+import { Check, Users, Headphones } from 'lucide-react-native';
 import { Header } from '../Header';
+import {
+  InstagramIcon,
+  TikTokIcon,
+  YouTubeIcon,
+  RedditIcon,
+  GoogleIcon,
+  AppleIcon,
+  FacebookIcon,
+} from '../../icons';
 
 const REFERRAL_SOURCES = [
-  { id: 'instagram', label: 'Instagram', icon: 'instagram', color: '#E1306C' },
-  { id: 'tiktok', label: 'TikTok', icon: 'tiktok', color: '#000000' },
-  { id: 'youtube', label: 'YouTube', icon: 'youtube', color: '#FF0000' },
-  { id: 'reddit', label: 'Reddit', icon: 'reddit-alien', color: '#FF4500' },
-  { id: 'friend', label: 'Friend or Gym Partner', icon: 'user-friends', color: '#10B981' },
-  { id: 'google', label: 'Google / Web Search', icon: 'google', color: '#4285F4' },
-  { id: 'appstore', label: 'App Store Search', icon: 'apple', color: '#0EA5E9' },
-  { id: 'podcast', label: 'Podcast / Other', icon: 'podcast', color: '#7C3AED' },
+  { id: 'instagram', label: 'Instagram', color: '#E1306C' },
+  { id: 'tiktok', label: 'TikTok', color: '#000000' },
+  { id: 'youtube', label: 'YouTube', color: '#FF0000' },
+  { id: 'reddit', label: 'Reddit', color: '#FF4500' },
+  { id: 'friend', label: 'Friend or Gym Partner', color: '#10B981' },
+  { id: 'google', label: 'Google / Web Search', color: '#4285F4' },
+  { id: 'appstore', label: 'App Store Search', color: '#0EA5E9' },
+  { id: 'podcast', label: 'Podcast / Other', color: '#7C3AED' },
 ];
 
 export function ReferralSource({ onNext, onBack }: { onNext: () => void, onBack: () => void }) {
   const [selectedSource, setSelectedSource] = useState<string>('');
+
+  const renderSourceIcon = (id: string) => {
+    switch (id) {
+      case 'instagram':
+        return <InstagramIcon size={20} />;
+      case 'tiktok':
+        return <TikTokIcon size={20} />;
+      case 'youtube':
+        return <YouTubeIcon size={20} />;
+      case 'reddit':
+        return <RedditIcon size={22} />;
+      case 'google':
+        return <GoogleIcon size={20} />;
+      case 'appstore':
+        return <AppleIcon size={20} color="#FFFFFF" />;
+      case 'facebook':
+        return <FacebookIcon size={20} />;
+      case 'friend':
+        return <Users size={20} color="#FFFFFF" />;
+      case 'podcast':
+        return <Headphones size={20} color="#FFFFFF" />;
+      default:
+        return null;
+    }
+  };
 
   const handleSelect = async (id: string) => {
     setSelectedSource(id);
@@ -59,7 +92,7 @@ export function ReferralSource({ onNext, onBack }: { onNext: () => void, onBack:
               >
                 <View style={styles.cardContent}>
                   <View style={[styles.iconContainer, { backgroundColor: source.color }]}>
-                    <FontAwesome5 name={source.icon as any} size={20} color="#FFFFFF" />
+                    {renderSourceIcon(source.id)}
                   </View>
                   <Text style={[styles.cardTitle, isSelected && styles.cardTitleSelected]}>
                     {source.label}

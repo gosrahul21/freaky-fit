@@ -2,7 +2,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import React, { useState } from 'react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, Modal, TextInput, Alert, Image } from 'react-native';
-import { Search, Plus, Home as HomeIcon, Bookmark, User, CalendarDays, List, Edit3, ChevronRight, FolderPlus, Download, Zap, MessageSquare, Flame, Compass, X, Trash2, PlaySquare, Camera, Smartphone } from 'lucide-react-native';
+import { Search, Plus, Home as HomeIcon, Bookmark, User, CalendarDays, List, Edit3, ChevronRight, FolderPlus, Download, Zap, MessageSquare, Flame, Compass, X, Trash2 } from 'lucide-react-native';
+import { InstagramIcon, YouTubeIcon, TikTokIcon } from '../../components/icons';
 import { useRouter, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { supabase } from '../../lib/supabase';
 
@@ -28,6 +29,14 @@ export default function LibraryScreen() {
 
   const params = useLocalSearchParams();
 
+  React.useEffect(() => {
+    if (params.action === 'create_collection') {
+      setActiveTab('collections');
+      setCollectionModalVisible(true);
+      router.setParams({ action: '' });
+    }
+  }, [params.action, params._ts]);
+
   useFocusEffect(
     React.useCallback(() => {
       fetchData();
@@ -36,7 +45,7 @@ export default function LibraryScreen() {
         setCollectionModalVisible(true);
         router.setParams({ action: '' });
       }
-    }, [params.action])
+    }, [params.action, params._ts])
   );
 
   const fetchData = async () => {
@@ -79,25 +88,34 @@ export default function LibraryScreen() {
       return;
     }
     setIsCreatingCollection(true);
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      setIsCreatingCollection(false);
-      return;
-    }
-    
-    const { data, error } = await supabase
-      .from('collections')
-      .insert([{ title: newCollectionTitle.trim(), user_id: user.id }])
-      .select();
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        setIsCreatingCollection(false);
+        Alert.alert('Sign In Required', 'Please sign in to create and save collections.', [
+          { text: 'Sign In', onPress: () => router.push('/auth/login') },
+          { text: 'Cancel', style: 'cancel' }
+        ]);
+        return;
+      }
       
-    if (error) {
-      Alert.alert('Error', error.message);
-    } else if (data) {
-      setCollections([data[0], ...collections]);
-      setCollectionModalVisible(false);
-      setNewCollectionTitle('');
+      const { data, error } = await supabase
+        .from('collections')
+        .insert([{ title: newCollectionTitle.trim(), user_id: user.id }])
+        .select();
+        
+      if (error) {
+        Alert.alert('Error', error.message);
+      } else if (data && data.length > 0) {
+        setCollections(prev => [data[0], ...prev]);
+        setCollectionModalVisible(false);
+        setNewCollectionTitle('');
+      }
+    } catch (err: any) {
+      Alert.alert('Error', err.message || 'Failed to create collection');
+    } finally {
+      setIsCreatingCollection(false);
     }
-    setIsCreatingCollection(false);
   };
 
   const handleDelete = async (id: string, type: 'workout' | 'collection' | 'plan') => {
@@ -124,24 +142,29 @@ export default function LibraryScreen() {
         
         {/* Top Header */}
         <View style={s.header}>
-          <View style={s.avatarContainer}>
+          <View style={s.headerLeft}>
+            <Text style={s.headerTitle}>Library</Text>
+            <TouchableOpacity style={s.iconBtn} onPress={() => setIsSearchActive(!isSearchActive)}>
+              <Search size={22} color={isSearchActive ? colors.accent : colors.textPrimary} />
+            </TouchableOpacity>
+            <TouchableOpacity style={s.iconBtn} onPress={() => setIsEditMode(!isEditMode)}>
+              <Edit3 size={22} color={isEditMode ? colors.accent : colors.textPrimary} />
+            </TouchableOpacity>
+          </View>
+          
+          <TouchableOpacity 
+            style={s.avatarContainer} 
+            activeOpacity={0.8}
+            onPress={() => router.push('/settings')}
+          >
             <View style={s.avatar}>
               <Text style={s.avatarText}>{userName}</Text>
             </View>
-            {/* Crown mock */}
+            {/* Crown Badge */}
             <View style={s.crownBadge}>
               <Text style={{ fontSize: 10 }}>👑</Text>
             </View>
-          </View>
-          
-          <View style={s.headerActions}>
-            <TouchableOpacity style={s.iconBtn} onPress={() => setIsSearchActive(!isSearchActive)}>
-              <Search size={24} color={isSearchActive ? colors.accent : "#111827"} />
-            </TouchableOpacity>
-            <TouchableOpacity style={s.iconBtn} onPress={() => setIsEditMode(!isEditMode)}>
-              <Edit3 size={24} color={isEditMode ? colors.accent : "#111827"} />
-            </TouchableOpacity>
-          </View>
+          </TouchableOpacity>
         </View>
 
         {/* Search Bar */}
@@ -201,19 +224,21 @@ export default function LibraryScreen() {
             filteredWorkouts.length > 0 ? (
               <View style={{ gap: 12 }}>
                 {filteredWorkouts.map(w => {
-                  let PlatformIcon = Zap;
-                  let iconColor = colors.accent;
-                  
-                  if (w.source_url?.includes('youtube.com') || w.source_url?.includes('youtu.be')) {
-                    PlatformIcon = PlaySquare;
-                    iconColor = '#FF0000'; // YouTube Red
-                  } else if (w.source_url?.includes('instagram.com')) {
-                    PlatformIcon = Camera;
-                    iconColor = '#E1306C'; // Instagram Pink
-                  } else if (w.source_url?.includes('tiktok.com')) {
-                    PlatformIcon = Smartphone;
-                    iconColor = '#000000'; // TikTok Black (or white in dark mode, but let's use textPrimary)
-                  }
+                  const getPlatformIcon = (isOverlay = false) => {
+                    const url = (w.source_url || '').toLowerCase();
+                    const type = (w.source_type || '').toLowerCase();
+                    const iconSize = isOverlay ? 12 : 24;
+                    if (url.includes('youtube.com') || url.includes('youtu.be') || type.includes('youtube')) {
+                      return <YouTubeIcon size={iconSize} />;
+                    }
+                    if (url.includes('instagram.com') || type.includes('instagram')) {
+                      return <InstagramIcon size={iconSize} />;
+                    }
+                    if (url.includes('tiktok.com') || type.includes('tiktok')) {
+                      return <TikTokIcon size={iconSize} />;
+                    }
+                    return <Zap size={iconSize} color={colors.accent} />;
+                  };
 
                   return (
                     <TouchableOpacity 
@@ -226,13 +251,13 @@ export default function LibraryScreen() {
                         {w.thumbnail_url ? (
                           <View style={{ position: 'relative', marginRight: 16 }}>
                             <Image source={{ uri: w.thumbnail_url }} style={[s.workoutThumbnail, { marginRight: 0 }]} />
-                            <View style={[s.platformBadgeOverlay, { backgroundColor: iconColor }]}>
-                              <PlatformIcon size={10} color="#FFFFFF" />
+                            <View style={s.platformBadgeOverlay}>
+                              {getPlatformIcon(true)}
                             </View>
                           </View>
                         ) : (
-                          <View style={[s.folderIconBadge, { backgroundColor: `${iconColor}15` }]}>
-                            <PlatformIcon size={20} color={w.source_url?.includes('tiktok.com') ? colors.textPrimary : iconColor} />
+                          <View style={s.folderIconBadge}>
+                            {getPlatformIcon(false)}
                           </View>
                         )}
                         <View style={{flex: 1}}>
@@ -458,15 +483,28 @@ const makeStyles = (colors: ReturnType<typeof import("../../contexts/ThemeContex
   },
   avatarText: {
     color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: '800',
-    letterSpacing: 1,
+    fontSize: 14,
+    fontWeight: '700',
   },
   crownBadge: {
     position: 'absolute',
-    top: -4,
-    left: -4,
-    transform: [{ rotate: '-12deg' }],
+    top: -6,
+    right: -4,
+    backgroundColor: colors.card,
+    borderRadius: 12,
+    padding: 2,
+    borderWidth: 1,
+    borderColor: 'rgba(251, 191, 36, 0.6)',
+  },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: colors.textPrimary,
   },
   headerActions: {
     flexDirection: 'row',
