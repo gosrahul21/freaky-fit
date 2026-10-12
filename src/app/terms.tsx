@@ -2,8 +2,9 @@ import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { ArrowLeft } from 'lucide-react-native';
+import { ArrowLeft, ExternalLink } from 'lucide-react-native';
 import { useTheme } from '../contexts/ThemeContext';
+import { APP_LINKS, openWebUrl } from '../constants/links';
 
 export default function TermsOfServiceScreen() {
   const router = useRouter();
@@ -17,7 +18,14 @@ export default function TermsOfServiceScreen() {
           <ArrowLeft size={22} color={colors.textPrimary} />
         </TouchableOpacity>
         <Text style={s.headerTitle}>Terms of Service</Text>
-        <View style={{ width: 40 }} />
+        <TouchableOpacity
+          style={s.backBtn}
+          activeOpacity={0.7}
+          onPress={() => openWebUrl(APP_LINKS.TERMS_OF_SERVICE)}
+          accessibilityLabel="Open in Web Browser"
+        >
+          <ExternalLink size={18} color={colors.textSecondary} />
+        </TouchableOpacity>
       </View>
 
       <ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
@@ -61,7 +69,7 @@ export default function TermsOfServiceScreen() {
 
         <Text style={s.sectionTitle}>7. Contact Us</Text>
         <Text style={s.paragraph}>
-          For inquiries regarding these Terms, contact us at legal@freakyfit.app.
+          For inquiries regarding these Terms, contact us at {APP_LINKS.SUPPORT_EMAIL} or visit {APP_LINKS.DOMAIN}.
         </Text>
       </ScrollView>
     </SafeAreaView>

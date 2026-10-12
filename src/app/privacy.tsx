@@ -2,8 +2,9 @@ import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { ArrowLeft } from 'lucide-react-native';
+import { ArrowLeft, ExternalLink } from 'lucide-react-native';
 import { useTheme } from '../contexts/ThemeContext';
+import { APP_LINKS, openWebUrl } from '../constants/links';
 
 export default function PrivacyPolicyScreen() {
   const router = useRouter();
@@ -17,7 +18,14 @@ export default function PrivacyPolicyScreen() {
           <ArrowLeft size={22} color={colors.textPrimary} />
         </TouchableOpacity>
         <Text style={s.headerTitle}>Privacy Policy</Text>
-        <View style={{ width: 40 }} />
+        <TouchableOpacity
+          style={s.backBtn}
+          activeOpacity={0.7}
+          onPress={() => openWebUrl(APP_LINKS.PRIVACY_POLICY)}
+          accessibilityLabel="Open in Web Browser"
+        >
+          <ExternalLink size={18} color={colors.textSecondary} />
+        </TouchableOpacity>
       </View>
 
       <ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
@@ -65,12 +73,12 @@ export default function PrivacyPolicyScreen() {
 
         <Text style={s.sectionTitle}>5. Your Rights & Data Deletion</Text>
         <Text style={s.paragraph}>
-          You have the right to review, update, or request the deletion of your account and all associated fitness logs at any time. You can request complete account deletion in the Settings screen or by contacting support at support@freakyfit.app.
+          You have the right to review, update, or request the deletion of your account and all associated fitness logs at any time. You can request complete account deletion in the Settings screen or by contacting support at {APP_LINKS.SUPPORT_EMAIL}.
         </Text>
 
         <Text style={s.sectionTitle}>6. Contact Us</Text>
         <Text style={s.paragraph}>
-          If you have questions or concerns about this Privacy Policy, please reach out to us at support@freakyfit.app.
+          If you have questions or concerns about this Privacy Policy, please reach out to Truemind Labs at {APP_LINKS.SUPPORT_EMAIL} or visit {APP_LINKS.DOMAIN}.
         </Text>
       </ScrollView>
     </SafeAreaView>

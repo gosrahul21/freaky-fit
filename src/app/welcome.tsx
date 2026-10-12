@@ -9,6 +9,7 @@ import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
 import { supabase } from '../lib/supabase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { APP_LINKS, openWebUrl } from '../constants/links';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -194,8 +195,8 @@ export default function WelcomeScreen() {
         <View style={s.footerSection}>
           <Text style={s.legalText}>
             By continuing you agree to FreakyFit&apos;s{' '}
-            <Text style={s.linkText} onPress={() => router.push('/terms')}>Terms of Service</Text> and{' '}
-            <Text style={s.linkText} onPress={() => router.push('/privacy')}>Privacy Policy</Text>.
+            <Text style={s.linkText} onPress={() => openWebUrl(APP_LINKS.TERMS_OF_SERVICE)}>Terms of Service</Text> and{' '}
+            <Text style={s.linkText} onPress={() => openWebUrl(APP_LINKS.PRIVACY_POLICY)}>Privacy Policy</Text>.
           </Text>
           
         </View>

@@ -8,6 +8,7 @@ import {
   ScrollView,
   Switch,
   Alert,
+  Linking,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
@@ -23,9 +24,12 @@ import {
   Star,
   MessageSquare,
   FileText,
+  Globe,
+  ExternalLink,
 } from 'lucide-react-native';
 import { supabase } from '../lib/supabase';
 import { useTheme } from '../contexts/ThemeContext';
+import { APP_LINKS, openWebUrl } from '../constants/links';
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -144,47 +148,54 @@ export default function SettingsScreen() {
         <View style={s.section}>
           <Text style={s.sectionLabel}>ACCOUNT</Text>
           <View style={s.settingsCard}>
-            <TouchableOpacity style={s.settingsRow} onPress={() => router.push('/privacy')}>
+            <TouchableOpacity style={s.settingsRow} onPress={() => openWebUrl(APP_LINKS.PRIVACY_POLICY)} activeOpacity={0.7}>
               <View style={s.settingsRowLeft}>
                 <View style={[s.iconBadge, { backgroundColor: '#1a1a2a' }]}>
                   <Shield size={18} color="#818CF8" />
                 </View>
                 <Text style={s.settingsRowTitle}>Privacy Policy</Text>
               </View>
-              <ChevronRight size={18} color={colors.textTertiary} />
+              <ExternalLink size={16} color={colors.textTertiary} />
             </TouchableOpacity>
 
             <View style={s.rowDivider} />
 
-            <TouchableOpacity style={s.settingsRow} onPress={() => router.push('/terms')}>
+            <TouchableOpacity style={s.settingsRow} onPress={() => openWebUrl(APP_LINKS.TERMS_OF_SERVICE)} activeOpacity={0.7}>
               <View style={s.settingsRowLeft}>
                 <View style={[s.iconBadge, { backgroundColor: '#1a1a2a' }]}>
                   <FileText size={18} color="#818CF8" />
                 </View>
                 <Text style={s.settingsRowTitle}>Terms of Service</Text>
               </View>
-              <ChevronRight size={18} color={colors.textTertiary} />
+              <ExternalLink size={16} color={colors.textTertiary} />
             </TouchableOpacity>
           </View>
         </View>
 
-        {/* Support */}
+        {/* Support & Community */}
         <View style={s.section}>
-          <Text style={s.sectionLabel}>SUPPORT</Text>
+          <Text style={s.sectionLabel}>SUPPORT & COMMUNITY</Text>
           <View style={s.settingsCard}>
-            <TouchableOpacity style={s.settingsRow}>
+            <TouchableOpacity style={s.settingsRow} onPress={() => openWebUrl(APP_LINKS.WEBSITE)} activeOpacity={0.7}>
               <View style={s.settingsRowLeft}>
-                <View style={[s.iconBadge, { backgroundColor: '#1a2010' }]}>
-                  <Star size={18} color="#FCD34D" />
+                <View style={[s.iconBadge, { backgroundColor: '#152520' }]}>
+                  <Globe size={18} color="#34D399" />
                 </View>
-                <Text style={s.settingsRowTitle}>Rate FreakyFit</Text>
+                <View>
+                  <Text style={s.settingsRowTitle}>Official Website</Text>
+                  <Text style={s.settingsRowSubtitle}>{APP_LINKS.DOMAIN}</Text>
+                </View>
               </View>
-              <ChevronRight size={18} color={colors.textTertiary} />
+              <ExternalLink size={16} color={colors.textTertiary} />
             </TouchableOpacity>
 
             <View style={s.rowDivider} />
 
-            <TouchableOpacity style={s.settingsRow}>
+            <TouchableOpacity
+              style={s.settingsRow}
+              onPress={() => Linking.openURL(`mailto:${APP_LINKS.SUPPORT_EMAIL}?subject=FreakyFit%20Feedback`)}
+              activeOpacity={0.7}
+            >
               <View style={s.settingsRowLeft}>
                 <View style={[s.iconBadge, { backgroundColor: '#1a1520' }]}>
                   <MessageSquare size={18} color="#A78BFA" />
@@ -196,14 +207,26 @@ export default function SettingsScreen() {
 
             <View style={s.rowDivider} />
 
-            <TouchableOpacity style={s.settingsRow}>
+            <TouchableOpacity style={s.settingsRow} onPress={() => openWebUrl(APP_LINKS.WEBSITE + '#download')} activeOpacity={0.7}>
+              <View style={s.settingsRowLeft}>
+                <View style={[s.iconBadge, { backgroundColor: '#1a2010' }]}>
+                  <Star size={18} color="#FCD34D" />
+                </View>
+                <Text style={s.settingsRowTitle}>Rate FreakyFit</Text>
+              </View>
+              <ChevronRight size={18} color={colors.textTertiary} />
+            </TouchableOpacity>
+
+            <View style={s.rowDivider} />
+
+            <TouchableOpacity style={s.settingsRow} onPress={() => openWebUrl(APP_LINKS.WEBSITE)} activeOpacity={0.7}>
               <View style={s.settingsRowLeft}>
                 <View style={[s.iconBadge, { backgroundColor: '#1a1520' }]}>
                   <HelpCircle size={18} color="#A78BFA" />
                 </View>
                 <Text style={s.settingsRowTitle}>Help Center</Text>
               </View>
-              <ChevronRight size={18} color={colors.textTertiary} />
+              <ExternalLink size={16} color={colors.textTertiary} />
             </TouchableOpacity>
           </View>
         </View>
