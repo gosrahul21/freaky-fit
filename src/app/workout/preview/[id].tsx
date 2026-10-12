@@ -1,14 +1,14 @@
 import { SafeAreaView } from 'react-native-safe-area-context';
 import React from 'react';
 import { useTheme } from '../../../contexts/ThemeContext';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, StatusBar, ActivityIndicator, Modal } from 'react-native';
-import { X, PlayCircle, Plus, LayoutGrid, CheckSquare, ChevronDown, List as ListIcon, Activity, FolderPlus } from 'lucide-react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, StatusBar, ActivityIndicator, Modal, Image, Linking, Alert } from 'react-native';
+import { X, PlayCircle, Plus, LayoutGrid, CheckSquare, ChevronDown, List as ListIcon, Activity, FolderPlus, ExternalLink } from 'lucide-react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { supabase } from '../../../lib/supabase';
 import Svg, { Path, Ellipse, Circle, Rect, Line, Defs, LinearGradient as SvgLinearGradient, Stop } from 'react-native-svg';
 
 export default function WorkoutDetailsScreen() {
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
   const s = makeStyles(colors);
   const router = useRouter();
   const { id } = useLocalSearchParams();
@@ -48,15 +48,33 @@ export default function WorkoutDetailsScreen() {
   };
 
   const handleSaveToCollection = async (collectionId: string) => {
-    if (!selectedExerciseId) return;
-    const { error } = await supabase
-      .from('collection_exercises')
-      .insert([{ collection_id: collectionId, workout_exercise_id: selectedExerciseId }]);
-    
-    setShowCollectionModal(false);
-    setSelectedExerciseId(null);
-    if (error && error.code !== '23505') { // Ignore unique violation
-      alert('Failed to save to collection: ' + error.message);
+    if (selectedExerciseId) {
+      const { error } = await supabase
+        .from('collection_exercises')
+        .insert([{ collection_id: collectionId, workout_exercise_id: selectedExerciseId }]);
+      
+      setShowCollectionModal(false);
+      setSelectedExerciseId(null);
+      if (error && error.code !== '23505') {
+        Alert.alert('Error', 'Failed to save to collection: ' + error.message);
+      } else {
+        Alert.alert('Success', 'Exercise saved to collection!');
+      }
+    } else if (workout?.workout_exercises?.length) {
+      const inserts = workout.workout_exercises.map((we: any) => ({
+        collection_id: collectionId,
+        workout_exercise_id: we.id,
+      }));
+      const { error } = await supabase
+        .from('collection_exercises')
+        .insert(inserts);
+
+      setShowCollectionModal(false);
+      if (error && error.code !== '23505') {
+        Alert.alert('Error', 'Failed to save to collection: ' + error.message);
+      } else {
+        Alert.alert('Success', 'Saved all exercises to collection!');
+      }
     }
   };
 
@@ -70,14 +88,14 @@ export default function WorkoutDetailsScreen() {
 
   return (
     <SafeAreaView style={s.safeArea}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+      <StatusBar barStyle={isDark ? "light-content" : "dark-content"} backgroundColor={colors.card} />
       <View style={s.container}>
         
         {/* Top Header */}
         <View style={s.header}>
           <Text style={s.headerTitle}>Imported workout</Text>
           <TouchableOpacity style={s.closeBtn} onPress={() => router.back()}>
-            <X size={20} color="#4B5563" strokeWidth={2.5} />
+            <X size={20} color={colors.textSecondary} strokeWidth={2.5} />
           </TouchableOpacity>
         </View>
 
@@ -87,43 +105,88 @@ export default function WorkoutDetailsScreen() {
           <View style={s.heroSection}>
             <View style={s.heroMainInfo}>
               
-              <View style={s.thumbnailContainer}>
-                <View style={s.thumbnailPlaceholder}>
-                  <Svg width={60} height={60} viewBox="0 0 80 80">
-                    <Rect x="8" y="14" width="64" height="52" rx="10" stroke="#D1D5DB" strokeWidth="3" strokeDasharray="3 3" fill="none" />
-                    <Path d="M22 52L36 34L48 48L58 38L66 48" stroke="#9CA3AF" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
-                    <Circle cx="30" cy="28" r="5" fill="#f97316" fillOpacity={0.8} />
-                    <Path d="M12 60C24 55 42 66 68 59" stroke="#CBD5E1" strokeWidth="3" fill="none" />
-                  </Svg>
-                </View>
+              <TouchableOpacity 
+                style={s.thumbnailContainer}
+                activeOpacity={workout.source_url ? 0.8 : 1}
+                onPress={() => {
+                  if (workout.source_url) Linking.openURL(workout.source_url);
+                }}
+              >
+                {workout.thumbnail_url ? (
+                  <View style={s.thumbnailWrapper}>
+                    <Image source={{ uri: workout.thumbnail_url }} style={s.thumbnailImage} />
+                    {workout.source_url && (
+                      <View style={s.playOverlayBadge}>
+                        <PlayCircle size={24} color="#FFFFFF" />
+                      </View>
+                    )}
+                  </View>
+                ) : (
+                  <View style={s.thumbnailPlaceholder}>
+                    <Svg width={60} height={60} viewBox="0 0 80 80">
+                      <Rect x="8" y="14" width="64" height="52" rx="10" stroke="#D1D5DB" strokeWidth="3" strokeDasharray="3 3" fill="none" />
+                      <Path d="M22 52L36 34L48 48L58 38L66 48" stroke="#9CA3AF" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+                      <Circle cx="30" cy="28" r="5" fill="#f97316" fillOpacity={0.8} />
+                      <Path d="M12 60C24 55 42 66 68 59" stroke="#CBD5E1" strokeWidth="3" fill="none" />
+                    </Svg>
+                  </View>
+                )}
                 <View style={s.newBadge}>
                   <Text style={s.newBadgeText}>NEW</Text>
                 </View>
-              </View>
+              </TouchableOpacity>
 
               <View style={s.heroTextInfo}>
                 <Text style={s.workoutTitle} numberOfLines={2}>{workout.title}</Text>
                 <View style={s.metadataRow}>
                   <View style={s.metaBadge}>
-                    <ListIcon size={14} color="#374151" strokeWidth={2.5} />
-                    <Text style={s.metaBadgeText}>{workout.workout_exercises?.length || 0} exercises</Text>
+                    <ListIcon size={14} color={colors.textSecondary} strokeWidth={2.5} />
+                    <Text style={[s.metaBadgeText, { color: colors.textSecondary }]}>
+                      {workout.workout_exercises?.length || 0} exercises
+                    </Text>
                   </View>
                   <Text style={s.metaDot}>•</Text>
-                  <View style={s.metaBadge}>
-                    <PlayCircle size={16} color="#DC2626" />
-                    <Text style={s.metaBadgeText}>{workout.source_type}</Text>
-                  </View>
+                  {workout.source_url ? (
+                    <TouchableOpacity 
+                      style={s.metaBadge}
+                      activeOpacity={0.7}
+                      onPress={() => Linking.openURL(workout.source_url)}
+                    >
+                      <PlayCircle size={16} color="#DC2626" />
+                      <Text style={[s.metaBadgeText, { color: colors.accent, fontWeight: '700' }]}>
+                        Watch Video ↗
+                      </Text>
+                    </TouchableOpacity>
+                  ) : (
+                    <View style={s.metaBadge}>
+                      <PlayCircle size={16} color="#DC2626" />
+                      <Text style={[s.metaBadgeText, { color: colors.textSecondary }]}>
+                        {workout.source_type || 'Custom'}
+                      </Text>
+                    </View>
+                  )}
                 </View>
               </View>
             </View>
 
             <View style={s.actionPillsRow}>
-              <TouchableOpacity style={s.actionPill}>
-                <LayoutGrid size={16} color="#4B5563" />
+              <TouchableOpacity 
+                style={s.actionPill}
+                activeOpacity={0.8}
+                onPress={() => {
+                  setSelectedExerciseId(null);
+                  setShowCollectionModal(true);
+                }}
+              >
+                <LayoutGrid size={16} color={colors.textPrimary} />
                 <Text style={s.actionPillText}>Collection</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={s.actionPill}>
-                <CheckSquare size={16} color="#4B5563" />
+              <TouchableOpacity 
+                style={s.actionPill}
+                activeOpacity={0.8}
+                onPress={() => router.push('/plan-builder')}
+              >
+                <CheckSquare size={16} color={colors.textPrimary} />
                 <Text style={s.actionPillText}>Plan</Text>
               </TouchableOpacity>
             </View>
@@ -219,7 +282,7 @@ export default function WorkoutDetailsScreen() {
           <View style={s.section}>
             <View style={s.exerciseHeader}>
               <Text style={s.sectionHeader}>EXERCISES</Text>
-              <Text style={s.exerciseCount}>4</Text>
+              <Text style={s.exerciseCount}>{workout.workout_exercises?.length || 0}</Text>
             </View>
 
             {workout.workout_exercises?.map((we: any, idx: number) => {
@@ -237,10 +300,29 @@ export default function WorkoutDetailsScreen() {
                         <Text style={s.statText}>{we.reps} reps</Text>
                       </View>
                       {(we.timestamp_start || we.timestamp_end) && (
-                        <View style={s.exerciseTime}>
+                        <TouchableOpacity 
+                          style={s.exerciseTime}
+                          activeOpacity={workout.source_url ? 0.7 : 1}
+                          onPress={() => {
+                            if (workout.source_url) {
+                              let url = workout.source_url;
+                              if (we.timestamp_start) {
+                                const parts = String(we.timestamp_start).split(':').map(Number);
+                                const secs = parts.length === 2 ? parts[0] * 60 + parts[1] : parts[0];
+                                if (!isNaN(secs) && (url.includes('youtube.com') || url.includes('youtu.be'))) {
+                                  url += (url.includes('?') ? '&' : '?') + `t=${secs}s`;
+                                }
+                              }
+                              Linking.openURL(url);
+                            }
+                          }}
+                        >
                           <Text style={s.playIcon}>▶</Text>
-                          <Text style={s.timeText}>{we.timestamp_start}–{we.timestamp_end}</Text>
-                        </View>
+                          <Text style={s.timeText}>
+                            {we.timestamp_start || '00:00'}–{we.timestamp_end || ''}
+                            {workout.source_url ? ' (Watch)' : ''}
+                          </Text>
+                        </TouchableOpacity>
                       )}
                     </View>
                     <TouchableOpacity 
@@ -285,8 +367,13 @@ export default function WorkoutDetailsScreen() {
 
         {/* Sticky Bottom Bar */}
         <View style={s.bottomBar}>
-          <TouchableOpacity style={s.saveBtn} activeOpacity={0.9} onPress={() => router.replace('/library')}>
-            <Text style={s.saveBtnText}>Save workout</Text>
+          <TouchableOpacity 
+            style={s.startBtn} 
+            activeOpacity={0.9} 
+            onPress={() => router.push(`/workout/${workout.id}`)}
+          >
+            <PlayCircle size={22} color="#FFFFFF" strokeWidth={2.2} />
+            <Text style={s.startBtnText}>Start Workout</Text>
           </TouchableOpacity>
         </View>
 
@@ -636,25 +723,58 @@ const makeStyles = (colors: ReturnType<typeof import("../../../contexts/ThemeCon
     left: 0,
     right: 0,
     paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 32, // safe area spacing roughly
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    paddingTop: 14,
+    paddingBottom: 32,
+    backgroundColor: colors.card,
+    borderTopWidth: 1,
+    borderTopColor: colors.cardBorder,
   },
-  saveBtn: {
-    backgroundColor: '#111317',
-    paddingVertical: 18,
+  startBtn: {
+    backgroundColor: colors.accent,
+    paddingVertical: 16,
     borderRadius: 30,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    shadowColor: colors.accent,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  startBtnText: {
+    color: '#FFFFFF',
+    fontSize: 17,
+    fontWeight: '700',
+  },
+  thumbnailWrapper: {
+    width: 96,
+    height: 96,
+    borderRadius: 16,
+    overflow: 'hidden',
+    position: 'relative',
+    backgroundColor: colors.skeleton,
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+  },
+  thumbnailImage: {
+    width: '100%',
+    height: '100%',
+  },
+  playOverlayBadge: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.3)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  saveBtnText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '700',
-  },
   saveExerciseBtn: {
     padding: 8,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: colors.skeleton,
     borderRadius: 8,
     marginLeft: 8,
   },

@@ -11,3 +11,18 @@ keep avatar icon as fixed positon for all screen in which it is visible
 create collection buton not working
 progress gallery remove kar do isko 
 A plan can add an exercise or all exercises from a workout or from a collection/workout & remove duration from plan, i.e, no. of weeks 
+in the backend, before creating exercie, check for links already available, if then refetch from yt-wlp
+
+
+
+email/password signup not working : remove it
+timestamp and video rendering not working: create video rendering changes  
+in the login screen we have two text don't have account signup and already have account login, remove already have account login as we are laready in login screen
+
+terms of service and privacy policy link non -clickable
+description not visible for exercies in workout, 
+
+Sets and weight update should be on workout plan only 
+
+privacy policy and terms of service file creation
+

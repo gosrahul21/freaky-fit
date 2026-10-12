@@ -55,6 +55,8 @@ export default function WorkoutSessionScreen() {
           id,
           sets,
           reps,
+          timestamp_start,
+          timestamp_end,
           exercises ( id, name )
         `)
         .eq('workout_id', id);
@@ -72,6 +74,8 @@ export default function WorkoutSessionScreen() {
         return {
           id: we.id,
           name: we.exercises?.name || 'Unknown Exercise',
+          timestamp_start: we.timestamp_start,
+          timestamp_end: we.timestamp_end,
           sets: setsArray
         };
       });
@@ -149,7 +153,14 @@ export default function WorkoutSessionScreen() {
           {workout.exercises.map((exercise: any, eIdx: number) => (
             <View key={exercise.id} style={s.exerciseCard}>
               <View style={s.exerciseHeader}>
-                <Text style={s.exerciseName}>{exercise.name}</Text>
+                <View>
+                  <Text style={s.exerciseName}>{exercise.name}</Text>
+                  {(exercise.timestamp_start || exercise.timestamp_end) && (
+                    <Text style={s.exerciseTime}>
+                      ▶ {exercise.timestamp_start || '--:--'} – {exercise.timestamp_end || '--:--'}
+                    </Text>
+                  )}
+                </View>
                 <TouchableOpacity>
                   <Text style={s.exerciseOptions}>Replace</Text>
                 </TouchableOpacity>
@@ -292,6 +303,12 @@ const makeStyles = (colors: any) => StyleSheet.create({
     fontWeight: '700',
     color: colors.textPrimary,
     flex: 1,
+  },
+  exerciseTime: {
+    fontSize: 13,
+    color: colors.accent,
+    fontWeight: '600',
+    marginTop: 4,
   },
   exerciseOptions: {
     fontSize: 13,

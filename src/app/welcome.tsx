@@ -167,11 +167,15 @@ export default function WelcomeScreen() {
             <View style={s.dividerLine} />
             <Text style={s.dividerText}>or</Text>
           </View>
-          
+
           {/* Continue with Email */}
-          <TouchableOpacity style={s.emailBtn} activeOpacity={0.8} onPress={handleContinue}>
-            <Mail size={20} color="#5b4137" />
-            <Text style={s.emailText}>Continue with email login/signup</Text>
+          <TouchableOpacity 
+            style={s.emailBtn} 
+            activeOpacity={0.8} 
+            onPress={() => router.push('/auth/login')}
+          >
+            <Mail size={20} color={colors.textPrimary} />
+            <Text style={s.emailText}>Continue with Email</Text>
           </TouchableOpacity>
         </View>
 
@@ -179,23 +183,10 @@ export default function WelcomeScreen() {
         <View style={s.footerSection}>
           <Text style={s.legalText}>
             By continuing you agree to FreakyFit's{' '}
-            <Text style={s.linkText}>Terms of Service</Text> and{' '}
-            <Text style={s.linkText}>Privacy Policy</Text>.
+            <Text style={s.linkText} onPress={() => Linking.openURL('https://freakyfit.app/terms')}>Terms of Service</Text> and{' '}
+            <Text style={s.linkText} onPress={() => Linking.openURL('https://freakyfit.app/privacy')}>Privacy Policy</Text>.
           </Text>
           
-          <View style={s.loginRow}>
-            <Text style={s.loginTextPrompt}>Don't have an account?</Text>
-            <TouchableOpacity onPress={handleContinue}>
-              <Text style={s.loginTextAction}>Sign up</Text>
-            </TouchableOpacity>
-          </View>
-
-          <View style={[s.loginRow, { marginTop: 12 }]}>
-            <Text style={s.loginTextPrompt}>Already have an account?</Text>
-            <TouchableOpacity onPress={handleContinue}>
-              <Text style={s.loginTextAction}>Log in</Text>
-            </TouchableOpacity>
-          </View>
         </View>
 
       </ScrollView>
@@ -330,7 +321,7 @@ const makeStyles = (colors: ReturnType<typeof import("../contexts/ThemeContext")
   dividerLine: {
     width: '100%',
     height: 1,
-    backgroundColor: '#E2E8F0',
+    backgroundColor: colors.cardBorder,
   },
   dividerText: {
     position: 'absolute',
@@ -338,22 +329,29 @@ const makeStyles = (colors: ReturnType<typeof import("../contexts/ThemeContext")
     paddingHorizontal: 12,
     fontSize: 13,
     fontWeight: '600',
-    color: '#94A3B8',
+    color: colors.textTertiary,
     textTransform: 'uppercase',
   },
   emailBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#F1F5F9',
+    backgroundColor: colors.card,
     height: 60,
     borderRadius: 30,
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
     gap: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
   },
   emailText: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#334155',
+    color: colors.textPrimary,
   },
   footerSection: {
     alignItems: 'center',

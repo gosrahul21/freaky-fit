@@ -220,7 +220,7 @@ export default function LibraryScreen() {
                       key={w.id} 
                       style={s.folderRow} 
                       activeOpacity={0.8} 
-                      onPress={() => !isEditMode && router.push(`/workout/${w.id}`)}
+                      onPress={() => !isEditMode && router.push(`/workout/preview/${w.id}`)}
                     >
                       <View style={s.folderRowLeft}>
                         {w.thumbnail_url ? (
