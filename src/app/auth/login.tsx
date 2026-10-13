@@ -5,6 +5,7 @@ import { supabase } from '../../lib/supabase';
 import { useTheme } from '../../contexts/ThemeContext';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ArrowLeft } from 'lucide-react-native';
+import { checkIsPro } from '../../lib/purchases';
 
 export default function LoginScreen() {
   const { colors } = useTheme();
@@ -19,7 +20,8 @@ export default function LoginScreen() {
     const checkSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
-        router.replace('/home');
+        const isPro = await checkIsPro(session.user.id);
+        router.replace(isPro ? '/home' : '/paywall');
       }
     };
     checkSession();
@@ -57,7 +59,8 @@ export default function LoginScreen() {
           ]);
         }
 
-        router.replace('/home');
+        const isPro = await checkIsPro(data.session.user.id);
+        router.replace(isPro ? '/home' : '/paywall');
       }
     } catch (e: any) {
       Alert.alert('Login Error', e.message);

@@ -6,6 +6,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Check, Star, Zap } from 'lucide-react-native';
 import { hapticImpactLight } from '../utils/haptics';
 import Purchases, { PurchasesPackage } from 'react-native-purchases';
+import { usePostHog } from 'posthog-react-native';
+import { supabase } from '../lib/supabase';
+import { syncPurchasesUser, restorePurchases } from '../lib/purchases';
+import { APP_LINKS, openWebUrl } from '../constants/links';
 
 const { width } = Dimensions.get('window');
 
@@ -13,11 +17,25 @@ export default function PaywallScreen() {
   const router = useRouter();
   const { colors } = useTheme();
   const styles = makeStyles(colors);
+  const posthog = usePostHog();
 
   const [packages, setPackages] = useState<PurchasesPackage[]>([]);
   const [selectedPackage, setSelectedPackage] = useState<PurchasesPackage | null>(null);
   const [isFetching, setIsFetching] = useState(true);
   const [isPurchasing, setIsPurchasing] = useState(false);
+  const [isRestoring, setIsRestoring] = useState(false);
+
+  // Track paywall viewed & sync user if logged in
+  useEffect(() => {
+    posthog.screen('Paywall');
+    posthog.capture('paywall_viewed');
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        syncPurchasesUser(session.user.id);
+      }
+    });
+  }, []);
 
   useEffect(() => {
     const fetchOfferings = async () => {
@@ -38,6 +56,38 @@ export default function PaywallScreen() {
     fetchOfferings();
   }, []);
 
+  const handlePackageSelect = (pkg: PurchasesPackage) => {
+    setSelectedPackage(pkg);
+    posthog.capture('plan_selected', {
+      plan_type: pkg.packageType === 'ANNUAL' ? 'annual' : 'monthly',
+      plan_id: pkg.identifier,
+      price: pkg.product.priceString,
+      price_per_month: pkg.product.pricePerMonthString,
+    });
+  };
+
+  const handleRestore = async () => {
+    try {
+      setIsRestoring(true);
+      const isPro = await restorePurchases();
+      if (isPro) {
+        Alert.alert("Success", "Subscription successfully restored!");
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          router.replace('/home');
+        } else {
+          router.replace('/welcome');
+        }
+      } else {
+        Alert.alert("No Subscription Found", "We could not find an active subscription or free trial for your account.");
+      }
+    } catch (e: any) {
+      Alert.alert("Restore Failed", e.message || "Failed to restore purchases.");
+    } finally {
+      setIsRestoring(false);
+    }
+  };
+
   const handleSubscribe = async () => {
     hapticImpactLight();
     
@@ -47,18 +97,42 @@ export default function PaywallScreen() {
       return;
     }
 
+    posthog.capture('subscribe_clicked', {
+      plan_type: selectedPackage.packageType === 'ANNUAL' ? 'annual' : 'monthly',
+      plan_id: selectedPackage.identifier,
+      price: selectedPackage.product.priceString,
+      has_free_trial: !!selectedPackage.product.introPrice,
+    });
+
     try {
       setIsPurchasing(true);
       const { customerInfo } = await Purchases.purchasePackage(selectedPackage);
       
-      // Check if user got the entitlement (we assume the entitlement ID is 'pro' or 'Premium' in RevenueCat dashboard)
-      // Usually you unlock the app if object has keys
       if (Object.keys(customerInfo.entitlements.active).length > 0) {
-        router.replace('/welcome');
+        posthog.capture('purchase_completed', {
+          plan_type: selectedPackage.packageType === 'ANNUAL' ? 'annual' : 'monthly',
+          plan_id: selectedPackage.identifier,
+          price: selectedPackage.product.priceString,
+        });
+
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          router.replace('/home');
+        } else {
+          router.replace('/welcome');
+        }
       }
     } catch (e: any) {
       if (!e.userCancelled) {
+        posthog.capture('purchase_failed', {
+          plan_id: selectedPackage.identifier,
+          error: e.message,
+        });
         Alert.alert("Purchase Error", e.message);
+      } else {
+        posthog.capture('purchase_cancelled', {
+          plan_id: selectedPackage.identifier,
+        });
       }
     } finally {
       setIsPurchasing(false);
@@ -69,7 +143,11 @@ export default function PaywallScreen() {
     <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
       <View style={styles.container}>
         <View style={styles.header}>
-          {/* Hard Paywall: Skip button removed */}
+          <TouchableOpacity onPress={handleRestore} disabled={isRestoring}>
+            <Text style={styles.restoreBtnText}>
+              {isRestoring ? 'Restoring...' : 'Restore'}
+            </Text>
+          </TouchableOpacity>
         </View>
 
         <View style={styles.content}>
@@ -106,7 +184,7 @@ export default function PaywallScreen() {
                           styles.packageCard, 
                           isSelected && { borderColor: colors.accent, borderWidth: 2, backgroundColor: colors.accent + '10' }
                         ]}
-                        onPress={() => setSelectedPackage(pkg)}
+                        onPress={() => handlePackageSelect(pkg)}
                       >
                         {isAnnual && (
                           <View style={[styles.saveBadge, { backgroundColor: colors.accent }]}>
@@ -143,6 +221,16 @@ export default function PaywallScreen() {
               <Text style={styles.footerText}>
                 {selectedPackage ? `Then ${selectedPackage.product.priceString}. Cancel anytime.` : 'Cancel anytime.'}
               </Text>
+
+              <View style={styles.legalRow}>
+                <TouchableOpacity onPress={() => openWebUrl(APP_LINKS.TERMS_OF_SERVICE)}>
+                  <Text style={styles.legalLink}>Terms of Service</Text>
+                </TouchableOpacity>
+                <Text style={styles.legalDot}>•</Text>
+                <TouchableOpacity onPress={() => openWebUrl(APP_LINKS.PRIVACY_POLICY)}>
+                  <Text style={styles.legalLink}>Privacy Policy</Text>
+                </TouchableOpacity>
+              </View>
             </>
           )}
         </View>
@@ -177,10 +265,17 @@ const makeStyles = (colors: any) => StyleSheet.create({
     justifyContent: 'flex-end',
     paddingVertical: 16,
   },
+  restoreBtnText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.textSecondary,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
   skipText: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#94A3B8',
+    color: colors.textSecondary,
   },
   content: {
     flex: 1,
@@ -205,7 +300,7 @@ const makeStyles = (colors: any) => StyleSheet.create({
   title: {
     fontSize: 32,
     fontWeight: '800',
-    color: colors.text,
+    color: colors.textPrimary,
     textAlign: 'center',
     marginBottom: 12,
   },
@@ -235,7 +330,7 @@ const makeStyles = (colors: any) => StyleSheet.create({
   featureText: {
     fontSize: 16,
     fontWeight: '600',
-    color: colors.text,
+    color: colors.textPrimary,
   },
   footer: {
     width: '100%',
@@ -262,7 +357,7 @@ const makeStyles = (colors: any) => StyleSheet.create({
   },
   footerText: {
     fontSize: 12,
-    color: '#94A3B8',
+    color: colors.textTertiary,
     textAlign: 'center',
   },
   packageList: {
@@ -275,11 +370,11 @@ const makeStyles = (colors: any) => StyleSheet.create({
   packageCard: {
     flex: 1,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.cardBorder,
     borderRadius: 16,
     padding: 16,
     alignItems: 'center',
-    backgroundColor: colors.surface,
+    backgroundColor: colors.card,
     position: 'relative',
   },
   packageTitle: {
@@ -291,7 +386,7 @@ const makeStyles = (colors: any) => StyleSheet.create({
   packagePrice: {
     fontSize: 18,
     fontWeight: '800',
-    color: colors.text,
+    color: colors.textPrimary,
   },
   saveBadge: {
     position: 'absolute',
@@ -304,5 +399,21 @@ const makeStyles = (colors: any) => StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 10,
     fontWeight: 'bold',
-  }
+  },
+  legalRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 14,
+  },
+  legalLink: {
+    fontSize: 11,
+    color: colors.textTertiary,
+    textDecorationLine: 'underline',
+  },
+  legalDot: {
+    fontSize: 11,
+    color: colors.textTertiary,
+  },
 });

@@ -10,8 +10,11 @@ export interface ThemeColors {
   backgroundElevated: string;
   card: string;
   cardBorder: string;
+  surface: string;
+  border: string;
 
   // Text
+  text: string;
   textPrimary: string;
   textSecondary: string;
   textTertiary: string;
@@ -40,10 +43,13 @@ export const DarkColors: ThemeColors = {
   backgroundElevated: '#141415',
   card: '#1A1A1B',
   cardBorder: '#2A2A2B',
+  surface: '#1A1A1B',
+  border: '#2A2A2B',
 
-  textPrimary: '#F5F5F5',
+  text: '#FFFFFF',
+  textPrimary: '#FFFFFF',
   textSecondary: '#A0A0A8',
-  textTertiary: '#606068',
+  textTertiary: '#7E7E86',
   textInverse: '#0E0E0F',
 
   accent: '#ff5e00',
@@ -66,7 +72,10 @@ export const LightColors: ThemeColors = {
   backgroundElevated: '#FFFFFF',
   card: '#FFFFFF',
   cardBorder: '#E5E7EB',
+  surface: '#FFFFFF',
+  border: '#E5E7EB',
 
+  text: '#111827',
   textPrimary: '#111827',
   textSecondary: '#6B7280',
   textTertiary: '#9CA3AF',

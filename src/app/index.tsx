@@ -5,7 +5,7 @@ import { View, Text, StyleSheet, TouchableOpacity, Dimensions, Image } from 'rea
 import { supabase } from '../lib/supabase';
 import { useRouter } from 'expo-router';
 import { ArrowRight } from 'lucide-react-native';
-import Purchases from 'react-native-purchases';
+import { checkIsPro } from '../lib/purchases';
 
 const { width } = Dimensions.get('window');
 
@@ -19,7 +19,12 @@ export default function SplashScreen() {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (session) {
-          router.replace('/home');
+          const isPro = await checkIsPro(session.user.id);
+          if (isPro) {
+            router.replace('/home');
+          } else {
+            router.replace('/paywall');
+          }
         }
       } catch (err) {
         console.error('Error restoring session:', err);

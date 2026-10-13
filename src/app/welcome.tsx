@@ -10,6 +10,7 @@ import * as Linking from 'expo-linking';
 import { supabase } from '../lib/supabase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { APP_LINKS, openWebUrl } from '../constants/links';
+import { checkIsPro } from '../lib/purchases';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -18,15 +19,22 @@ export default function WelcomeScreen() {
   const s = makeStyles(colors);
   const router = useRouter();
 
-  const handleContinue = () => {
-    router.replace('/home');
+  const handleContinue = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session) {
+      const isPro = await checkIsPro(session.user.id);
+      router.replace(isPro ? '/home' : '/paywall');
+    } else {
+      router.replace('/paywall');
+    }
   };
 
   React.useEffect(() => {
     const checkSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
-        router.replace('/home');
+        const isPro = await checkIsPro(session.user.id);
+        router.replace(isPro ? '/home' : '/paywall');
       }
     };
     checkSession();
@@ -98,11 +106,13 @@ export default function WelcomeScreen() {
               .eq('id', sessionData.session.user.id)
               .single();
 
+            const isPro = await checkIsPro(sessionData.session.user.id);
+
             if (profile) {
               console.log("Welcome back returning user!");
-              router.replace('/home');
+              router.replace(isPro ? '/home' : '/paywall');
             } else {
-              console.log("New user detected, creating profile and sending to home!");
+              console.log("New user detected, creating profile!");
               const userMeta = sessionData.session.user.user_metadata;
               const { error: insertError } = await supabase
                 .from('profiles')
@@ -125,7 +135,7 @@ export default function WelcomeScreen() {
               if (insertError) {
                 console.error("Failed to create profile:", insertError.message);
               }
-              router.replace('/home');
+              router.replace(isPro ? '/home' : '/paywall');
             }
           }
         }

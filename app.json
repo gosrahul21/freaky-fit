@@ -22,7 +22,7 @@
     },
     "androidStatusBar": {
       "translucent": true,
-      "backgroundColor": "transparent"
+      "backgroundColor": "#00000000"
     },
     "web": {
       "output": "static",
@@ -38,7 +38,8 @@
           "imageWidth": 76
         }
       ],
-      "expo-notifications"
+      "expo-notifications",
+      "expo-localization"
     ],
     "experiments": {
       "typedRoutes": true,

@@ -9,6 +9,7 @@ import {
   Switch,
   Alert,
   Linking,
+  ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
@@ -26,10 +27,13 @@ import {
   FileText,
   Globe,
   ExternalLink,
+  Zap,
 } from 'lucide-react-native';
 import { supabase } from '../lib/supabase';
 import { useTheme } from '../contexts/ThemeContext';
 import { APP_LINKS, openWebUrl } from '../constants/links';
+
+import { logoutPurchases, checkIsPro, restorePurchases } from '../lib/purchases';
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -39,23 +43,43 @@ export default function SettingsScreen() {
 
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [userName, setUserName] = useState<string | null>(null);
+  const [isProUser, setIsProUser] = useState<boolean>(false);
+  const [isRestoring, setIsRestoring] = useState<boolean>(false);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (session?.user) {
         setUserEmail(session.user.email || null);
         setUserName(session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'User');
+        const pro = await checkIsPro(session.user.id);
+        setIsProUser(pro);
       }
     });
   }, []);
 
-
+  const handleRestore = async () => {
+    try {
+      setIsRestoring(true);
+      const restored = await restorePurchases();
+      setIsProUser(restored);
+      if (restored) {
+        Alert.alert('Success', 'Your FreakyFit Pro subscription is active!');
+      } else {
+        Alert.alert('No Subscription Found', 'No active subscription or free trial was found for this Apple/Google account.');
+      }
+    } catch (e: any) {
+      Alert.alert('Restore Error', e.message || 'Failed to restore purchases.');
+    } finally {
+      setIsRestoring(false);
+    }
+  };
 
   const handleLogout = () => {
     Alert.alert('Log out', 'Are you sure you want to log out?', [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Log out', style: 'destructive', onPress: async () => {
         await supabase.auth.signOut();
+        await logoutPurchases();
         router.replace('/welcome');
       }},
     ]);
@@ -87,6 +111,60 @@ export default function SettingsScreen() {
           <TouchableOpacity style={s.editProfileBtn} onPress={() => Alert.alert('Edit Profile', 'Profile editing coming soon!')}>
             <Text style={s.editProfileText}>Edit</Text>
           </TouchableOpacity>
+        </View>
+
+        {/* Membership & Subscription */}
+        <View style={s.section}>
+          <Text style={s.sectionLabel}>MEMBERSHIP</Text>
+          <View style={s.settingsCard}>
+            <View style={s.settingsRow}>
+              <View style={s.settingsRowLeft}>
+                <View style={[s.iconBadge, { backgroundColor: isProUser ? '#1a2a1a' : '#2a2010' }]}>
+                  <Zap size={18} color={isProUser ? colors.success : colors.accent} />
+                </View>
+                <View>
+                  <Text style={s.settingsRowTitle}>
+                    {isProUser ? 'FreakyFit Pro Active' : 'Free Tier'}
+                  </Text>
+                  <Text style={s.settingsRowSubtitle}>
+                    {isProUser ? 'Full AI features unlocked' : 'Upgrade to unlock all AI features'}
+                  </Text>
+                </View>
+              </View>
+              {!isProUser && (
+                <TouchableOpacity
+                  style={{ backgroundColor: colors.accent, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 16 }}
+                  onPress={() => router.push('/paywall')}
+                >
+                  <Text style={{ color: '#FFFFFF', fontSize: 13, fontWeight: '700' }}>Upgrade</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+
+            <View style={s.rowDivider} />
+
+            <TouchableOpacity
+              style={s.settingsRow}
+              onPress={handleRestore}
+              disabled={isRestoring}
+              activeOpacity={0.7}
+            >
+              <View style={s.settingsRowLeft}>
+                <View style={[s.iconBadge, { backgroundColor: colors.accentLight }]}>
+                  <Shield size={18} color={colors.accent} />
+                </View>
+                <View>
+                  <Text style={s.settingsRowTitle}>Restore Purchases</Text>
+                  <Text style={s.settingsRowSubtitle}>Sync previous purchases on this device</Text>
+                </View>
+              </View>
+              {isRestoring ? (
+                <ActivityIndicator size="small" color={colors.accent} />
+              ) : (
+                <ChevronRight size={18} color={colors.textTertiary} />
+              )}
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Appearance */}

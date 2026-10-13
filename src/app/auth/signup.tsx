@@ -6,6 +6,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ArrowLeft } from 'lucide-react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { checkIsPro } from '../../lib/purchases';
 
 export default function SignupScreen() {
   const { colors } = useTheme();
@@ -40,7 +41,8 @@ export default function SignupScreen() {
       if (data.session) {
         // User is logged in automatically (if email confirmation is disabled)
         await createProfile(data.session.user.id);
-        router.replace('/home');
+        const isPro = await checkIsPro(data.session.user.id);
+        router.replace(isPro ? '/home' : '/paywall');
       } else {
         Alert.alert('Success', 'Please check your email to verify your account.');
         router.push('/auth/login');

@@ -29,3 +29,6 @@ description not visible for exercies in workout, : testing required : done
 Sets and weight update should be on workout plan only : done
 timestamp and video rendering not working: create video rendering changes : done
 login as we are aready in login screen: save token/cookie in localstorage and fetch state from that : done
+pro / free trial entitlement verification after login, signup, & app start : done
+
+
