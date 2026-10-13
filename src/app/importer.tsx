@@ -8,6 +8,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import { hapticImpactLight } from '../utils/haptics';
 
 import { supabase } from '../lib/supabase';
+import { BACKEND_URL } from '../lib/backend';
 
 export default function ImporterScreen() {
   const { colors } = useTheme();
@@ -25,7 +26,7 @@ export default function ImporterScreen() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
-      const apiUrl = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000';
+      const apiUrl = BACKEND_URL;
       
       const response = await fetch(`${apiUrl}/api/extract-workout`, {
         method: 'POST',

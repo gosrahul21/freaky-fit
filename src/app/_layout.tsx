@@ -8,7 +8,9 @@ import { posthog } from '../lib/posthog';
 SplashScreen.preventAutoHideAsync();
 
 import { useEffect } from 'react';
+import { AppState, AppStateStatus } from 'react-native';
 import { initPurchases } from '../lib/purchases';
+import { pingBackendHealth } from '../lib/backend';
 
 export default function RootLayout() {
   useEffect(() => {
@@ -17,6 +19,19 @@ export default function RootLayout() {
 
     // Initialize RevenueCat
     initPurchases();
+
+    // Ping backend to wake up Render on app open
+    pingBackendHealth();
+
+    const subscription = AppState.addEventListener('change', (nextAppState: AppStateStatus) => {
+      if (nextAppState === 'active') {
+        pingBackendHealth();
+      }
+    });
+
+    return () => {
+      subscription.remove();
+    };
   }, []);
 
   return (
