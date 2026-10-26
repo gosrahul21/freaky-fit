@@ -6,6 +6,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ArrowLeft } from 'lucide-react-native';
 import { checkIsPro } from '../../lib/purchases';
+import { identifyUser } from '../../lib/posthog';
 
 export default function LoginScreen() {
   const { colors } = useTheme();
@@ -20,6 +21,7 @@ export default function LoginScreen() {
     const checkSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
+        identifyUser(session.user.id, { email: session.user.email });
         const isPro = await checkIsPro(session.user.id);
         router.replace(isPro ? '/home' : '/paywall');
       }
@@ -43,6 +45,11 @@ export default function LoginScreen() {
       if (error) throw error;
 
       if (data.session) {
+        identifyUser(data.session.user.id, {
+          email: data.session.user.email,
+          name: data.session.user.email?.split('@')[0],
+        });
+
         const { data: profile } = await supabase
           .from('profiles')
           .select('id')

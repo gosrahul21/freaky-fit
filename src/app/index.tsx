@@ -6,6 +6,7 @@ import { supabase } from '../lib/supabase';
 import { useRouter } from 'expo-router';
 import { ArrowRight } from 'lucide-react-native';
 import { checkIsPro } from '../lib/purchases';
+import { identifyUser } from '../lib/posthog';
 
 const { width } = Dimensions.get('window');
 
@@ -19,6 +20,7 @@ export default function SplashScreen() {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (session) {
+          identifyUser(session.user.id, { email: session.user.email });
           const isPro = await checkIsPro(session.user.id);
           if (isPro) {
             router.replace('/home');

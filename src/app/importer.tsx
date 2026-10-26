@@ -9,18 +9,39 @@ import { hapticImpactLight } from '../utils/haptics';
 
 import { supabase } from '../lib/supabase';
 import { BACKEND_URL } from '../lib/backend';
+import { usePostHog } from 'posthog-react-native';
+
+const detectPlatform = (targetUrl: string) => {
+  const lower = targetUrl.toLowerCase();
+  if (lower.includes('youtube.com') || lower.includes('youtu.be')) return 'youtube';
+  if (lower.includes('instagram.com')) return 'instagram';
+  if (lower.includes('tiktok.com')) return 'tiktok';
+  return 'other';
+};
 
 export default function ImporterScreen() {
   const { colors } = useTheme();
   const s = makeStyles(colors);
   const router = useRouter();
+  const posthog = usePostHog();
   const [url, setUrl] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
+
+  React.useEffect(() => {
+    posthog.screen('Importer');
+  }, []);
 
   const handleImport = async () => {
     if (!url) return;
     hapticImpactLight();
     setIsProcessing(true);
+
+    const platform = detectPlatform(url);
+    const startTime = Date.now();
+    posthog.capture('video_import_started', {
+      platform,
+      url,
+    });
     
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -49,18 +70,37 @@ export default function ImporterScreen() {
           const statusData = await statusRes.json();
 
           if (statusData.state === 'completed') {
+            const durationSec = Math.round((Date.now() - startTime) / 1000);
+            posthog.capture('video_import_succeeded', {
+              platform,
+              job_id,
+              duration_seconds: durationSec,
+            });
+
             setIsProcessing(false);
             // Result should contain the inserted workout details
             router.replace('/library');
           } else if (statusData.state === 'failed') {
-            throw new Error(statusData.failedReason || 'Extraction failed');
+            const errorMsg = statusData.failedReason || 'Extraction failed';
+            const durationSec = Math.round((Date.now() - startTime) / 1000);
+            posthog.capture('video_import_failed', {
+              platform,
+              job_id,
+              error: errorMsg,
+              duration_seconds: durationSec,
+            });
+            throw new Error(errorMsg);
           } else {
             // Still processing (waiting, active, etc.)
             setTimeout(pollStatus, 2000);
           }
-        } catch (err) {
+        } catch (err: any) {
           console.error("Polling error:", err);
           setIsProcessing(false);
+          posthog.capture('video_import_failed', {
+            platform,
+            error: err?.message || 'Polling error',
+          });
           alert('Error checking extraction status');
         }
       };
@@ -68,9 +108,13 @@ export default function ImporterScreen() {
       // Start polling
       setTimeout(pollStatus, 2000);
 
-    } catch (err) {
+    } catch (err: any) {
       console.error("Import error:", err);
       setIsProcessing(false);
+      posthog.capture('video_import_failed', {
+        platform,
+        error: err?.message || 'Failed to start extraction',
+      });
       alert('Failed to start extraction');
     }
   };

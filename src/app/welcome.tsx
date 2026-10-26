@@ -11,6 +11,7 @@ import { supabase } from '../lib/supabase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { APP_LINKS, openWebUrl } from '../constants/links';
 import { checkIsPro } from '../lib/purchases';
+import { identifyUser } from '../lib/posthog';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -22,6 +23,7 @@ export default function WelcomeScreen() {
   const handleContinue = async () => {
     const { data: { session } } = await supabase.auth.getSession();
     if (session) {
+      identifyUser(session.user.id, { email: session.user.email });
       const isPro = await checkIsPro(session.user.id);
       router.replace(isPro ? '/home' : '/paywall');
     } else {
@@ -33,6 +35,7 @@ export default function WelcomeScreen() {
     const checkSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
+        identifyUser(session.user.id, { email: session.user.email });
         const isPro = await checkIsPro(session.user.id);
         router.replace(isPro ? '/home' : '/paywall');
       }
@@ -99,6 +102,12 @@ export default function WelcomeScreen() {
           if (sessionError) {
             console.error("Session extraction error:", sessionError.message);
           } else if (sessionData.session) {
+            const userMeta = sessionData.session.user.user_metadata;
+            identifyUser(sessionData.session.user.id, {
+              email: sessionData.session.user.email,
+              name: userMeta?.full_name || sessionData.session.user.email?.split('@')[0],
+            });
+
             // Check if they are a returning FreakyFit user
             const { data: profile } = await supabase
               .from('profiles')

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, Text } from 'react-native';
 import { useRouter } from 'expo-router';
+import { usePostHog } from 'posthog-react-native';
 import { SocialProof } from '../../components/onboarding/steps/SocialProof';
 import { SmartImporter } from '../../components/onboarding/steps/SmartImporter';
 import { FreakyFitEngine } from '../../components/onboarding/steps/FreakyFitEngine';
@@ -15,15 +16,45 @@ import { TrainingFrequency } from '../../components/onboarding/steps/TrainingFre
 import { TargetMuscleFocus } from '../../components/onboarding/steps/TargetMuscleFocus';
 import { WeightCalibration } from '../../components/onboarding/steps/WeightCalibration';
 
+const STEP_NAMES: Record<number, string> = {
+  1: 'SocialProof',
+  2: 'SmartImporter',
+  3: 'FreakyFitEngine',
+  4: 'GoalsSelector',
+  5: 'FeatureShowcase',
+  6: 'GenderSelector',
+  7: 'AgeSelector',
+  8: 'HeightSelector',
+  9: 'ValueProposition',
+  10: 'ReferralSource',
+  11: 'TrainingFrequency',
+  12: 'TargetMuscleFocus',
+  13: 'WeightCalibration',
+};
+
 export default function OnboardingScreen() {
   const router = useRouter();
+  const posthog = usePostHog();
   const [currentStep, setCurrentStep] = useState(1);
+
+  React.useEffect(() => {
+    posthog.screen('Onboarding');
+    posthog.capture('onboarding_started');
+  }, []);
+
+  React.useEffect(() => {
+    posthog.capture('onboarding_step_viewed', {
+      step_index: currentStep,
+      step_name: STEP_NAMES[currentStep] || `Step_${currentStep}`,
+    });
+  }, [currentStep]);
 
   const handleNext = () => {
     if (currentStep < 13) {
       setCurrentStep(prev => prev + 1);
     } else {
       // Finished onboarding, go to Paywall
+      posthog.capture('onboarding_completed');
       router.replace('/paywall');
     }
   };

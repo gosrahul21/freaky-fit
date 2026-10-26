@@ -34,6 +34,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import { APP_LINKS, openWebUrl } from '../constants/links';
 
 import { logoutPurchases, checkIsPro, restorePurchases } from '../lib/purchases';
+import { resetUser } from '../lib/posthog';
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -80,6 +81,7 @@ export default function SettingsScreen() {
       { text: 'Log out', style: 'destructive', onPress: async () => {
         await supabase.auth.signOut();
         await logoutPurchases();
+        resetUser();
         router.replace('/welcome');
       }},
     ]);

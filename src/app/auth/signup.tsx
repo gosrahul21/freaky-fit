@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ArrowLeft } from 'lucide-react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { checkIsPro } from '../../lib/purchases';
+import { identifyUser } from '../../lib/posthog';
 
 export default function SignupScreen() {
   const { colors } = useTheme();
@@ -39,6 +40,7 @@ export default function SignupScreen() {
       if (error) throw error;
 
       if (data.session) {
+        identifyUser(data.session.user.id, { email, name: fullName });
         // User is logged in automatically (if email confirmation is disabled)
         await createProfile(data.session.user.id);
         const isPro = await checkIsPro(data.session.user.id);
