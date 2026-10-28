@@ -1,82 +1,10 @@
 import { SafeAreaView } from 'react-native-safe-area-context';
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Modal, Alert, ActivityIndicator } from 'react-native';
-import { Plus, CalendarDays, Flame, ChevronRight, Play, CheckCircle2, Dumbbell, X, Sparkles, Crown } from 'lucide-react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, ActivityIndicator } from 'react-native';
+import { Plus, CalendarDays, ChevronRight, Crown, Share2 } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { useTheme } from '../../contexts/ThemeContext';
 import { supabase } from '../../lib/supabase';
-import { hapticImpactLight, hapticSelection } from '../../utils/haptics';
-
-interface PlanTemplate {
-  id: string;
-  title: string;
-  daysPerWeek: string;
-  badge: string;
-  color: string;
-  description: string;
-  days: { day: string; title: string }[];
-}
-
-const TEMPLATES: PlanTemplate[] = [
-  {
-    id: 'ppl',
-    title: 'Classic PPL',
-    daysPerWeek: '6 Days / week',
-    badge: 'Popular',
-    color: '#FF5E00',
-    description: 'High-frequency bodybuilding split focusing on Push (Chest/Shoulders/Triceps), Pull (Back/Biceps), and Legs twice weekly.',
-    days: [
-      { day: 'monday', title: 'Push Day A' },
-      { day: 'tuesday', title: 'Pull Day A' },
-      { day: 'wednesday', title: 'Legs Day A' },
-      { day: 'thursday', title: 'Push Day B' },
-      { day: 'friday', title: 'Pull Day B' },
-      { day: 'saturday', title: 'Legs Day B' },
-    ]
-  },
-  {
-    id: 'upper_lower',
-    title: 'Upper / Lower Split',
-    daysPerWeek: '4 Days / week',
-    badge: 'Strength',
-    color: '#10B981',
-    description: 'Balanced 4-day split alternating between Upper body and Lower body workouts with ample recovery days.',
-    days: [
-      { day: 'monday', title: 'Upper Body A' },
-      { day: 'tuesday', title: 'Lower Body A' },
-      { day: 'thursday', title: 'Upper Body B' },
-      { day: 'friday', title: 'Lower Body B' },
-    ]
-  },
-  {
-    id: 'full_body',
-    title: 'Full Body 3-Day',
-    daysPerWeek: '3 Days / week',
-    badge: 'Efficiency',
-    color: '#3B82F6',
-    description: 'Hits every major muscle group 3 times a week with alternating compound movements. Perfect for busy athletes.',
-    days: [
-      { day: 'monday', title: 'Full Body A' },
-      { day: 'wednesday', title: 'Full Body B' },
-      { day: 'friday', title: 'Full Body C' },
-    ]
-  },
-  {
-    id: 'bro_split',
-    title: '5-Day Muscle Target',
-    daysPerWeek: '5 Days / week',
-    badge: 'Hypertrophy',
-    color: '#8B5CF6',
-    description: 'Target one primary muscle group per session for extreme volume and deep isolation pump.',
-    days: [
-      { day: 'monday', title: 'Chest Day' },
-      { day: 'tuesday', title: 'Back Day' },
-      { day: 'wednesday', title: 'Shoulders Day' },
-      { day: 'thursday', title: 'Legs Day' },
-      { day: 'friday', title: 'Arms & Core' },
-    ]
-  }
-];
 
 const DAY_ABBRS = [
   { key: 'monday', label: 'M' },
@@ -96,17 +24,8 @@ export default function PlansScreen() {
   const [activePlan, setActivePlan] = useState<any>(null);
   const [sessions, setSessions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  
-  // Discover template modal
-  const [selectedTemplate, setSelectedTemplate] = useState<PlanTemplate | null>(null);
-  const [activating, setActivating] = useState(false);
 
-  useEffect(() => {
-    fetchActivePlan();
-  }, []);
-
-  const fetchActivePlan = async () => {
-    setLoading(true);
+  const fetchActivePlan = useCallback(async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
@@ -136,67 +55,27 @@ export default function PlansScreen() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const handleActivateTemplate = async (template: PlanTemplate) => {
-    hapticImpactLight();
-    setActivating(true);
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        Alert.alert('Sign In Required', 'Please sign in to create and activate plans.');
-        setActivating(false);
-        return;
+  useEffect(() => {
+    let active = true;
+    void (async () => {
+      if (active) {
+        await fetchActivePlan();
       }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [fetchActivePlan]);
 
-      // 1. Deactivate old plans
-      await supabase
-        .from('planner')
-        .update({ status: 'inactive' })
-        .eq('user_id', user.id)
-        .eq('status', 'active');
-
-      // 2. Insert new plan (without duration)
-      const { data: newPlan, error: pErr } = await supabase
-        .from('planner')
-        .insert([
-          {
-            user_id: user.id,
-            title: template.title,
-            description: template.description,
-            start_date: new Date().toISOString().split('T')[0],
-            status: 'active'
-          }
-        ])
-        .select()
-        .single();
-
-      if (pErr) throw pErr;
-
-      // 3. Insert sessions for this template
-      const sessionInserts = template.days.map(d => ({
-        planner_id: newPlan.id,
-        title: d.title,
-        week_number: 1,
-        day_of_week: d.day,
-        status: 'planned'
-      }));
-
-      const { error: sErr } = await supabase
-        .from('planner_sessions')
-        .insert(sessionInserts);
-
-      if (sErr) throw sErr;
-
-      setSelectedTemplate(null);
-      await fetchActivePlan();
-      router.push(`/plan/${newPlan.id}`);
-    } catch (e: any) {
-      Alert.alert('Error', e.message || 'Failed to activate plan');
-    } finally {
-      setActivating(false);
-    }
-  };
+  if (loading) {
+    return (
+      <SafeAreaView style={[s.safeArea, { backgroundColor: colors.background, alignItems: 'center', justifyContent: 'center' }]}>
+        <ActivityIndicator size="large" color={colors.accent} />
+      </SafeAreaView>
+    );
+  }
 
   const scheduledDayKeys = sessions.map(s => s.day_of_week?.toLowerCase());
 
@@ -245,12 +124,21 @@ export default function PlansScreen() {
                       {sessions.length > 0 ? `${sessions.length} Training Days / Week` : 'No days configured yet'}
                     </Text>
                   </View>
-                  <TouchableOpacity 
-                    style={s.manageBtn}
-                    onPress={() => router.push(`/plan/${activePlan.id}`)}
-                  >
-                    <ChevronRight size={20} color={colors.accent} />
-                  </TouchableOpacity>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <TouchableOpacity 
+                      style={s.shareCardBtn}
+                      onPress={() => router.push(`/plan/${activePlan.id}`)}
+                      activeOpacity={0.8}
+                    >
+                      <Share2 size={16} color={colors.accent} />
+                    </TouchableOpacity>
+                    <TouchableOpacity 
+                      style={s.manageBtn}
+                      onPress={() => router.push(`/plan/${activePlan.id}`)}
+                    >
+                      <ChevronRight size={20} color={colors.accent} />
+                    </TouchableOpacity>
+                  </View>
                 </View>
 
                 {/* Weekly Split Days Bar */}
@@ -289,43 +177,10 @@ export default function PlansScreen() {
               </View>
               <Text style={s.emptyPlanTitle}>No Active Workout Plan</Text>
               <Text style={s.emptyPlanSubtitle}>
-                Choose a proven training template below or build your custom split.
+                Build your custom training split with the custom builder below.
               </Text>
             </View>
           )}
-
-          {/* Discover Templates */}
-          <View style={s.section}>
-            <View style={s.sectionHeader}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <Sparkles size={18} color={colors.accent} />
-                <Text style={s.sectionTitle}>Discover Plans</Text>
-              </View>
-            </View>
-
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.horizontalScroll}>
-              {TEMPLATES.map((tmpl) => (
-                <TouchableOpacity 
-                  key={tmpl.id} 
-                  style={s.templateCard} 
-                  activeOpacity={0.88}
-                  onPress={() => {
-                    hapticSelection();
-                    setSelectedTemplate(tmpl);
-                  }}
-                >
-                  <View style={[s.templateBanner, { backgroundColor: tmpl.color }]}>
-                    <Text style={s.templateBadgeText}>{tmpl.badge}</Text>
-                    <Dumbbell size={28} color="#FFFFFF" strokeWidth={1.8} style={s.templateBannerIcon} />
-                  </View>
-                  <View style={s.templateBody}>
-                    <Text style={s.templateTitle} numberOfLines={1}>{tmpl.title}</Text>
-                    <Text style={s.templateSubtitle}>{tmpl.daysPerWeek}</Text>
-                  </View>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
 
           {/* Custom Builder */}
           <View style={s.section}>
@@ -346,62 +201,6 @@ export default function PlansScreen() {
 
           <View style={{ height: 100 }} />
         </ScrollView>
-
-        {/* Template Detail / Activation Modal */}
-        <Modal
-          visible={!!selectedTemplate}
-          transparent
-          animationType="slide"
-          onRequestClose={() => setSelectedTemplate(null)}
-        >
-          <View style={s.modalBackdrop}>
-            <View style={s.modalContent}>
-              <View style={s.modalHeader}>
-                <View style={{ flex: 1 }}>
-                  <Text style={s.modalBadge}>{selectedTemplate?.badge} TEMPLATE</Text>
-                  <Text style={s.modalTitle}>{selectedTemplate?.title}</Text>
-                </View>
-                <TouchableOpacity 
-                  style={s.modalCloseBtn}
-                  onPress={() => setSelectedTemplate(null)}
-                >
-                  <X size={20} color={colors.textSecondary} />
-                </TouchableOpacity>
-              </View>
-
-              <Text style={s.modalDesc}>{selectedTemplate?.description}</Text>
-
-              <Text style={s.modalScheduleHeader}>WEEKLY SPLIT BREAKDOWN</Text>
-              <ScrollView style={s.modalScheduleList} showsVerticalScrollIndicator={false}>
-                {selectedTemplate?.days.map((d, i) => (
-                  <View key={i} style={s.modalDayRow}>
-                    <View style={s.modalDayBadge}>
-                      <Text style={s.modalDayBadgeText}>{d.day.slice(0, 3).toUpperCase()}</Text>
-                    </View>
-                    <Text style={s.modalDayTitle}>{d.title}</Text>
-                  </View>
-                ))}
-              </ScrollView>
-
-              <TouchableOpacity 
-                style={[s.modalActivateBtn, activating && { opacity: 0.7 }]}
-                disabled={activating}
-                onPress={() => selectedTemplate && handleActivateTemplate(selectedTemplate)}
-                activeOpacity={0.85}
-              >
-                {activating ? (
-                  <ActivityIndicator color="#FFFFFF" />
-                ) : (
-                  <>
-                    <CheckCircle2 size={18} color="#FFFFFF" />
-                    <Text style={s.modalActivateBtnText}>Activate This Plan</Text>
-                  </>
-                )}
-              </TouchableOpacity>
-            </View>
-          </View>
-        </Modal>
-
       </View>
     </SafeAreaView>
   );
@@ -513,6 +312,14 @@ const makeStyles = (colors: ReturnType<typeof import('../../contexts/ThemeContex
     color: colors.textSecondary,
     fontWeight: '600',
   },
+  shareCardBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.accentLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   manageBtn: {
     width: 36,
     height: 36,
@@ -599,49 +406,6 @@ const makeStyles = (colors: ReturnType<typeof import('../../contexts/ThemeContex
     lineHeight: 18,
     maxWidth: 280,
   },
-  horizontalScroll: {
-    gap: 14,
-    paddingRight: 16,
-  },
-  templateCard: {
-    width: 170,
-    backgroundColor: colors.card,
-    borderRadius: 16,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
-  },
-  templateBanner: {
-    height: 90,
-    padding: 12,
-    justifyContent: 'space-between',
-    position: 'relative',
-  },
-  templateBadgeText: {
-    color: '#FFFFFF',
-    fontSize: 10,
-    fontWeight: '800',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  templateBannerIcon: {
-    alignSelf: 'flex-end',
-    opacity: 0.9,
-  },
-  templateBody: {
-    padding: 12,
-  },
-  templateTitle: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: colors.textPrimary,
-    marginBottom: 2,
-  },
-  templateSubtitle: {
-    fontSize: 12,
-    color: colors.textTertiary,
-    fontWeight: '600',
-  },
   customBuilderCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -672,99 +436,6 @@ const makeStyles = (colors: ReturnType<typeof import('../../contexts/ThemeContex
   customBuilderDesc: {
     fontSize: 12,
     color: colors.textSecondary,
-  },
-  modalBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    justifyContent: 'flex-end',
-  },
-  modalContent: {
-    backgroundColor: colors.card,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    padding: 24,
-    maxHeight: '80%',
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 12,
-  },
-  modalBadge: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: colors.accent,
-    letterSpacing: 0.5,
-    marginBottom: 4,
-  },
-  modalTitle: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: colors.textPrimary,
-  },
-  modalCloseBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: colors.skeleton,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  modalDesc: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    lineHeight: 20,
-    marginBottom: 20,
-  },
-  modalScheduleHeader: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: colors.textTertiary,
-    letterSpacing: 0.5,
-    marginBottom: 10,
-  },
-  modalScheduleList: {
-    maxHeight: 180,
-    marginBottom: 20,
-  },
-  modalDayRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.skeleton,
-  },
-  modalDayBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-    backgroundColor: colors.skeleton,
-  },
-  modalDayBadgeText: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: colors.textPrimary,
-  },
-  modalDayTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.textPrimary,
-  },
-  modalActivateBtn: {
-    backgroundColor: colors.accent,
-    height: 52,
-    borderRadius: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  modalActivateBtnText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '800',
   },
 });
 
