@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, Dimensions, ActivityIndicator
 import { useRouter } from 'expo-router';
 import { useTheme } from '../contexts/ThemeContext';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Check, Star, Zap } from 'lucide-react-native';
+import { Check, Star, Zap, X } from 'lucide-react-native';
 import { hapticImpactLight } from '../utils/haptics';
 import Purchases, { PurchasesPackage } from 'react-native-purchases';
 import { usePostHog } from 'posthog-react-native';
@@ -146,10 +146,25 @@ export default function PaywallScreen() {
     }
   };
 
+  const handleDismiss = () => {
+    hapticImpactLight();
+    posthog.capture('paywall_dismissed');
+    router.replace('/(tabs)/home');
+  };
+
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
       <View style={styles.container}>
         <View style={styles.header}>
+          <TouchableOpacity 
+            style={styles.closeBtn} 
+            onPress={handleDismiss}
+            activeOpacity={0.7}
+            accessibilityLabel="Close paywall"
+          >
+            <X size={20} color={colors.textPrimary} strokeWidth={2.4} />
+          </TouchableOpacity>
+
           <TouchableOpacity onPress={handleRestore} disabled={isRestoring}>
             <Text style={styles.restoreBtnText}>
               {isRestoring ? 'Restoring...' : 'Restore'}
@@ -281,8 +296,19 @@ const makeStyles = (colors: any) => StyleSheet.create({
   },
   header: {
     flexDirection: 'row',
-    justifyContent: 'flex-end',
-    paddingVertical: 16,
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+  },
+  closeBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   restoreBtnText: {
     fontSize: 14,

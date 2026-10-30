@@ -9,7 +9,8 @@
     "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.freakyfit.app"
+      "bundleIdentifier": "com.freakyfit.app",
+      "buildNumber": "7"
     },
     "android": {
       "adaptiveIcon": {
@@ -17,6 +18,7 @@
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
+      "versionCode": 7,
       "predictiveBackGestureEnabled": false,
       "package": "com.freakyfit.app"
     },
