@@ -108,7 +108,12 @@ jobs:
       - name: 🔐 Configure Release Keystore
         if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.build_type == 'release' }}
         run: |
-          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > android/app/release.keystore
+          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | tr -d '\r\n ' | base64 -d > android/app/release.keystore
+          if [ ! -s android/app/release.keystore ]; then
+            echo "::error::Release keystore file is empty or corrupted! Check ANDROID_KEYSTORE_BASE64 in GitHub Secrets."
+            exit 1
+          fi
+          echo "Keystore decoded successfully: $(wc -c < android/app/release.keystore) bytes"
 
       - name: 📦 Build Release AAB (Google Play - Default)
         if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.build_type == 'release' && (github.event.inputs.format == 'aab' || github.event.inputs.format == 'both') }}
@@ -119,7 +124,7 @@ jobs:
             -Pandroid.injected.signing.store.file=$(pwd)/app/release.keystore \
             -Pandroid.injected.signing.store.password="${{ secrets.ANDROID_KEYSTORE_PASSWORD }}" \
             -Pandroid.injected.signing.key.alias="${{ secrets.ANDROID_KEY_ALIAS }}" \
-            -Pandroid.injected.signing.key.password="${{ secrets.ANDROID_KEY_PASSWORD }}"
+            -Pandroid.injected.signing.key.password="${{ secrets.ANDROID_KEY_PASSWORD || secrets.ANDROID_KEYSTORE_PASSWORD }}"
 
       - name: 🔨 Build Release APK (Direct Device Install)
         if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.build_type == 'release' && (github.event.inputs.format == 'apk' || github.event.inputs.format == 'both') }}
@@ -130,7 +135,7 @@ jobs:
             -Pandroid.injected.signing.store.file=$(pwd)/app/release.keystore \
             -Pandroid.injected.signing.store.password="${{ secrets.ANDROID_KEYSTORE_PASSWORD }}" \
             -Pandroid.injected.signing.key.alias="${{ secrets.ANDROID_KEY_ALIAS }}" \
-            -Pandroid.injected.signing.key.password="${{ secrets.ANDROID_KEY_PASSWORD }}"
+            -Pandroid.injected.signing.key.password="${{ secrets.ANDROID_KEY_PASSWORD || secrets.ANDROID_KEYSTORE_PASSWORD }}"
 
       - name: 📤 Upload Release AAB Artifact (Google Play)
         if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.build_type == 'release' && (github.event.inputs.format == 'aab' || github.event.inputs.format == 'both') }}
