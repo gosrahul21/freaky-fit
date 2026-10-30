@@ -1,4 +1,4 @@
-name: Build Android APK
+name: Build Android (AAB / APK)
 
 on:
   push:
@@ -7,17 +7,27 @@ on:
   workflow_dispatch:
     inputs:
       build_type:
-        description: 'Build Type (development client or standalone release)'
+        description: 'Build Type'
         required: true
-        default: 'development'
+        default: 'release'
         type: choice
         options:
-          - development
           - release
+          - development
+      format:
+        description: 'Output Format (AAB is default for Google Play Store; APK for direct install)'
+        required: true
+        default: 'aab'
+        type: choice
+        options:
+          - aab
+          - apk
+          - both
 
 jobs:
   build:
-    name: Build Android (${{ github.event.inputs.build_type || 'development' }})
+    name: >-
+      ${{ github.event_name == 'push' && 'Build Android (Development APK)' || format('Build Android ({0} - {1})', github.event.inputs.build_type, github.event.inputs.format) }}
     runs-on: ubuntu-latest
 
     # Add any secrets your freakyfit app uses during build (Supabase, Firebase, Ads, etc.)
@@ -58,23 +68,61 @@ jobs:
       - name: 🐘 Setup Gradle
         uses: gradle/actions/setup-gradle@v4
 
+      - name: 📝 Generate .env Configuration
+        run: |
+          cat << 'EOF' > .env
+          EXPO_PUBLIC_SUPABASE_URL=${{ secrets.EXPO_PUBLIC_SUPABASE_URL || 'https://aajktulltpawqtqewhgy.supabase.co' }}
+          EXPO_PUBLIC_SUPABASE_KEY=${{ secrets.EXPO_PUBLIC_SUPABASE_KEY || secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY || 'sb_publishable_IY7vxLCjrFVKQiiAq_iooQ_WO17dK68' }}
+          EXPO_PUBLIC_SUPABASE_ANON_KEY=${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY || secrets.EXPO_PUBLIC_SUPABASE_KEY || 'sb_publishable_IY7vxLCjrFVKQiiAq_iooQ_WO17dK68' }}
+          EXPO_PUBLIC_API_URL=${{ secrets.EXPO_PUBLIC_API_URL || 'https://video-extractor-qjgr.onrender.com' }}
+          EXPO_PUBLIC_REVENUECAT_GOOGLE_KEY=${{ secrets.EXPO_PUBLIC_REVENUECAT_GOOGLE_KEY || 'goog_OwRxMvASLCGPafSJZWyjMeHkyrM' }}
+          EXPO_PUBLIC_REVENUECAT_APPLE_KEY=${{ secrets.EXPO_PUBLIC_REVENUECAT_APPLE_KEY || 'test_KwpBilvBaLzsqxHvfKiBnfKmmGr' }}
+          EXPO_PUBLIC_POSTHOG_API_KEY=${{ secrets.EXPO_PUBLIC_POSTHOG_API_KEY || 'phc_vwGAqr3NqWZYsWJGqwE4DSXb5FHWWF5bjY2PnXbiZohM' }}
+          EXPO_PUBLIC_POSTHOG_HOST=${{ secrets.EXPO_PUBLIC_POSTHOG_HOST || 'https://us.i.posthog.com' }}
+          EOF
+
       - name: ⚙️ Generate Native Android Code (Expo Prebuild)
         run: npx expo prebuild --platform android --clean
 
+      # -------------------------------------------------------------
+      # DEVELOPMENT BUILD (Runs automatically on git push to main OR manual 'development')
+      # -------------------------------------------------------------
       - name: 🔨 Build Development APK
-        if: ${{ github.event.inputs.build_type == 'development' || github.event.inputs.build_type == '' }}
+        if: ${{ github.event_name == 'push' || github.event.inputs.build_type == 'development' }}
         run: |
           cd android
           chmod +x gradlew
           ./gradlew assembleDebug --no-daemon
 
+      - name: 📤 Upload Development APK Artifact
+        if: ${{ github.event_name == 'push' || github.event.inputs.build_type == 'development' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: freakyfit-development-apk
+          path: android/app/build/outputs/apk/debug/**/*.apk
+          retention-days: 14
+
+      # -------------------------------------------------------------
+      # RELEASE BUILD (Manual workflow dispatch with build_type: release)
+      # -------------------------------------------------------------
       - name: 🔐 Configure Release Keystore
-        if: ${{ github.event.inputs.build_type == 'release' }}
+        if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.build_type == 'release' }}
         run: |
           echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > android/app/release.keystore
 
-      - name: 🔨 Build Release APK
-        if: ${{ github.event.inputs.build_type == 'release' }}
+      - name: 📦 Build Release AAB (Google Play - Default)
+        if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.build_type == 'release' && (github.event.inputs.format == 'aab' || github.event.inputs.format == 'both') }}
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew bundleRelease --no-daemon \
+            -Pandroid.injected.signing.store.file=$(pwd)/app/release.keystore \
+            -Pandroid.injected.signing.store.password="${{ secrets.ANDROID_KEYSTORE_PASSWORD }}" \
+            -Pandroid.injected.signing.key.alias="${{ secrets.ANDROID_KEY_ALIAS }}" \
+            -Pandroid.injected.signing.key.password="${{ secrets.ANDROID_KEY_PASSWORD }}"
+
+      - name: 🔨 Build Release APK (Direct Device Install)
+        if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.build_type == 'release' && (github.event.inputs.format == 'apk' || github.event.inputs.format == 'both') }}
         run: |
           cd android
           chmod +x gradlew
@@ -84,9 +132,18 @@ jobs:
             -Pandroid.injected.signing.key.alias="${{ secrets.ANDROID_KEY_ALIAS }}" \
             -Pandroid.injected.signing.key.password="${{ secrets.ANDROID_KEY_PASSWORD }}"
 
-      - name: 📤 Upload APK Artifact
+      - name: 📤 Upload Release AAB Artifact (Google Play)
+        if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.build_type == 'release' && (github.event.inputs.format == 'aab' || github.event.inputs.format == 'both') }}
         uses: actions/upload-artifact@v4
         with:
-          name: freakyfit-${{ github.event.inputs.build_type || 'development' }}-apk
-          path: android/app/build/outputs/apk/**/*.apk
+          name: freakyfit-release-aab
+          path: android/app/build/outputs/bundle/release/**/*.aab
+          retention-days: 14
+
+      - name: 📤 Upload Release APK Artifact
+        if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.build_type == 'release' && (github.event.inputs.format == 'apk' || github.event.inputs.format == 'both') }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: freakyfit-release-apk
+          path: android/app/build/outputs/apk/release/**/*.apk
           retention-days: 14

@@ -16,11 +16,7 @@ export default function StreaksScreen() {
   const [logs, setLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  React.useEffect(() => {
-    fetchLogs();
-  }, []);
-
-  const fetchLogs = async () => {
+  const fetchLogs = React.useCallback(async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
@@ -39,7 +35,19 @@ export default function StreaksScreen() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  React.useEffect(() => {
+    let active = true;
+    void (async () => {
+      if (active) {
+        await fetchLogs();
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [fetchLogs]);
 
   // Calculations
   const formatYMD = (date: Date) => {
@@ -110,10 +118,7 @@ export default function StreaksScreen() {
         
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.content}>
           
-          {/* Header (Scrolls with page) */}
-          <View style={s.header}>
-            <Text style={s.headerTitle}>STREAKS</Text>
-          </View>
+          <View style={{ height: 16 }} />
           
           {/* Main Streak Card */}
           <View style={s.streakHeroCard}>

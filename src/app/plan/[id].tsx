@@ -1,37 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, ActivityIndicator, Modal, Pressable, TextInput, Alert, Share, Linking } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, ActivityIndicator, Modal, Pressable, TextInput, Alert } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { X, CalendarPlus, ChevronRight, CheckCircle2, Circle, Dumbbell, Trash2, Plus, Minus, Share2 } from 'lucide-react-native';
-import Svg, { Path, Rect, Circle as SvgCircle } from 'react-native-svg';
 import { useTheme } from '../../contexts/ThemeContext';
 import { supabase } from '../../lib/supabase';
 import { hapticSelection, hapticImpactLight } from '../../utils/haptics';
-
-function WhatsAppIcon({ size = 24 }: { size?: number }) {
-  return (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <Path
-        d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91C2.13 13.66 2.59 15.36 3.45 16.86L2.05 22L7.3 20.62C8.75 21.41 10.38 21.83 12.04 21.83C17.5 21.83 21.95 17.38 21.95 11.92C21.95 9.27 20.92 6.78 19.05 4.91C17.18 3.03 14.69 2 12.04 2Z"
-        fill="#25D366"
-      />
-      <Path
-        d="M17.47 14.38C17.17 14.23 15.7 13.51 15.42 13.41C15.15 13.31 14.95 13.26 14.75 13.56C14.55 13.86 13.98 14.53 13.8 14.73C13.63 14.93 13.45 14.95 13.15 14.8C12.85 14.65 11.89 14.34 10.75 13.32C9.86 12.53 9.26 11.55 9.09 11.25C8.91 10.95 9.07 10.79 9.22 10.64C9.36 10.5 9.53 10.28 9.68 10.1C9.83 9.93 9.88 9.8 9.98 9.6C10.08 9.4 10.03 9.23 9.95 9.08C9.88 8.93 9.28 7.45 9.03 6.85C8.79 6.27 8.54 6.35 8.36 6.34H7.79C7.59 6.34 7.26 6.41 6.99 6.71C6.71 7.01 5.94 7.73 5.94 9.2C5.94 10.67 7.01 12.09 7.16 12.29C7.31 12.49 9.27 15.51 12.27 16.81C12.99 17.12 13.55 17.31 13.99 17.45C14.71 17.68 15.36 17.65 15.88 17.57C16.46 17.48 17.66 16.84 17.91 16.14C18.16 15.44 18.16 14.84 18.08 14.71C18.01 14.58 17.77 14.53 17.47 14.38Z"
-        fill="#FFFFFF"
-      />
-    </Svg>
-  );
-}
-
-function InstagramIcon({ size = 24 }: { size?: number }) {
-  return (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <Rect width="24" height="24" rx="6" fill="#E1306C" />
-      <Rect x="5" y="5" width="14" height="14" rx="4" stroke="#FFFFFF" strokeWidth="1.8" />
-      <SvgCircle cx="12" cy="12" r="3.2" stroke="#FFFFFF" strokeWidth="1.8" />
-      <SvgCircle cx="15.8" cy="8.2" r="0.9" fill="#FFFFFF" />
-    </Svg>
-  );
-}
+import { shareWorkoutPlan } from '../../utils/share';
 
 const DAYS_OF_WEEK = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
 const DAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
@@ -52,7 +26,7 @@ export default function PlanDetailsScreen() {
   const [activeDay, setActiveDay] = useState<string | null>(null);
 
   // Share modal
-  const [showShareModal, setShowShareModal] = useState(false);
+
 
   // Source exercise picker modal
   const [showAddPicker, setShowAddPicker] = useState(false);
@@ -325,91 +299,7 @@ export default function PlanDetailsScreen() {
     );
   };
 
-  const getPlanShareText = () => {
-    if (!plan) return '';
-    let text = `🏋️ ${plan.title.toUpperCase()} - Weekly Training Split\n`;
-    text += `Built with FreakyFit\n\n`;
 
-    let totalExercises = 0;
-    DAYS_OF_WEEK.forEach((day, idx) => {
-      const session = sessions.find(s => s.day_of_week === day);
-      const exercises = session?.planner_session_exercises || [];
-      if (exercises.length > 0) {
-        totalExercises += exercises.length;
-        text += `📅 ${DAY_NAMES[idx]}: ${session.title}\n`;
-        exercises.forEach((pse: any, eIdx: number) => {
-          const exName = pse.exercises?.name || 'Exercise';
-          const sets = pse.sets || 3;
-          const reps = pse.reps || '10';
-          text += `  ${eIdx + 1}. ${exName} (${sets} sets × ${reps} reps)\n`;
-        });
-        text += `\n`;
-      }
-    });
-
-    if (totalExercises === 0) {
-      text += `No exercises configured yet.\n\n`;
-    }
-
-    text += `Crush your workouts with FreakyFit 💪🔥`;
-    return text;
-  };
-
-  const handleShareGeneral = async () => {
-    setShowShareModal(false);
-    hapticImpactLight();
-    const message = getPlanShareText();
-    try {
-      await Share.share({
-        message,
-        title: plan.title,
-      });
-    } catch (err: any) {
-      console.log('Share error:', err);
-    }
-  };
-
-  const handleShareWhatsApp = async () => {
-    setShowShareModal(false);
-    hapticImpactLight();
-    const message = getPlanShareText();
-    const url = `whatsapp://send?text=${encodeURIComponent(message)}`;
-    const canOpen = await Linking.canOpenURL(url).catch(() => false);
-    if (canOpen) {
-      await Linking.openURL(url);
-    } else {
-      const webUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(message)}`;
-      const canOpenWeb = await Linking.canOpenURL(webUrl).catch(() => false);
-      if (canOpenWeb) {
-        await Linking.openURL(webUrl);
-      } else {
-        await Share.share({ message, title: plan.title });
-      }
-    }
-  };
-
-  const handleShareInstagram = async () => {
-    setShowShareModal(false);
-    hapticImpactLight();
-    const message = getPlanShareText();
-    const instaUrl = 'instagram://app';
-    const canOpen = await Linking.canOpenURL(instaUrl).catch(() => false);
-    if (canOpen) {
-      try {
-        await Share.share({
-          message,
-          title: plan.title,
-        });
-      } catch {
-        await Linking.openURL(instaUrl);
-      }
-    } else {
-      await Share.share({
-        message,
-        title: plan.title,
-      });
-    }
-  };
 
   if (loading) {
     return (
@@ -438,8 +328,7 @@ export default function PlanDetailsScreen() {
         <TouchableOpacity 
           style={s.iconBtn} 
           onPress={() => {
-            hapticSelection();
-            setShowShareModal(true);
+            shareWorkoutPlan(plan, sessions);
           }}
         >
           <Share2 size={20} color={colors.accent} />
@@ -742,83 +631,6 @@ export default function PlanDetailsScreen() {
         </Pressable>
       </Modal>
 
-      {/* Share Workout Plan Modal */}
-      <Modal
-        visible={showShareModal}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setShowShareModal(false)}
-      >
-        <Pressable style={s.modalBackdrop} onPress={() => setShowShareModal(false)}>
-          <Pressable style={s.bottomSheet} onPress={(e) => e.stopPropagation()}>
-            <View style={s.dragHandleContainer}>
-              <View style={s.dragHandle} />
-            </View>
-
-            <View style={s.daySheetHeader}>
-              <View style={{ flex: 1 }}>
-                <Text style={s.sheetTitle}>Share Workout Plan</Text>
-                <Text style={s.sheetDesc}>
-                  Share &quot;{plan.title}&quot; routine with friends or social media
-                </Text>
-              </View>
-              <TouchableOpacity onPress={() => setShowShareModal(false)}>
-                <X size={20} color={colors.textSecondary} />
-              </TouchableOpacity>
-            </View>
-
-            <View style={s.shareOptionsContainer}>
-              {/* WhatsApp Option */}
-              <TouchableOpacity
-                style={s.shareOptionItem}
-                activeOpacity={0.8}
-                onPress={handleShareWhatsApp}
-              >
-                <View style={[s.shareOptionIcon, { backgroundColor: '#25D36620' }]}>
-                  <WhatsAppIcon size={26} />
-                </View>
-                <View style={s.shareOptionTextContainer}>
-                  <Text style={s.shareOptionTitle}>Share on WhatsApp</Text>
-                  <Text style={s.shareOptionSubtitle}>Send routine directly to friends or group chats</Text>
-                </View>
-                <ChevronRight size={18} color={colors.textTertiary} />
-              </TouchableOpacity>
-
-              {/* Instagram Option */}
-              <TouchableOpacity
-                style={s.shareOptionItem}
-                activeOpacity={0.8}
-                onPress={handleShareInstagram}
-              >
-                <View style={[s.shareOptionIcon, { backgroundColor: '#E1306C20' }]}>
-                  <InstagramIcon size={26} />
-                </View>
-                <View style={s.shareOptionTextContainer}>
-                  <Text style={s.shareOptionTitle}>Share to Instagram</Text>
-                  <Text style={s.shareOptionSubtitle}>Share to Stories, Feed or Direct message</Text>
-                </View>
-                <ChevronRight size={18} color={colors.textTertiary} />
-              </TouchableOpacity>
-
-              {/* System Share Option */}
-              <TouchableOpacity
-                style={s.shareOptionItem}
-                activeOpacity={0.8}
-                onPress={handleShareGeneral}
-              >
-                <View style={[s.shareOptionIcon, { backgroundColor: colors.accentLight }]}>
-                  <Share2 size={22} color={colors.accent} />
-                </View>
-                <View style={s.shareOptionTextContainer}>
-                  <Text style={s.shareOptionTitle}>More Options</Text>
-                  <Text style={s.shareOptionSubtitle}>Open system share sheet (AirDrop, Messages, etc.)</Text>
-                </View>
-                <ChevronRight size={18} color={colors.textTertiary} />
-              </TouchableOpacity>
-            </View>
-          </Pressable>
-        </Pressable>
-      </Modal>
     </SafeAreaView>
   );
 }

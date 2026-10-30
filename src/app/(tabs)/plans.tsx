@@ -1,442 +1,693 @@
 import { SafeAreaView } from 'react-native-safe-area-context';
-import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, ActivityIndicator } from 'react-native';
-import { Plus, CalendarDays, ChevronRight, Crown, Share2 } from 'lucide-react-native';
-import { useRouter } from 'expo-router';
+import React, { useState, useCallback } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
+import { Plus, Calendar, Share2, ChevronRight } from 'lucide-react-native';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { useTheme } from '../../contexts/ThemeContext';
 import { supabase } from '../../lib/supabase';
+import { hapticSelection, hapticImpactLight } from '../../utils/haptics';
+import { shareWorkoutPlan } from '../../utils/share';
 
-const DAY_ABBRS = [
-  { key: 'monday', label: 'M' },
-  { key: 'tuesday', label: 'T' },
-  { key: 'wednesday', label: 'W' },
-  { key: 'thursday', label: 'T' },
-  { key: 'friday', label: 'F' },
-  { key: 'saturday', label: 'S' },
-  { key: 'sunday', label: 'S' },
+interface DayConfig {
+  key: string;
+  label: string;
+  dayIndex: number; // 0: Sunday, 1: Monday, ..., 6: Saturday
+}
+
+const DAYS_OF_WEEK: DayConfig[] = [
+  { key: 'monday', label: 'M', dayIndex: 1 },
+  { key: 'tuesday', label: 'T', dayIndex: 2 },
+  { key: 'wednesday', label: 'W', dayIndex: 3 },
+  { key: 'thursday', label: 'T', dayIndex: 4 },
+  { key: 'friday', label: 'F', dayIndex: 5 },
+  { key: 'saturday', label: 'S', dayIndex: 6 },
+  { key: 'sunday', label: 'S', dayIndex: 0 },
 ];
 
 export default function PlansScreen() {
-  const { colors } = useTheme();
-  const s = makeStyles(colors);
+  const { colors, isDark } = useTheme();
+  const s = makeStyles(colors, isDark);
   const router = useRouter();
   
   const [activePlan, setActivePlan] = useState<any>(null);
   const [sessions, setSessions] = useState<any[]>([]);
+  const [allPlans, setAllPlans] = useState<any[]>([]);
+  const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchActivePlan = useCallback(async () => {
+  const fetchPlansData = useCallback(async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      const { data } = await supabase
+      // 1. Fetch user profile for avatar/initials
+      const { data: profData } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .maybeSingle();
+      if (profData) setProfile(profData);
+
+      // 2. Fetch all user plans
+      const { data: userPlans } = await supabase
         .from('planner')
         .select('*')
         .eq('user_id', user.id)
-        .eq('status', 'active')
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .single();
-      
-      if (data) {
-        setActivePlan(data);
+        .order('created_at', { ascending: false });
+
+      const plansList = userPlans || [];
+
+      // Determine active plan
+      let currentActive = plansList.find((p: any) => p.status === 'active') || plansList[0] || null;
+
+      // If user has no plans, provide sample fallback plans matching mockup
+      if (plansList.length === 0) {
+        currentActive = {
+          id: 'sample-active',
+          title: 'Fat burner',
+          status: 'active',
+          duration: '12 days',
+          created_at: new Date().toISOString(),
+        };
+        const samplePlans = [
+          { id: 'sample-1', title: '2 week abs', duration: '14 days', status: 'inactive' },
+          { id: 'sample-2', title: 'Muscles Strength', duration: '8 weeks', status: 'inactive' },
+          { id: 'sample-3', title: 'This', duration: '1 week', status: 'inactive' },
+        ];
+        setActivePlan(currentActive);
+        setAllPlans(samplePlans);
+        setSessions([
+          { day_of_week: 'monday', title: 'Lower Body Blast' },
+          { day_of_week: 'tuesday', title: 'Core Shred' },
+          { day_of_week: 'thursday', title: 'Upper Body Burn' },
+          { day_of_week: 'friday', title: 'Full Body HIIT' },
+          { day_of_week: 'saturday', title: 'Active Recovery' },
+        ]);
+        setLoading(false);
+        return;
+      }
+
+      setActivePlan(currentActive);
+      setAllPlans(plansList);
+
+      // 3. If there is an active plan, fetch its sessions
+      if (currentActive && currentActive.id !== 'sample-active') {
         const { data: sData } = await supabase
           .from('planner_sessions')
-          .select('*')
-          .eq('planner_id', data.id);
+          .select('*, planner_session_exercises(*)')
+          .eq('planner_id', currentActive.id);
         setSessions(sData || []);
-      } else {
-        setActivePlan(null);
-        setSessions([]);
       }
     } catch (err) {
-      console.error(err);
+      console.warn('Error fetching plans data:', err);
     } finally {
       setLoading(false);
     }
   }, []);
 
-  useEffect(() => {
-    let active = true;
-    void (async () => {
-      if (active) {
-        await fetchActivePlan();
+  useFocusEffect(
+    useCallback(() => {
+      fetchPlansData();
+    }, [fetchPlansData])
+  );
+
+  const handleActivatePlan = async (planToActivate: any) => {
+    try {
+      hapticSelection();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // If sample plan, simulate local activation
+      if (planToActivate.id?.startsWith('sample-')) {
+        setActivePlan(planToActivate);
+        setAllPlans((prev: any[]) =>
+          prev.map((p) => ({
+            ...p,
+            status: p.id === planToActivate.id ? 'active' : 'inactive',
+          }))
+        );
+        return;
       }
-    })();
-    return () => {
-      active = false;
-    };
-  }, [fetchActivePlan]);
+
+      // Deactivate all plans
+      await supabase
+        .from('planner')
+        .update({ status: 'inactive' })
+        .eq('user_id', user.id);
+
+      // Activate selected plan
+      await supabase
+        .from('planner')
+        .update({ status: 'active' })
+        .eq('id', planToActivate.id);
+
+      fetchPlansData();
+    } catch (e: any) {
+      Alert.alert('Error', e.message || 'Failed to activate plan');
+    }
+  };
 
   if (loading) {
     return (
-      <SafeAreaView style={[s.safeArea, { backgroundColor: colors.background, alignItems: 'center', justifyContent: 'center' }]}>
+      <SafeAreaView style={[s.safeArea, { alignItems: 'center', justifyContent: 'center' }]}>
         <ActivityIndicator size="large" color={colors.accent} />
       </SafeAreaView>
     );
   }
 
-  const scheduledDayKeys = sessions.map(s => s.day_of_week?.toLowerCase());
+  // Today calculations
+  const todayDayIndex = new Date().getDay();
+  const scheduledDayKeys = sessions.map((s) => s.day_of_week?.toLowerCase());
+  const workoutsThisWeek = sessions.length || 3;
+
+  // Today session info
+  const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+  const todayName = dayNames[todayDayIndex];
+  const todaySession = sessions.find((s) => s.day_of_week?.toLowerCase() === todayName);
+  const todayWorkoutTitle = todaySession?.title || 'Upper Body Burn';
+  const todayWorkoutMeta = todaySession?.exercises_count 
+    ? `45 min • ${todaySession.exercises_count} exercises` 
+    : '45 min • 8 exercises';
+
+  const userInitials = profile?.display_name
+    ? profile.display_name.substring(0, 2).toUpperCase()
+    : (profile?.email ? profile.email.substring(0, 2).toUpperCase() : 'RA');
 
   return (
-    <SafeAreaView style={[s.safeArea, { backgroundColor: colors.background }]}>
-      <View style={[s.container, { backgroundColor: colors.background }]}>
+    <SafeAreaView style={s.safeArea}>
+      <View style={s.container}>
         
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.content}>
-          {/* Header with Standardized Avatar Button */}
-          <View style={s.header}>
-            <Text style={s.headerTitle}>PLANS</Text>
-            <TouchableOpacity
-              style={s.avatarContainer}
-              onPress={() => router.push('/settings')}
+        {/* Header Bar */}
+        <View style={s.header}>
+          <Text style={s.headerTitle}>Plans</Text>
+          
+          <View style={s.headerRight}>
+            <View style={s.proBadge}>
+              <Text style={s.proBadgeText}>PRO</Text>
+            </View>
+            <TouchableOpacity 
+              style={s.avatarCircle}
               activeOpacity={0.8}
+              onPress={() => router.push('/settings')}
             >
-              <Image
-                source={{ uri: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100' }}
-                style={s.avatar}
-              />
-              <View style={s.proBadge}>
-                <Crown size={8} color="#000" strokeWidth={3} />
-              </View>
+              <Text style={s.avatarInitials}>{userInitials}</Text>
             </TouchableOpacity>
           </View>
+        </View>
 
-          {/* Active Plan Dashboard */}
-          {activePlan ? (
-            <View style={s.section}>
-              <View style={s.sectionHeader}>
-                <Text style={s.sectionTitle}>Active Plan</Text>
-                <TouchableOpacity onPress={() => router.push(`/plan/${activePlan.id}`)}>
-                  <Text style={s.sectionAction}>Manage Schedule</Text>
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.content}>
+          {/* Active Training Split Card */}
+          {activePlan && (
+            <View style={s.activePlanCard}>
+              {/* Card Header Row */}
+              <View style={s.cardHeaderRow}>
+                <Text style={s.cardBadgeText}>ACTIVE TRAINING SPLIT</Text>
+                <TouchableOpacity 
+                  style={s.shareBtn} 
+                  activeOpacity={0.7}
+                  onPress={() => shareWorkoutPlan(activePlan, sessions)}
+                >
+                  <Share2 size={19} color={colors.textSecondary} />
                 </TouchableOpacity>
               </View>
 
-              <View style={s.activePlanCard}>
-                <View style={s.activePlanTopRow}>
-                  <View style={{ flex: 1 }}>
-                    <View style={s.activeSplitBadge}>
-                      <View style={s.activeSplitDot} />
-                      <Text style={s.activeSplitBadgeText}>ACTIVE TRAINING SPLIT</Text>
-                    </View>
-                    <Text style={s.activePlanName}>{activePlan.title}</Text>
-                    <Text style={s.activePlanMeta}>
-                      {sessions.length > 0 ? `${sessions.length} Training Days / Week` : 'No days configured yet'}
-                    </Text>
-                  </View>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                    <TouchableOpacity 
-                      style={s.shareCardBtn}
-                      onPress={() => router.push(`/plan/${activePlan.id}`)}
-                      activeOpacity={0.8}
-                    >
-                      <Share2 size={16} color={colors.accent} />
-                    </TouchableOpacity>
-                    <TouchableOpacity 
-                      style={s.manageBtn}
-                      onPress={() => router.push(`/plan/${activePlan.id}`)}
-                    >
-                      <ChevronRight size={20} color={colors.accent} />
-                    </TouchableOpacity>
-                  </View>
-                </View>
+              {/* Title & Progress Subtitle */}
+              <Text style={s.activePlanTitle}>{activePlan.title || 'Fat burner'}</Text>
+              <Text style={s.activePlanSubtitle}>
+                Day 3 of 12 • {workoutsThisWeek} workouts this week
+              </Text>
 
-                {/* Weekly Split Days Bar */}
-                <View style={s.weekDaysRow}>
-                  {DAY_ABBRS.map((dayItem) => {
-                    const isScheduled = scheduledDayKeys.includes(dayItem.key);
-                    return (
-                      <View 
-                        key={dayItem.key} 
-                        style={[s.dayPill, isScheduled && s.dayPillActive]}
+              {/* Progress Bar */}
+              <View style={s.progressBarTrack}>
+                <View style={[s.progressBarFill, { width: '25%' }]} />
+              </View>
+
+              {/* Weekly Tracker Row */}
+              <View style={s.weekDaysRow}>
+                {DAYS_OF_WEEK.map((d) => {
+                  const isToday = d.dayIndex === todayDayIndex;
+                  const isScheduled = scheduledDayKeys.includes(d.key);
+
+                  return (
+                    <View 
+                      key={d.key} 
+                      style={[
+                        s.dayPill,
+                        isToday && s.dayPillToday,
+                      ]}
+                    >
+                      <Text 
+                        style={[
+                          s.dayLabel,
+                          isToday ? s.dayLabelToday : null,
+                        ]}
                       >
-                        <Text style={[s.dayPillText, isScheduled && s.dayPillTextActive]}>
-                          {dayItem.label}
-                        </Text>
-                        {isScheduled && <View style={s.dayPillDot} />}
-                      </View>
-                    );
-                  })}
+                        {d.label}
+                      </Text>
+                      {isToday ? (
+                        <View style={s.todayDot} />
+                      ) : isScheduled ? (
+                        <View style={s.scheduledDot} />
+                      ) : (
+                        <Text style={s.restDash}>–</Text>
+                      )}
+                    </View>
+                  );
+                })}
+              </View>
+
+              {/* Inner Divider */}
+              <View style={s.cardDivider} />
+
+              {/* Today's Workout Details & Start Button */}
+              <View style={s.todaySectionRow}>
+                <View style={s.todayInfoBox}>
+                  <Text style={s.todayLabel}>Today</Text>
+                  <Text style={s.todayTitle}>{todayWorkoutTitle}</Text>
+                  <Text style={s.todayMeta}>{todayWorkoutMeta}</Text>
                 </View>
 
                 <TouchableOpacity 
-                  style={s.planQuickAction}
-                  onPress={() => router.push(`/plan/${activePlan.id}`)}
-                  activeOpacity={0.85}
+                  style={s.startBtn}
+                  activeOpacity={0.88}
+                  onPress={() => {
+                    hapticImpactLight();
+                    if (activePlan.id && !activePlan.id.startsWith('sample-')) {
+                      router.push(`/plan/${activePlan.id}`);
+                    } else {
+                      router.push('/(tabs)/home');
+                    }
+                  }}
                 >
-                  <CalendarDays size={16} color={colors.accent} />
-                  <Text style={s.planQuickActionText}>View & Edit Weekly Routine</Text>
-                  <ChevronRight size={16} color={colors.textTertiary} />
+                  <Text style={s.startBtnText}>START</Text>
                 </TouchableOpacity>
               </View>
-            </View>
-          ) : (
-            <View style={[s.section, s.emptyPlanCard]}>
-              <View style={s.emptyPlanIcon}>
-                <CalendarDays size={28} color={colors.accent} />
-              </View>
-              <Text style={s.emptyPlanTitle}>No Active Workout Plan</Text>
-              <Text style={s.emptyPlanSubtitle}>
-                Build your custom training split with the custom builder below.
-              </Text>
+
+              {/* Edit weekly routine link */}
+              <TouchableOpacity 
+                style={s.editRoutineRow}
+                activeOpacity={0.7}
+                onPress={() => {
+                  if (activePlan.id && !activePlan.id.startsWith('sample-')) {
+                    router.push(`/plan/${activePlan.id}`);
+                  } else {
+                    router.push('/plan-builder');
+                  }
+                }}
+              >
+                <Text style={s.editRoutineText}>Edit weekly routine</Text>
+                <ChevronRight size={15} color={colors.accent} strokeWidth={2.5} />
+              </TouchableOpacity>
             </View>
           )}
 
-          {/* Custom Builder */}
-          <View style={s.section}>
-            <View style={s.sectionHeader}>
-              <Text style={s.sectionTitle}>Custom Builder</Text>
+          {/* "Your plans" Section */}
+          <View style={s.yourPlansSection}>
+            <View style={s.sectionHeaderRow}>
+              <Text style={s.sectionTitle}>Your plans</Text>
+              <Text style={s.plansCountText}>{allPlans.length} saved</Text>
             </View>
-            <TouchableOpacity style={s.customBuilderCard} activeOpacity={0.9} onPress={() => router.push('/plan-builder')}>
-              <View style={s.customBuilderIcon}>
-                <Plus size={24} color={colors.textPrimary} />
-              </View>
-              <View style={s.customBuilderTextContainer}>
-                <Text style={s.customBuilderTitle}>Create your own plan</Text>
-                <Text style={s.customBuilderDesc}>Map out your custom training split from scratch</Text>
-              </View>
-              <ChevronRight size={20} color={colors.textTertiary} />
+
+            {/* List of Saved Plans */}
+            {allPlans.map((plan: any) => {
+              const isActive = activePlan && activePlan.id === plan.id;
+              const durationText = plan.duration || '4 weeks';
+
+              return (
+                <TouchableOpacity 
+                  key={plan.id} 
+                  style={s.planCard}
+                  activeOpacity={0.8}
+                  onPress={() => {
+                    if (plan.id && !plan.id.startsWith('sample-')) {
+                      router.push(`/plan/${plan.id}`);
+                    }
+                  }}
+                >
+                  {/* Left: Calendar Icon Box */}
+                  <View style={s.calendarIconBox}>
+                    <Calendar size={20} color={colors.accent} strokeWidth={2.2} />
+                  </View>
+
+                  {/* Center: Title & Duration */}
+                  <View style={s.planInfoBox}>
+                    <Text style={s.planCardTitle} numberOfLines={1}>{plan.title}</Text>
+                    <Text style={s.planDurationText}>{durationText}</Text>
+                  </View>
+
+                  {/* Right: Activate Button */}
+                  <TouchableOpacity 
+                    style={[
+                      s.activateBtn,
+                      isActive && s.activateBtnActive,
+                    ]}
+                    activeOpacity={0.75}
+                    onPress={() => handleActivatePlan(plan)}
+                  >
+                    <Text 
+                      style={[
+                        s.activateBtnText,
+                        isActive && s.activateBtnTextActive,
+                      ]}
+                    >
+                      {isActive ? 'Active' : 'Activate'}
+                    </Text>
+                  </TouchableOpacity>
+                </TouchableOpacity>
+              );
+            })}
+
+            {/* Dashed "+ Create your plan" button */}
+            <TouchableOpacity 
+              style={s.createPlanDashedBtn}
+              activeOpacity={0.8}
+              onPress={() => {
+                hapticImpactLight();
+                router.push('/plan-builder');
+              }}
+            >
+              <Plus size={18} color={colors.accent} strokeWidth={2.6} />
+              <Text style={s.createPlanDashedText}>Create your plan</Text>
             </TouchableOpacity>
           </View>
 
-          <View style={{ height: 100 }} />
+          {/* Extra Bottom Spacer */}
+          <View style={{ height: 110 }} />
         </ScrollView>
       </View>
     </SafeAreaView>
   );
 }
 
-const makeStyles = (colors: ReturnType<typeof import('../../contexts/ThemeContext').useTheme>['colors']) => StyleSheet.create({
-  safeArea: { flex: 1 },
-  container: { flex: 1 },
-  content: { paddingHorizontal: 16 },
+const makeStyles = (colors: ReturnType<typeof import('../../contexts/ThemeContext').useTheme>['colors'], isDark: boolean) => StyleSheet.create({
+  safeArea: { 
+    flex: 1, 
+    backgroundColor: colors.background,
+  },
+  container: { 
+    flex: 1, 
+    backgroundColor: colors.background,
+  },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 16,
-    marginBottom: 8,
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 16,
   },
   headerTitle: {
+    fontSize: 32,
+    fontWeight: '900',
+    color: colors.textPrimary,
+    letterSpacing: -0.6,
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  proBadge: {
+    paddingHorizontal: 4,
+    paddingVertical: 2,
+  },
+  proBadgeText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#FFD700',
+    letterSpacing: 1.2,
+  },
+  avatarCircle: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    borderWidth: 1.5,
+    borderColor: '#FFD700',
+    backgroundColor: isDark ? '#1C1917' : '#F3F4F6',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarInitials: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: colors.textPrimary,
+  },
+  content: { 
+    paddingHorizontal: 18,
+    paddingTop: 4,
+  },
+  activePlanCard: {
+    backgroundColor: isDark ? '#1C1917' : '#FFF7ED',
+    borderRadius: 24,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: isDark ? 'rgba(255, 94, 0, 0.16)' : '#FFEDD5',
+    marginBottom: 26,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: isDark ? 0.35 : 0.08,
+    shadowRadius: 10,
+    elevation: 4,
+  },
+  cardHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  cardBadgeText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: colors.accent,
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+  },
+  shareBtn: {
+    padding: 4,
+  },
+  activePlanTitle: {
     fontSize: 28,
     fontWeight: '900',
     color: colors.textPrimary,
     letterSpacing: -0.5,
-  },
-  avatarContainer: {
-    position: 'relative',
-  },
-  avatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    borderWidth: 2,
-    borderColor: colors.cardBorder,
-  },
-  proBadge: {
-    position: 'absolute',
-    top: -6,
-    right: -4,
-    backgroundColor: '#FFD700',
-    borderRadius: 8,
-    width: 16,
-    height: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1.5,
-    borderColor: colors.background,
-  },
-  section: {
-    marginBottom: 32,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: colors.textPrimary,
-  },
-  sectionAction: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: colors.accent,
-  },
-  activePlanCard: {
-    backgroundColor: colors.card,
-    borderRadius: 20,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
-  },
-  activePlanTopRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 16,
-  },
-  activeSplitBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: colors.accentLight,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 12,
-    alignSelf: 'flex-start',
-    marginBottom: 8,
-  },
-  activeSplitDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: colors.accent,
-  },
-  activeSplitBadgeText: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: colors.accent,
-    letterSpacing: 0.5,
-  },
-  activePlanName: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: colors.textPrimary,
     marginBottom: 4,
   },
-  activePlanMeta: {
+  activePlanSubtitle: {
     fontSize: 13,
     color: colors.textSecondary,
-    fontWeight: '600',
+    fontWeight: '500',
   },
-  shareCardBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: colors.accentLight,
-    alignItems: 'center',
-    justifyContent: 'center',
+  progressBarTrack: {
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: isDark ? '#2E2A27' : '#E5E7EB',
+    marginTop: 12,
+    marginBottom: 16,
+    overflow: 'hidden',
   },
-  manageBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: colors.cardBorder,
-    alignItems: 'center',
-    justifyContent: 'center',
+  progressBarFill: {
+    height: '100%',
+    borderRadius: 2,
+    backgroundColor: colors.accent,
   },
   weekDaysRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    gap: 6,
-    marginBottom: 16,
-    paddingTop: 8,
+    gap: 7,
+    marginBottom: 6,
   },
   dayPill: {
     flex: 1,
-    alignItems: 'center',
-    paddingVertical: 10,
-    borderRadius: 12,
-    backgroundColor: colors.skeleton,
-  },
-  dayPillActive: {
-    backgroundColor: colors.accent,
-  },
-  dayPillText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: colors.textTertiary,
-  },
-  dayPillTextActive: {
-    color: '#FFFFFF',
-    fontWeight: '900',
-  },
-  dayPillDot: {
-    width: 4,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: '#FFFFFF',
-    marginTop: 4,
-  },
-  planQuickAction: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingTop: 14,
-    borderTopWidth: 1,
-    borderTopColor: colors.cardBorder,
-    gap: 8,
-  },
-  planQuickActionText: {
-    flex: 1,
-    fontSize: 13,
-    fontWeight: '700',
-    color: colors.textPrimary,
-  },
-  emptyPlanCard: {
-    backgroundColor: colors.card,
-    borderRadius: 20,
-    padding: 24,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
-  },
-  emptyPlanIcon: {
-    width: 56,
     height: 56,
-    borderRadius: 28,
-    backgroundColor: colors.accentLight,
+    borderRadius: 16,
+    backgroundColor: isDark ? '#23201D' : '#F3F4F6',
+    borderWidth: 1,
+    borderColor: isDark ? '#2E2A26' : '#E5E7EB',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 12,
+    gap: 4,
   },
-  emptyPlanTitle: {
-    fontSize: 17,
+  dayPillToday: {
+    backgroundColor: colors.accent,
+    borderColor: colors.accent,
+  },
+  dayLabel: {
+    fontSize: 14,
     fontWeight: '800',
     color: colors.textPrimary,
-    marginBottom: 4,
   },
-  emptyPlanSubtitle: {
+  dayLabelToday: {
+    color: '#000000',
+    fontWeight: '900',
+  },
+  todayDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
+    backgroundColor: '#000000',
+  },
+  scheduledDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
+    backgroundColor: colors.accent,
+  },
+  restDash: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.textTertiary,
+    lineHeight: 12,
+  },
+  cardDivider: {
+    height: 1,
+    backgroundColor: isDark ? '#2B2724' : '#F3F4F6',
+    marginVertical: 18,
+  },
+  todaySectionRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 14,
+  },
+  todayInfoBox: {
+    flex: 1,
+    marginRight: 12,
+  },
+  todayLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.textTertiary,
+  },
+  todayTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: colors.textPrimary,
+    marginTop: 2,
+    letterSpacing: -0.3,
+  },
+  todayMeta: {
     fontSize: 13,
     color: colors.textSecondary,
-    textAlign: 'center',
-    lineHeight: 18,
-    maxWidth: 280,
+    marginTop: 2,
   },
-  customBuilderCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
+  startBtn: {
+    backgroundColor: colors.accent,
+    paddingHorizontal: 22,
+    paddingVertical: 12,
     borderRadius: 16,
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
-    backgroundColor: colors.card,
-    gap: 16,
-  },
-  customBuilderIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: colors.accentLight,
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: colors.accent,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 3,
   },
-  customBuilderTextContainer: {
+  startBtnText: {
+    color: '#000000',
+    fontSize: 15,
+    fontWeight: '900',
+    letterSpacing: 0.5,
+  },
+  editRoutineRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    alignSelf: 'flex-start',
+  },
+  editRoutineText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.accent,
+  },
+  yourPlansSection: {
+    marginTop: 2,
+  },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'baseline',
+    marginBottom: 14,
+  },
+  sectionTitle: {
+    fontSize: 22,
+    fontWeight: '900',
+    color: colors.textPrimary,
+    letterSpacing: -0.4,
+  },
+  plansCountText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.textTertiary,
+  },
+  planCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.card,
+    borderRadius: 18,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+    marginBottom: 12,
+  },
+  calendarIconBox: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: isDark ? '#23201D' : '#FFF7ED',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 14,
+  },
+  planInfoBox: {
     flex: 1,
   },
-  customBuilderTitle: {
-    fontSize: 15,
-    fontWeight: '700',
+  planCardTitle: {
+    fontSize: 16,
+    fontWeight: '800',
     color: colors.textPrimary,
     marginBottom: 2,
   },
-  customBuilderDesc: {
-    fontSize: 12,
+  planDurationText: {
+    fontSize: 13,
+    fontWeight: '500',
     color: colors.textSecondary,
   },
+  activateBtn: {
+    paddingHorizontal: 18,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    borderColor: colors.accent,
+    backgroundColor: 'transparent',
+  },
+  activateBtnActive: {
+    backgroundColor: colors.accent,
+  },
+  activateBtnText: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: colors.accent,
+  },
+  activateBtnTextActive: {
+    color: '#000000',
+  },
+  createPlanDashedBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    borderWidth: 1.5,
+    borderColor: colors.accent,
+    borderStyle: 'dashed',
+    borderRadius: 20,
+    paddingVertical: 16,
+    marginTop: 6,
+    backgroundColor: isDark ? 'rgba(255, 94, 0, 0.03)' : 'rgba(255, 94, 0, 0.02)',
+  },
+  createPlanDashedText: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: colors.accent,
+  },
 });
-
-

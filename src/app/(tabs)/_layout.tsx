@@ -1,7 +1,6 @@
 import { Tabs, usePathname, useRouter } from 'expo-router';
-import { Bookmark, CalendarDays, CalendarPlus, Download, Flame, FolderPlus, Home as HomeIcon, Plus } from 'lucide-react-native';
-import { useState } from 'react';
-import { Modal, Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Bookmark, CalendarDays, Flame, Home as HomeIcon, Plus } from 'lucide-react-native';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useTheme } from '../../contexts/ThemeContext';
 import { hapticImpactLight } from '../../utils/haptics';
 
@@ -10,7 +9,6 @@ export default function TabsLayout() {
   const s = makeStyles(colors);
   const router = useRouter();
   const pathname = usePathname();
-  const [showAddModal, setShowAddModal] = useState(false);
 
   return (
     <>
@@ -38,7 +36,7 @@ export default function TabsLayout() {
           <TouchableOpacity
             style={s.centerAddBtn}
             activeOpacity={0.8}
-            onPress={() => { hapticImpactLight(); setShowAddModal(true); }}
+            onPress={() => { hapticImpactLight(); router.push('/importer'); }}
           >
             <Plus size={28} color={colors.accent} strokeWidth={2.5} />
           </TouchableOpacity>
@@ -59,63 +57,6 @@ export default function TabsLayout() {
       <View style={s.homeIndicatorSpace}>
         <View style={s.homeIndicator} />
       </View>
-
-      {/* Quick Add Bottom Sheet Modal */}
-      <Modal
-        visible={showAddModal}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setShowAddModal(false)}
-      >
-        <Pressable style={s.modalBackdrop} onPress={() => setShowAddModal(false)}>
-          <Pressable style={s.bottomSheet} onPress={(e) => e.stopPropagation()}>
-            <View style={s.dragHandleContainer}>
-              <View style={s.dragHandle} />
-            </View>
-
-            <Text style={s.sheetTitle}>What would you like to add?</Text>
-
-            <View style={s.sheetOptionsContainer}>
-              {/* Option 1 */}
-              <TouchableOpacity style={s.sheetOption} activeOpacity={0.7} onPress={() => { setShowAddModal(false); router.push('/importer'); }}>
-                <View style={s.sheetOptionIcon}>
-                  <Download size={24} color={colors.textPrimary} strokeWidth={2.2} />
-                </View>
-                <View style={s.sheetOptionTextContainer}>
-                  <Text style={s.sheetOptionTitle}>Import a Workout</Text>
-                  <Text style={s.sheetOptionDesc}>From a URL, photo, or paste text</Text>
-                </View>
-              </TouchableOpacity>
-
-              {/* Option 2 */}
-              <TouchableOpacity style={s.sheetOption} activeOpacity={0.7} onPress={() => { setShowAddModal(false); router.push({ pathname: '/library', params: { action: 'create_collection', _ts: Date.now().toString() } }); }}>
-                <View style={s.sheetOptionIcon}>
-                  <FolderPlus size={24} color={colors.textPrimary} strokeWidth={2} />
-                </View>
-                <View style={s.sheetOptionTextContainer}>
-                  <Text style={s.sheetOptionTitle}>Create a Collection</Text>
-                  <Text style={s.sheetOptionDesc}>Organise your workouts into collections</Text>
-                </View>
-              </TouchableOpacity>
-
-              {/* Option 3 */}
-              <TouchableOpacity style={s.sheetOption} activeOpacity={0.7} onPress={() => { setShowAddModal(false); router.push('/plan-builder'); }}>
-                <View style={s.sheetOptionIcon}>
-                  <CalendarPlus size={24} color={colors.textPrimary} strokeWidth={2.2} />
-                </View>
-                <View style={s.sheetOptionTextContainer}>
-                  <Text style={s.sheetOptionTitle}>Create workout plan</Text>
-                  <Text style={s.sheetOptionDesc}>Build a personal day-based plan</Text>
-                </View>
-              </TouchableOpacity>
-            </View>
-
-            <View style={s.homeIndicatorSpaceSheet}>
-              <View style={s.homeIndicator} />
-            </View>
-          </Pressable>
-        </Pressable>
-      </Modal>
     </>
   );
 }
@@ -261,75 +202,4 @@ const makeStyles = (colors: any) => StyleSheet.create({
     fontWeight: '700',
     color: colors.textPrimary,
   },
-  modalBackdrop: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.7)",
-    justifyContent: 'flex-end',
-  },
-  bottomSheet: {
-    backgroundColor: colors.card,
-    borderTopLeftRadius: 34,
-    borderTopRightRadius: 34,
-    paddingHorizontal: 24,
-    paddingTop: 12,
-    paddingBottom: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -10 },
-    shadowOpacity: 0.28,
-    shadowRadius: 40,
-    elevation: 20,
-  },
-  dragHandleContainer: {
-    width: '100%',
-    alignItems: 'center',
-    paddingBottom: 12,
-  },
-  dragHandle: {
-    width: 40,
-    height: 4,
-    backgroundColor: colors.cardBorder,
-    borderRadius: 2,
-  },
-  sheetTitle: {
-    fontSize: 23,
-    fontWeight: '900',
-    color: colors.textPrimary,
-    marginTop: 4,
-    marginBottom: 20,
-    letterSpacing: -0.5,
-  },
-  sheetOptionsContainer: {
-    borderTopWidth: 1,
-    borderTopColor: colors.cardBorder,
-  },
-  sheetOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.cardBorder,
-  },
-  sheetOptionIcon: {
-    marginRight: 16,
-  },
-  sheetOptionTextContainer: {
-    flex: 1,
-  },
-  sheetOptionTitle: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: colors.textPrimary,
-    letterSpacing: -0.2,
-  },
-  sheetOptionDesc: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    marginTop: 2,
-  },
-  homeIndicatorSpaceSheet: {
-    height: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingTop: 24,
-  }
 });

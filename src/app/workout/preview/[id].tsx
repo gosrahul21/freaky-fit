@@ -1,28 +1,58 @@
-import { SafeAreaView } from 'react-native-safe-area-context';
-import React from 'react';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import React, { useState, useEffect } from 'react';
 import { useTheme } from '../../../contexts/ThemeContext';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, StatusBar, ActivityIndicator, Modal, Image, Linking, Alert, TextInput } from 'react-native';
-import { X, PlayCircle, Plus, LayoutGrid, CheckSquare, ChevronDown, List as ListIcon, Activity, FolderPlus, ExternalLink } from 'lucide-react-native';
+import { 
+  View, 
+  Text, 
+  StyleSheet, 
+  ScrollView, 
+  TouchableOpacity, 
+  Dimensions, 
+  StatusBar, 
+  ActivityIndicator, 
+  Modal, 
+  Image, 
+  Linking, 
+  Alert, 
+  TextInput 
+} from 'react-native';
+import { 
+  ChevronLeft, 
+  Share2, 
+  Play, 
+  MoreVertical, 
+  Plus, 
+  FolderPlus, 
+  X, 
+  Activity 
+} from 'lucide-react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 import { supabase } from '../../../lib/supabase';
-import { PlatformIcon } from '../../../components/icons';
-import Svg, { Path, Ellipse, Circle, Rect, Line, Defs, LinearGradient as SvgLinearGradient, Stop } from 'react-native-svg';
+import { shareWorkout } from '../../../utils/share';
+import Svg, { Path, Ellipse, Line, Defs, LinearGradient as SvgLinearGradient, Stop, Rect } from 'react-native-svg';
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 export default function WorkoutDetailsScreen() {
   const { colors, isDark } = useTheme();
-  const s = makeStyles(colors);
+  const insets = useSafeAreaInsets();
+  const s = makeStyles(colors, isDark);
   const router = useRouter();
   const { id } = useLocalSearchParams();
   
-  const [workout, setWorkout] = React.useState<any>(null);
-  const [loading, setLoading] = React.useState(true);
-  const [collections, setCollections] = React.useState<any[]>([]);
-  const [showCollectionModal, setShowCollectionModal] = React.useState(false);
-  const [selectedExerciseId, setSelectedExerciseId] = React.useState<string | null>(null);
-  const [newCollectionName, setNewCollectionName] = React.useState('');
-  const [isCreatingCollection, setIsCreatingCollection] = React.useState(false);
-  const [showCreateInput, setShowCreateInput] = React.useState(false);
+  const [workout, setWorkout] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [collections, setCollections] = useState<any[]>([]);
+  const [showCollectionModal, setShowCollectionModal] = useState(false);
+  const [selectedExerciseId, setSelectedExerciseId] = useState<string | null>(null);
+  const [newCollectionName, setNewCollectionName] = useState('');
+  const [isCreatingCollection, setIsCreatingCollection] = useState(false);
+  const [showCreateInput, setShowCreateInput] = useState(false);
+  const [showFullAbout, setShowFullAbout] = useState(false);
+  const [expandedExerciseId, setExpandedExerciseId] = useState<string | null>(null);
+  const [activeExerciseMenu, setActiveExerciseMenu] = useState<any | null>(null);
 
   const openVideoAtTimestamp = async (startTimeStr?: string) => {
     if (!workout?.source_url) return;
@@ -48,33 +78,46 @@ export default function WorkoutDetailsScreen() {
     }
   };
 
-  React.useEffect(() => {
-    if (id) fetchWorkout();
+  useEffect(() => {
+    let isCurrent = true;
+    async function loadData() {
+      try {
+        const { data: wData } = await supabase
+          .from('workouts')
+          .select('*, workout_exercises(*, exercises(*))')
+          .eq('id', id)
+          .single();
+
+        if (wData && isCurrent) {
+          wData.workout_exercises = (wData.workout_exercises || []).sort((a: any, b: any) => a.order_index - b.order_index);
+          setWorkout(wData);
+          if (wData.workout_exercises?.length > 0) {
+            setExpandedExerciseId(wData.workout_exercises[0].id);
+          }
+        }
+
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user && isCurrent) {
+          const { data: cData } = await supabase
+            .from('collections')
+            .select('*')
+            .eq('user_id', user.id);
+          if (cData && isCurrent) setCollections(cData);
+        }
+      } finally {
+        if (isCurrent) {
+          setLoading(false);
+        }
+      }
+    }
+
+    if (id) {
+      loadData();
+    }
+    return () => {
+      isCurrent = false;
+    };
   }, [id]);
-
-  const fetchWorkout = async () => {
-    setLoading(true);
-    const { data: wData } = await supabase
-      .from('workouts')
-      .select('*, workout_exercises(*, exercises(*))')
-      .eq('id', id)
-      .single();
-    if (wData) {
-      // Sort exercises by order_index
-      wData.workout_exercises = (wData.workout_exercises || []).sort((a: any, b: any) => a.order_index - b.order_index);
-      setWorkout(wData);
-    }
-
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      const { data: cData } = await supabase
-        .from('collections')
-        .select('*')
-        .eq('user_id', user.id);
-      if (cData) setCollections(cData);
-    }
-    setLoading(false);
-  };
 
   const handleSaveToCollection = async (collectionId: string) => {
     if (selectedExerciseId) {
@@ -151,122 +194,183 @@ export default function WorkoutDetailsScreen() {
     );
   }
 
+  const exercises = workout.workout_exercises || [];
+  const exercisesCount = exercises.length;
+  const totalSets = exercises.reduce((acc: number, curr: any) => acc + (Number(curr.sets) || 3), 0);
+  const estMinutes = exercisesCount > 0 ? Math.max(15, Math.round(totalSets * 2.2)) : 25;
+
+  // Extract equipment & tags
+  const equipmentSet = new Set<string>();
+  exercises.forEach((we: any) => {
+    const eqList = we.exercises?.equipment;
+    if (Array.isArray(eqList)) {
+      eqList.forEach((eq: string) => equipmentSet.add(eq));
+    } else if (typeof eqList === 'string' && eqList.trim()) {
+      equipmentSet.add(eqList.trim());
+    }
+  });
+  const equipmentList = Array.from(equipmentSet);
+  const targetTag = workout.target_muscle || workout.category || 'Biceps';
+  const displayTags = [targetTag, ...(equipmentList.length > 0 ? equipmentList.slice(0, 2) : ['EZ-Bar', 'Dumbbells'])];
+
+  // Platform name formatted
+  const platformName = workout.source_type 
+    ? (workout.source_type.charAt(0).toUpperCase() + workout.source_type.slice(1).toLowerCase())
+    : (workout.source_url?.includes('youtube') || workout.source_url?.includes('youtu.be') ? 'YouTube' : 'Custom');
+
   return (
-    <SafeAreaView style={s.safeArea}>
-      <StatusBar barStyle={isDark ? "light-content" : "dark-content"} backgroundColor={colors.card} />
-      <View style={s.container}>
-        
-        {/* Top Header */}
-        <View style={s.header}>
-          <Text style={s.headerTitle}>Imported workout</Text>
-          <TouchableOpacity style={s.closeBtn} onPress={() => router.back()}>
-            <X size={20} color={colors.textSecondary} strokeWidth={2.5} />
-          </TouchableOpacity>
+    <View style={s.root}>
+      <StatusBar barStyle={isDark ? "light-content" : "dark-content"} translucent backgroundColor="transparent" />
+
+      {/* Floating Header */}
+      <View style={[s.floatingHeader, { paddingTop: insets.top + 8 }]}>
+        <TouchableOpacity 
+          style={s.circularNavBtn} 
+          onPress={() => router.back()}
+          activeOpacity={0.7}
+        >
+          <ChevronLeft size={22} color={colors.textPrimary} strokeWidth={2.4} />
+        </TouchableOpacity>
+        <TouchableOpacity 
+          style={s.circularNavBtn} 
+          onPress={() => workout && shareWorkout(workout)}
+          activeOpacity={0.7}
+        >
+          <Share2 size={19} color={colors.textPrimary} strokeWidth={2.2} />
+        </TouchableOpacity>
+      </View>
+
+      <ScrollView 
+        contentContainerStyle={s.scrollContent} 
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Hero Section */}
+        <View style={s.heroContainer}>
+          {workout.thumbnail_url ? (
+            <Image 
+              source={{ uri: workout.thumbnail_url }} 
+              style={s.heroImage} 
+              resizeMode="cover"
+            />
+          ) : (
+            <View style={s.heroPlaceholder}>
+              <Activity size={60} color={colors.textTertiary} />
+            </View>
+          )}
+
+          {/* Bottom gradient fade */}
+          <LinearGradient
+            colors={['transparent', isDark ? 'rgba(14,14,16,0.65)' : 'rgba(255,255,255,0.7)', colors.background]}
+            locations={[0, 0.55, 1]}
+            style={s.heroGradient}
+          />
+
+          {/* Center Play Button Overlay */}
+          {workout.source_url && (
+            <TouchableOpacity 
+              style={s.heroPlayButton}
+              activeOpacity={0.85}
+              onPress={() => openVideoAtTimestamp()}
+            >
+              <Play size={26} color="#000000" fill="#000000" style={{ marginLeft: 3 }} />
+            </TouchableOpacity>
+          )}
         </View>
 
-        <ScrollView contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
-          
-          {/* Workout Hero Summary */}
-          <View style={s.heroSection}>
-            <View style={s.heroMainInfo}>
-              
-              <TouchableOpacity 
-                style={s.thumbnailContainer}
-                activeOpacity={workout.source_url ? 0.8 : 1}
-                onPress={() => openVideoAtTimestamp()}
-              >
-                {workout.thumbnail_url ? (
-                  <View style={s.thumbnailWrapper}>
-                    <Image source={{ uri: workout.thumbnail_url }} style={s.thumbnailImage} />
-                    {workout.source_url && (
-                      <View style={s.playOverlayBadge}>
-                        <PlayCircle size={24} color="#FFFFFF" />
-                      </View>
-                    )}
-                  </View>
-                ) : (
-                  <View style={s.thumbnailPlaceholder}>
-                    <Svg width={60} height={60} viewBox="0 0 80 80">
-                      <Rect x="8" y="14" width="64" height="52" rx="10" stroke="#D1D5DB" strokeWidth="3" strokeDasharray="3 3" fill="none" />
-                      <Path d="M22 52L36 34L48 48L58 38L66 48" stroke="#9CA3AF" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
-                      <Circle cx="30" cy="28" r="5" fill="#f97316" fillOpacity={0.8} />
-                      <Path d="M12 60C24 55 42 66 68 59" stroke="#CBD5E1" strokeWidth="3" fill="none" />
-                    </Svg>
-                  </View>
-                )}
-                <View style={s.newBadge}>
-                  <Text style={s.newBadgeText}>NEW</Text>
-                </View>
-              </TouchableOpacity>
-
-              <View style={s.heroTextInfo}>
-                <Text style={s.workoutTitle} numberOfLines={2}>{workout.title}</Text>
-                <View style={s.metadataRow}>
-                  <View style={s.metaBadge}>
-                    <ListIcon size={14} color={colors.textSecondary} strokeWidth={2.5} />
-                    <Text style={[s.metaBadgeText, { color: colors.textSecondary }]}>
-                      {workout.workout_exercises?.length || 0} exercises
-                    </Text>
-                  </View>
-                  <Text style={s.metaDot}>•</Text>
-                  {workout.source_url ? (
-                    <TouchableOpacity 
-                      style={s.metaBadge}
-                      activeOpacity={0.7}
-                      onPress={() => openVideoAtTimestamp()}
-                    >
-                      <PlatformIcon url={workout.source_url} name={workout.source_type} size={15} />
-                      <Text style={[s.metaBadgeText, { color: colors.accent, fontWeight: '700' }]}>
-                        Watch Video ↗
-                      </Text>
-                    </TouchableOpacity>
-                  ) : (
-                    <View style={s.metaBadge}>
-                      <PlatformIcon url={workout.source_url} name={workout.source_type} size={15} fallback={<PlayCircle size={15} color="#DC2626" />} />
-                      <Text style={[s.metaBadgeText, { color: colors.textSecondary }]}>
-                        {workout.source_type || 'Custom'}
-                      </Text>
-                    </View>
-                  )}
-                </View>
-              </View>
+        {/* Content Details */}
+        <View style={s.bodyContent}>
+          {/* Platform & New Badges */}
+          <View style={s.badgesRow}>
+            <View style={s.platformPill}>
+              <View style={s.platformDot} />
+              <Text style={s.platformText}>{platformName}</Text>
             </View>
-
-            <View style={s.actionPillsRow}>
-              <TouchableOpacity 
-                style={s.actionPill}
-                activeOpacity={0.8}
-                onPress={() => {
-                  setSelectedExerciseId(null);
-                  setShowCollectionModal(true);
-                }}
-              >
-                <LayoutGrid size={16} color={colors.textPrimary} />
-                <Text style={s.actionPillText}>Collection</Text>
-              </TouchableOpacity>
-              <TouchableOpacity 
-                style={s.actionPill}
-                activeOpacity={0.8}
-                onPress={() => router.push('/plan-builder')}
-              >
-                <CheckSquare size={16} color={colors.textPrimary} />
-                <Text style={s.actionPillText}>Plan</Text>
-              </TouchableOpacity>
+            <View style={s.newBadge}>
+              <Text style={s.newBadgeText}>NEW</Text>
             </View>
           </View>
 
-          {/* About Section */}
-          <View style={s.section}>
-            <Text style={s.sectionHeader}>ABOUT THIS WORKOUT</Text>
-            <Text style={s.aboutText}>
-              {workout.description || 'No description available for this workout.'}
+          {/* Workout Title */}
+          <Text style={s.workoutTitle}>{workout.title}</Text>
+
+          {/* Stats Row */}
+          <View style={s.statsRow}>
+            <Text style={s.statItem}>
+              <Text style={s.statValue}>{exercisesCount}</Text>
+              <Text style={s.statLabel}> exercises</Text>
             </Text>
-            <TouchableOpacity>
-              <Text style={s.showMoreText}>Show more</Text>
+            <Text style={s.statItem}>
+              <Text style={s.statValue}>{totalSets}</Text>
+              <Text style={s.statLabel}> sets</Text>
+            </Text>
+            <Text style={s.statItem}>
+              <Text style={s.statValue}>~{estMinutes}</Text>
+              <Text style={s.statLabel}> min</Text>
+            </Text>
+          </View>
+
+          {/* Tags Row */}
+          <View style={s.tagsRow}>
+            {displayTags.map((tag, idx) => (
+              <View key={idx} style={s.tagPill}>
+                <Text style={s.tagPillText}>{tag}</Text>
+              </View>
+            ))}
+          </View>
+
+          {/* Action Pills: + Collection, + Plan, Edit */}
+          <View style={s.actionPillsRow}>
+            <TouchableOpacity 
+              style={s.actionPill} 
+              activeOpacity={0.75}
+              onPress={() => {
+                setSelectedExerciseId(null);
+                setShowCollectionModal(true);
+              }}
+            >
+              <Text style={s.actionPillText}>+ Collection</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={s.actionPill} 
+              activeOpacity={0.75}
+              onPress={() => router.push('/plan-builder')}
+            >
+              <Text style={s.actionPillText}>+ Plan</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={s.actionPill} 
+              activeOpacity={0.75}
+              onPress={() => {
+                Alert.alert('Edit Workout', 'Workout editing tools are coming soon!');
+              }}
+            >
+              <Text style={s.actionPillText}>Edit</Text>
             </TouchableOpacity>
           </View>
 
-          {/* Muscles Worked Section */}
+          {/* ABOUT THIS WORKOUT */}
+          <View style={s.section}>
+            <Text style={s.sectionHeader}>ABOUT THIS WORKOUT</Text>
+            <Text 
+              style={s.aboutText} 
+              numberOfLines={showFullAbout ? undefined : 2}
+            >
+              {workout.description || 'A focused bicep workout routine featuring EZ-Bar curls, standing hammer curls, and incline dumbbell curls.'}
+            </Text>
+            <TouchableOpacity 
+              onPress={() => setShowFullAbout(!showFullAbout)}
+              style={s.showMoreBtn}
+              activeOpacity={0.7}
+            >
+              <Text style={s.showMoreText}>
+                {showFullAbout ? 'Show less' : 'Show more'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* MUSCLES WORKED — UNTOUCHED SKELETON SECTION */}
           <View style={s.section}>
             <Text style={s.sectionHeader}>MUSCLES WORKED</Text>
             
@@ -341,112 +445,214 @@ export default function WorkoutDetailsScreen() {
             </View>
           </View>
 
-          {/* Exercises List */}
+          {/* EXERCISES SECTION */}
           <View style={s.section}>
-            <View style={s.exerciseHeader}>
-              <Text style={s.sectionHeader}>EXERCISES</Text>
-              <Text style={s.exerciseCount}>{workout.workout_exercises?.length || 0}</Text>
+            <View style={s.exercisesHeaderRow}>
+              <Text style={s.exerciseHeaderTitle}>
+                Exercises <Text style={{ color: colors.accent }}>{exercisesCount}</Text>
+              </Text>
+              <Text style={s.exerciseTotalSets}>{totalSets} sets total</Text>
             </View>
 
-            {workout.workout_exercises?.map((we: any, idx: number) => {
+            {exercises.map((we: any, idx: number) => {
               const ex = we.exercises;
+              const isExpanded = expandedExerciseId === we.id;
+              const timeRange = (we.timestamp_start || we.timestamp_end) 
+                ? `${we.timestamp_start || '0:00'}–${we.timestamp_end || '0:00'}`
+                : '0:00–0:00';
+              const repText = we.reps ? String(we.reps) : '10–12';
+              const setsReps = `${we.sets || 3} × ${repText}`;
+              const equipmentLabel = Array.isArray(ex?.equipment) && ex.equipment.length > 0 
+                ? ex.equipment[0] 
+                : (typeof ex?.equipment === 'string' && ex.equipment.trim() ? ex.equipment : 'Dumbbells');
+              const tipsText = we.notes || we.description || ex?.description || (Array.isArray(ex?.steps) ? ex.steps.join(' ') : ex?.steps);
+
               return (
-                <View key={we.id} style={s.exerciseCard}>
+                <TouchableOpacity 
+                  key={we.id} 
+                  style={s.exerciseCard}
+                  activeOpacity={0.88}
+                  onPress={() => setExpandedExerciseId(isExpanded ? null : we.id)}
+                >
                   <View style={s.exerciseCardTop}>
-                    <View style={s.exerciseIcon}>
-                      <Activity size={24} color="#f97316" />
-                    </View>
-                    <View style={s.exerciseDetails}>
-                      <Text style={s.exerciseTitle}>{idx + 1}. {ex?.name || 'Unknown Exercise'}</Text>
-                      <View style={s.exerciseStats}>
-                        <Text style={s.statText}>{we.sets} sets</Text>
-                        <Text style={s.statText}>{we.reps} reps</Text>
-                      </View>
-                      {(we.timestamp_start || we.timestamp_end) && (
-                        <TouchableOpacity 
-                          style={s.exerciseTime}
-                          activeOpacity={workout.source_url ? 0.7 : 1}
-                          onPress={() => openVideoAtTimestamp(we.timestamp_start)}
-                        >
-                          <Text style={s.playIcon}>▶</Text>
-                          <Text style={s.timeText}>
-                            {we.timestamp_start || '00:00'}–{we.timestamp_end || ''}
-                            {workout.source_url ? ' (Watch)' : ''}
-                          </Text>
-                        </TouchableOpacity>
-                      )}
-                    </View>
+                    {/* Thumbnail with timestamp & play */}
                     <TouchableOpacity 
-                      style={s.saveExerciseBtn} 
-                      activeOpacity={0.7}
-                      onPress={() => {
-                        setSelectedExerciseId(we.id);
-                        setShowCollectionModal(true);
-                      }}
+                      style={s.exerciseThumbnailBox}
+                      activeOpacity={0.8}
+                      onPress={() => openVideoAtTimestamp(we.timestamp_start)}
                     >
-                      <FolderPlus size={20} color="#9CA3AF" />
+                      {workout.thumbnail_url ? (
+                        <Image source={{ uri: workout.thumbnail_url }} style={s.exerciseThumbnailImg} resizeMode="cover" />
+                      ) : (
+                        <View style={s.exerciseThumbnailPlaceholder}>
+                          <Activity size={24} color={colors.textTertiary} />
+                        </View>
+                      )}
+                      {/* Play overlay button */}
+                      <View style={s.exercisePlayBadge}>
+                        <Play size={14} color="#FFFFFF" fill="#FFFFFF" style={{ marginLeft: 2 }} />
+                      </View>
+                      {/* Timestamp badge */}
+                      <View style={s.timestampBadge}>
+                        <Text style={s.timestampText}>{timeRange}</Text>
+                      </View>
                     </TouchableOpacity>
-                  </View>
-                  {(() => {
-                    const exerciseDesc = we.notes || we.description || ex?.description || (Array.isArray(ex?.steps) ? ex.steps.join(' ') : ex?.steps);
-                    return exerciseDesc ? (
-                      <Text style={s.exerciseDesc}>{exerciseDesc}</Text>
-                    ) : null;
-                  })()}
-                  
-                  {ex?.steps && (
-                    <View style={s.stepsRow}>
-                      <Text style={s.stepsText}>Steps · {Array.isArray(ex.steps) ? ex.steps.length : 1}</Text>
-                      <ChevronDown size={16} color="#9CA3AF" />
+
+                    {/* Exercise Info */}
+                    <View style={s.exerciseDetails}>
+                      <View style={s.exerciseTitleRow}>
+                        <Text style={s.exerciseName} numberOfLines={2}>
+                          <Text style={s.exerciseIndex}>{idx + 1} </Text>
+                          {ex?.name || 'Exercise'}
+                        </Text>
+                        <TouchableOpacity 
+                          style={s.exerciseOptionsBtn}
+                          activeOpacity={0.7}
+                          onPress={() => setActiveExerciseMenu(we)}
+                        >
+                          <MoreVertical size={18} color={colors.textSecondary} />
+                        </TouchableOpacity>
+                      </View>
+
+                      {/* Badges row: sets/reps & equipment */}
+                      <View style={s.exerciseBadgesRow}>
+                        <View style={s.setsRepsBadge}>
+                          <Text style={s.setsRepsText}>{setsReps}</Text>
+                        </View>
+                        <View style={s.equipmentBadge}>
+                          <Text style={s.equipmentText}>{equipmentLabel}</Text>
+                        </View>
+                      </View>
                     </View>
-                  )}
-                  
-                  {ex?.equipment && ex.equipment.length > 0 && (
-                    <View style={s.toolsRow}>
-                      <Text style={s.toolsTitle}>TOOLS</Text>
-                      <View style={s.toolTags}>
-                        {ex.equipment.map((eq: string, i: number) => (
-                          <View key={i} style={s.toolTag}><Text style={s.toolTagText}>{eq}</Text></View>
-                        ))}
+                  </View>
+
+                  {/* Expanded tips & notes */}
+                  {isExpanded && (
+                    <View style={s.expandedContent}>
+                      {tipsText ? (
+                        <Text style={s.tipsText}>{tipsText}</Text>
+                      ) : (
+                        <Text style={s.tipsText}>Keep proper form and lift with controlled tempo throughout each rep.</Text>
+                      )}
+                      
+                      {/* Equipment Pills */}
+                      <View style={s.expandedEquipmentRow}>
+                        {Array.isArray(ex?.equipment) && ex.equipment.length > 0 ? (
+                          ex.equipment.map((eq: string, i: number) => (
+                            <View key={i} style={s.expandedEquipmentTag}>
+                              <Text style={s.expandedEquipmentText}>{eq}</Text>
+                            </View>
+                          ))
+                        ) : (
+                          <View style={s.expandedEquipmentTag}>
+                            <Text style={s.expandedEquipmentText}>{equipmentLabel}</Text>
+                          </View>
+                        )}
                       </View>
                     </View>
                   )}
-                </View>
+                </TouchableOpacity>
               );
             })}
 
-            {/* Extra padding for bottom nav */}
-            <View style={{ height: 40 }} />
+            {/* Helper hint */}
+            <Text style={s.tapHelperText}>Tap an exercise to see tips and equipment</Text>
+
+            {/* Bottom spacer for sticky CTA */}
+            <View style={{ height: 100 }} />
           </View>
-
-        </ScrollView>
-
-        {/* Sticky Bottom Bar */}
-        <View style={s.bottomBar}>
-          <TouchableOpacity 
-            style={s.startBtn} 
-            activeOpacity={0.9} 
-            onPress={() => router.push(`/workout/${workout.id}`)}
-          >
-            <PlayCircle size={22} color="#FFFFFF" strokeWidth={2.2} />
-            <Text style={s.startBtnText}>Start Workout</Text>
-          </TouchableOpacity>
         </View>
+      </ScrollView>
 
+      {/* Sticky Bottom Bar */}
+      <View style={[s.bottomBar, { paddingBottom: Math.max(insets.bottom, 16) }]}>
+        <TouchableOpacity 
+          style={s.startBtn} 
+          activeOpacity={0.9} 
+          onPress={() => router.push(`/workout/${workout.id}`)}
+        >
+          <Play size={18} color="#FFFFFF" fill="#FFFFFF" style={{ marginRight: 4 }} />
+          <Text style={s.startBtnText}>Start workout • ~{estMinutes} min</Text>
+        </TouchableOpacity>
       </View>
 
+      {/* Exercise 3-dots Menu Modal */}
+      <Modal
+        visible={!!activeExerciseMenu}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setActiveExerciseMenu(null)}
+      >
+        <TouchableOpacity 
+          style={s.modalBackdrop} 
+          activeOpacity={1} 
+          onPress={() => setActiveExerciseMenu(null)}
+        >
+          <View style={s.actionSheetContent}>
+            <View style={s.actionSheetHeader}>
+              <Text style={s.actionSheetTitle} numberOfLines={1}>
+                {activeExerciseMenu?.exercises?.name || 'Exercise Options'}
+              </Text>
+              <TouchableOpacity onPress={() => setActiveExerciseMenu(null)}>
+                <X size={20} color={colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+
+            <TouchableOpacity 
+              style={s.actionSheetOption}
+              onPress={() => {
+                const exId = activeExerciseMenu.id;
+                setActiveExerciseMenu(null);
+                setSelectedExerciseId(exId);
+                setShowCollectionModal(true);
+              }}
+            >
+              <FolderPlus size={20} color={colors.accent} />
+              <Text style={s.actionSheetOptionText}>Add to Collection</Text>
+            </TouchableOpacity>
+
+            {workout.source_url && (
+              <TouchableOpacity 
+                style={s.actionSheetOption}
+                onPress={() => {
+                  const start = activeExerciseMenu.timestamp_start;
+                  setActiveExerciseMenu(null);
+                  openVideoAtTimestamp(start);
+                }}
+              >
+                <Play size={20} color={colors.textPrimary} fill={colors.textPrimary} />
+                <Text style={s.actionSheetOptionText}>Watch Exercise Clip</Text>
+              </TouchableOpacity>
+            )}
+
+            <TouchableOpacity 
+              style={[s.actionSheetOption, { borderBottomWidth: 0 }]}
+              onPress={() => setActiveExerciseMenu(null)}
+            >
+              <X size={20} color={colors.textSecondary} />
+              <Text style={[s.actionSheetOptionText, { color: colors.textSecondary }]}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* Collection Modal */}
       <Modal
         visible={showCollectionModal}
         transparent
         animationType="slide"
         onRequestClose={() => setShowCollectionModal(false)}
       >
-        <TouchableOpacity style={s.modalBackdrop} activeOpacity={1} onPress={() => { setShowCollectionModal(false); setShowCreateInput(false); }}>
+        <TouchableOpacity 
+          style={s.modalBackdrop} 
+          activeOpacity={1} 
+          onPress={() => { setShowCollectionModal(false); setShowCreateInput(false); }}
+        >
           <TouchableOpacity style={s.modalContent} activeOpacity={1}>
             <View style={s.modalHeader}>
               <Text style={s.modalTitle}>Save to Collection</Text>
               <TouchableOpacity onPress={() => { setShowCollectionModal(false); setShowCreateInput(false); }}>
-                <X size={20} color="#9CA3AF" />
+                <X size={20} color={colors.textSecondary} />
               </TouchableOpacity>
             </View>
 
@@ -456,7 +662,7 @@ export default function WorkoutDetailsScreen() {
                 <TextInput
                   style={s.createCollectionInput}
                   placeholder="Collection name (e.g. Leg Day)"
-                  placeholderTextColor="#9CA3AF"
+                  placeholderTextColor={colors.textTertiary}
                   value={newCollectionName}
                   onChangeText={setNewCollectionName}
                   autoFocus
@@ -483,7 +689,7 @@ export default function WorkoutDetailsScreen() {
                 activeOpacity={0.8}
                 onPress={() => setShowCreateInput(true)}
               >
-                <Plus size={18} color="#EA580C" strokeWidth={2.5} />
+                <Plus size={18} color={colors.accent} strokeWidth={2.5} />
                 <Text style={s.addNewCollectionText}>Create New Collection</Text>
               </TouchableOpacity>
             )}
@@ -498,7 +704,7 @@ export default function WorkoutDetailsScreen() {
                     style={s.collectionRow} 
                     onPress={() => handleSaveToCollection(c.id)}
                   >
-                    <FolderPlus size={20} color="#f97316" />
+                    <FolderPlus size={20} color={colors.accent} />
                     <Text style={s.collectionName}>{c.title}</Text>
                   </TouchableOpacity>
                 ))
@@ -507,164 +713,232 @@ export default function WorkoutDetailsScreen() {
           </TouchableOpacity>
         </TouchableOpacity>
       </Modal>
-
-    </SafeAreaView>
+    </View>
   );
 }
 
-const makeStyles = (colors: ReturnType<typeof import("../../../contexts/ThemeContext").useTheme>["colors"]) => StyleSheet.create({
+const makeStyles = (colors: ReturnType<typeof import("../../../contexts/ThemeContext").useTheme>["colors"], isDark: boolean) => StyleSheet.create({
+  root: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
   safeArea: {
     flex: 1,
-    backgroundColor: colors.card,
+    backgroundColor: colors.background,
   },
-  container: {
-    flex: 1,
-    backgroundColor: colors.skeleton,
-  },
-  header: {
+  floatingHeader: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 20,
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingVertical: 16,
-    backgroundColor: colors.card,
+    paddingBottom: 8,
   },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: colors.textPrimary,
-  },
-  closeBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: colors.skeleton,
+  circularNavBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: isDark ? 'rgba(23, 23, 26, 0.75)' : 'rgba(255, 255, 255, 0.85)',
+    borderWidth: 1,
+    borderColor: isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.08)',
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 3,
   },
   scrollContent: {
-    paddingHorizontal: 20,
-    paddingTop: 8,
-    paddingBottom: 100,
+    paddingBottom: 40,
   },
-  heroSection: {
-    paddingVertical: 8,
-  },
-  heroMainInfo: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 16,
-  },
-  thumbnailContainer: {
+  heroContainer: {
+    width: SCREEN_WIDTH,
+    height: 250,
     position: 'relative',
+    backgroundColor: colors.card,
   },
-  thumbnailPlaceholder: {
-    width: 96,
-    height: 96,
-    borderRadius: 16,
-    backgroundColor: colors.skeleton,
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
+  heroImage: {
+    width: '100%',
+    height: '100%',
+  },
+  heroPlaceholder: {
+    width: '100%',
+    height: '100%',
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: colors.surfaceAlt,
+  },
+  heroGradient: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 140,
+  },
+  heroPlayButton: {
+    position: 'absolute',
+    top: '46%',
+    left: '50%',
+    transform: [{ translateX: -28 }, { translateY: -28 }],
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: colors.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: colors.accent,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.45,
+    shadowRadius: 10,
+    elevation: 6,
+  },
+  bodyContent: {
+    paddingHorizontal: 20,
+    marginTop: -8,
+  },
+  badgesRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 12,
+  },
+  platformPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: isDark ? '#1F1F24' : '#F3F4F6',
+    borderWidth: 1,
+    borderColor: isDark ? '#2E2E33' : '#E5E7EB',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 14,
+    gap: 6,
+  },
+  platformDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: '#EF4444',
+  },
+  platformText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.textPrimary,
   },
   newBadge: {
-    position: 'absolute',
-    bottom: 4,
-    right: 4,
     backgroundColor: colors.accent,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 14,
   },
   newBadgeText: {
     color: '#FFFFFF',
-    fontSize: 9,
+    fontSize: 11,
     fontWeight: '800',
     letterSpacing: 0.5,
   },
-  heroTextInfo: {
-    flex: 1,
-  },
   workoutTitle: {
-    fontSize: 20,
+    fontSize: 26,
+    fontWeight: '900',
+    color: colors.textPrimary,
+    letterSpacing: -0.5,
+    lineHeight: 32,
+    marginBottom: 12,
+  },
+  statsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+    marginBottom: 14,
+  },
+  statItem: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+  },
+  statValue: {
+    fontSize: 16,
     fontWeight: '800',
     color: colors.textPrimary,
-    lineHeight: 24,
   },
-  metadataRow: {
+  statLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: colors.textSecondary,
+  },
+  tagsRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginTop: 8,
     flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 18,
   },
-  metaBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
+  tagPill: {
+    backgroundColor: isDark ? '#1C1C20' : '#F3F4F6',
+    borderWidth: 1,
+    borderColor: isDark ? '#2D2D34' : '#E5E7EB',
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 20,
   },
-  metaBadgeText: {
-    fontSize: 12,
+  tagPillText: {
+    fontSize: 13,
     fontWeight: '600',
-    color: '#374151',
-  },
-  metaDot: {
-    color: '#D1D5DB',
+    color: colors.textPrimary,
   },
   actionPillsRow: {
     flexDirection: 'row',
-    gap: 12,
-    marginTop: 16,
+    gap: 10,
+    marginBottom: 20,
   },
   actionPill: {
     flex: 1,
-    flexDirection: 'row',
+    backgroundColor: isDark ? '#1A1A1E' : '#F9FAFB',
+    borderWidth: 1,
+    borderColor: isDark ? '#2E2E35' : '#E5E7EB',
+    paddingVertical: 12,
+    borderRadius: 24,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
-    backgroundColor: colors.skeleton,
-    paddingVertical: 12,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
   },
   actionPillText: {
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '700',
     color: colors.textPrimary,
   },
   section: {
-    marginTop: 16,
-    paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
+    paddingTop: 18,
+    marginBottom: 8,
   },
   sectionHeader: {
-    fontSize: 18,
+    fontSize: 12,
     fontWeight: '800',
-    color: colors.textPrimary,
-    letterSpacing: 0.5,
-    marginBottom: 8,
+    color: colors.textTertiary,
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+    marginBottom: 10,
   },
   aboutText: {
     fontSize: 14,
-    color: '#4B5563',
-    lineHeight: 20,
+    color: colors.textSecondary,
+    lineHeight: 22,
+  },
+  showMoreBtn: {
+    marginTop: 6,
+    alignSelf: 'flex-start',
   },
   showMoreText: {
     fontSize: 14,
-    fontWeight: '600',
-    color: colors.textPrimary,
-    textDecorationLine: 'underline',
-    marginTop: 4,
+    fontWeight: '700',
+    color: colors.accent,
   },
   musclesDisplayBox: {
-    backgroundColor: colors.inputBackground,
-    borderRadius: 16,
+    backgroundColor: colors.card,
+    borderRadius: 18,
     padding: 16,
     borderWidth: 1,
-    borderColor: colors.navBorder,
+    borderColor: colors.cardBorder,
     flexDirection: 'row',
     justifyContent: 'space-around',
     alignItems: 'center',
@@ -683,7 +957,7 @@ const makeStyles = (colors: ReturnType<typeof import("../../../contexts/ThemeCon
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    marginTop: 16,
+    marginTop: 14,
     paddingHorizontal: 8,
   },
   legendText: {
@@ -695,121 +969,175 @@ const makeStyles = (colors: ReturnType<typeof import("../../../contexts/ThemeCon
     flex: 1,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#E5E7EB',
+    backgroundColor: isDark ? '#2E2E33' : '#E5E7EB',
   },
-  exerciseHeader: {
+  exercisesHeaderRow: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'baseline',
-    gap: 8,
-    marginBottom: 8,
+    marginBottom: 14,
   },
-  exerciseCount: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: colors.textTertiary,
+  exerciseHeaderTitle: {
+    fontSize: 22,
+    fontWeight: '900',
+    color: colors.textPrimary,
+    letterSpacing: -0.4,
+  },
+  exerciseTotalSets: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: colors.textSecondary,
   },
   exerciseCard: {
     backgroundColor: colors.card,
-    borderRadius: 16,
-    padding: 16,
+    borderRadius: 18,
+    padding: 14,
     borderWidth: 1,
-    borderColor: colors.navBorder,
-    marginBottom: 16,
+    borderColor: colors.cardBorder,
+    marginBottom: 14,
   },
   exerciseCardTop: {
     flexDirection: 'row',
-    gap: 16,
+    gap: 14,
   },
-  exerciseIcon: {
-    width: 64,
-    height: 80,
-    backgroundColor: colors.inputBackground,
-    borderRadius: 12,
+  exerciseThumbnailBox: {
+    width: 76,
+    height: 76,
+    borderRadius: 14,
+    overflow: 'hidden',
+    position: 'relative',
+    backgroundColor: colors.surfaceAlt,
     borderWidth: 1,
-    borderColor: colors.navBorder,
+    borderColor: colors.cardBorder,
+  },
+  exerciseThumbnailImg: {
+    width: '100%',
+    height: '100%',
+  },
+  exerciseThumbnailPlaceholder: {
+    width: '100%',
+    height: '100%',
     alignItems: 'center',
     justifyContent: 'center',
   },
+  exercisePlayBadge: {
+    position: 'absolute',
+    top: '32%',
+    left: '32%',
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  timestampBadge: {
+    position: 'absolute',
+    bottom: 4,
+    left: 4,
+    right: 4,
+    backgroundColor: 'rgba(0,0,0,0.65)',
+    borderRadius: 6,
+    paddingVertical: 2,
+    alignItems: 'center',
+  },
+  timestampText: {
+    color: '#FFFFFF',
+    fontSize: 9,
+    fontWeight: '700',
+  },
   exerciseDetails: {
     flex: 1,
+    justifyContent: 'center',
   },
-  exerciseTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.textPrimary,
-  },
-  exerciseStats: {
+  exerciseTitleRow: {
     flexDirection: 'row',
-    gap: 12,
-    marginTop: 4,
-  },
-  statText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#4B5563',
-  },
-  exerciseTime: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    marginTop: 4,
-  },
-  playIcon: {
-    fontSize: 12,
-    color: colors.textPrimary,
-  },
-  timeText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#4B5563',
-  },
-  exerciseDesc: {
-    fontSize: 12,
-    color: '#4B5563',
-    marginTop: 12,
-    lineHeight: 18,
-  },
-  stepsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
-    paddingTop: 8,
-    marginTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#F3F4F6',
+    alignItems: 'flex-start',
+    gap: 8,
+    marginBottom: 8,
   },
-  stepsText: {
-    fontSize: 12,
-    fontWeight: '700',
+  exerciseIndex: {
+    color: colors.accent,
+    fontWeight: '900',
+    fontSize: 16,
+  },
+  exerciseName: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: '800',
     color: colors.textPrimary,
-    textDecorationLine: 'underline',
+    lineHeight: 20,
   },
-  toolsRow: {
-    marginTop: 12,
+  exerciseOptionsBtn: {
+    padding: 4,
+    marginLeft: 4,
   },
-  toolsTitle: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: colors.textTertiary,
-    letterSpacing: 1,
-    marginBottom: 6,
-  },
-  toolTags: {
+  exerciseBadgesRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
+    alignItems: 'center',
     gap: 8,
   },
-  toolTag: {
-    backgroundColor: colors.skeleton,
+  setsRepsBadge: {
+    backgroundColor: colors.accent,
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  setsRepsText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  equipmentBadge: {
+    backgroundColor: isDark ? '#232328' : '#F3F4F6',
+    borderWidth: 1,
+    borderColor: isDark ? '#2F2F37' : '#E5E7EB',
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  equipmentText: {
+    color: colors.textSecondary,
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  expandedContent: {
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: colors.cardBorder,
+  },
+  tipsText: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    lineHeight: 19,
+    marginBottom: 10,
+  },
+  expandedEquipmentRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  expandedEquipmentTag: {
+    backgroundColor: isDark ? '#232328' : '#F3F4F6',
+    borderWidth: 1,
+    borderColor: isDark ? '#2F2F37' : '#E5E7EB',
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 8,
   },
-  toolTagText: {
+  expandedEquipmentText: {
     fontSize: 12,
-    fontWeight: '500',
+    fontWeight: '600',
     color: colors.textPrimary,
-    fontStyle: 'italic',
+  },
+  tapHelperText: {
+    textAlign: 'center',
+    fontSize: 13,
+    color: colors.textTertiary,
+    marginTop: 10,
+    fontWeight: '500',
   },
   bottomBar: {
     position: 'absolute',
@@ -817,72 +1145,42 @@ const makeStyles = (colors: ReturnType<typeof import("../../../contexts/ThemeCon
     left: 0,
     right: 0,
     paddingHorizontal: 20,
-    paddingTop: 14,
-    paddingBottom: 32,
-    backgroundColor: colors.card,
+    paddingTop: 12,
+    backgroundColor: isDark ? 'rgba(14,14,16,0.92)' : 'rgba(255,255,255,0.92)',
     borderTopWidth: 1,
     borderTopColor: colors.cardBorder,
   },
   startBtn: {
     backgroundColor: colors.accent,
-    paddingVertical: 16,
-    borderRadius: 30,
+    height: 56,
+    borderRadius: 28,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
     shadowColor: colors.accent,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
+    shadowOpacity: 0.35,
+    shadowRadius: 10,
+    elevation: 5,
   },
   startBtnText: {
     color: '#FFFFFF',
     fontSize: 17,
-    fontWeight: '700',
-  },
-  thumbnailWrapper: {
-    width: 96,
-    height: 96,
-    borderRadius: 16,
-    overflow: 'hidden',
-    position: 'relative',
-    backgroundColor: colors.skeleton,
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
-  },
-  thumbnailImage: {
-    width: '100%',
-    height: '100%',
-  },
-  playOverlayBadge: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.3)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  saveExerciseBtn: {
-    padding: 8,
-    backgroundColor: colors.skeleton,
-    borderRadius: 8,
-    marginLeft: 8,
+    fontWeight: '800',
   },
   modalBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: 'rgba(0,0,0,0.65)',
     justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: 20,
-    maxHeight: '60%',
+    backgroundColor: colors.card,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 22,
+    maxHeight: '65%',
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
   },
   modalHeader: {
     flexDirection: 'row',
@@ -893,7 +1191,7 @@ const makeStyles = (colors: ReturnType<typeof import("../../../contexts/ThemeCon
   modalTitle: {
     fontSize: 18,
     fontWeight: '800',
-    color: '#111827',
+    color: colors.textPrimary,
   },
   collectionList: {
     marginBottom: 20,
@@ -901,18 +1199,18 @@ const makeStyles = (colors: ReturnType<typeof import("../../../contexts/ThemeCon
   collectionRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 16,
+    paddingVertical: 14,
     borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    borderBottomColor: colors.cardBorder,
     gap: 12,
   },
   collectionName: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#374151',
+    color: colors.textPrimary,
   },
   emptyCollectionText: {
-    color: '#9CA3AF',
+    color: colors.textTertiary,
     textAlign: 'center',
     marginTop: 20,
   },
@@ -922,32 +1220,32 @@ const makeStyles = (colors: ReturnType<typeof import("../../../contexts/ThemeCon
     gap: 8,
     paddingVertical: 12,
     paddingHorizontal: 14,
-    backgroundColor: '#FFF7ED',
-    borderRadius: 12,
+    backgroundColor: isDark ? 'rgba(255, 94, 0, 0.12)' : '#FFF7ED',
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#FFEDD5',
+    borderColor: isDark ? 'rgba(255, 94, 0, 0.25)' : '#FFEDD5',
     marginBottom: 16,
   },
   addNewCollectionText: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#EA580C',
+    color: colors.accent,
   },
   createCollectionBox: {
     padding: 14,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: colors.surfaceAlt,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: colors.cardBorder,
     marginBottom: 16,
     gap: 12,
   },
   createCollectionInput: {
     fontSize: 15,
-    color: '#111827',
-    backgroundColor: '#FFFFFF',
+    color: colors.textPrimary,
+    backgroundColor: colors.card,
     borderWidth: 1,
-    borderColor: '#D1D5DB',
+    borderColor: colors.cardBorder,
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 10,
@@ -961,22 +1259,61 @@ const makeStyles = (colors: ReturnType<typeof import("../../../contexts/ThemeCon
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 8,
-    backgroundColor: '#E5E7EB',
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
   },
   createCancelText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#4B5563',
+    color: colors.textSecondary,
   },
   createConfirmBtn: {
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 8,
-    backgroundColor: '#EA580C',
+    backgroundColor: colors.accent,
   },
   createConfirmText: {
     fontSize: 13,
     fontWeight: '700',
     color: '#FFFFFF',
+  },
+  actionSheetContent: {
+    backgroundColor: colors.card,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 22,
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+  },
+  actionSheetHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.cardBorder,
+  },
+  actionSheetTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: colors.textPrimary,
+    flex: 1,
+    marginRight: 10,
+  },
+  actionSheetOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.cardBorder,
+  },
+  actionSheetOptionText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.textPrimary,
   },
 });

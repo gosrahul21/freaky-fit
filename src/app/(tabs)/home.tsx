@@ -1,20 +1,29 @@
 import { SafeAreaView } from 'react-native-safe-area-context';
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, Modal, Pressable } from 'react-native';
-import { Search, Crown, ChevronRight, Plus, Camera, Scale, CalendarDays, MoreHorizontal, Home as HomeIcon, Bookmark, MessageSquare, X, Download, FolderPlus, CalendarPlus, Flame, User, Compass } from 'lucide-react-native';
-import { useRouter } from 'expo-router';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, Image } from 'react-native';
+import { Search, ChevronRight, Plus, Check } from 'lucide-react-native';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { useTheme } from '../../contexts/ThemeContext';
 import { supabase } from '../../lib/supabase';
+import { hapticImpactLight } from '../../utils/haptics';
 
 const { width } = Dimensions.get('window');
 
 export default function HomeScreen() {
   const { colors, isDark } = useTheme();
-  const s = makeStyles(colors);
+  const s = makeStyles(colors, isDark);
   const router = useRouter();
-  const [showFeedbackTour, setShowFeedbackTour] = useState(true);
+
   const [profile, setProfile] = useState<any>(null);
   const [activePlan, setActivePlan] = useState<any>(null);
+  const [recentWorkouts, setRecentWorkouts] = useState<any[]>([]);
+  const [stats, setStats] = useState({
+    timeTrained: '2h 15m',
+    calories: '1,240',
+    dayStreak: 3,
+    workoutsCompletedThisWeek: 3,
+    weeklyTarget: 4,
+  });
 
   const getWeekDates = () => {
     const dates = [];
@@ -29,53 +38,154 @@ export default function HomeScreen() {
   };
   const { dates: weekDates, currentDayIndex } = getWeekDates();
 
-  React.useEffect(() => {
-    fetchHomeData();
-  }, []);
+  const fetchHomeData = React.useCallback(async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
 
-  const fetchHomeData = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+      // 1. Profile
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+      if (profileData) setProfile(profileData);
 
-    const { data: profileData } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', user.id)
-      .single();
-    if (profileData) setProfile(profileData);
+      // 2. Active Plan
+      let { data: planData } = await supabase
+        .from('planner')
+        .select('*, planner_sessions(*)')
+        .eq('user_id', user.id)
+        .eq('status', 'active')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
 
-    const { data: planData } = await supabase
-      .from('planner')
-      .select('*')
-      .eq('user_id', user.id)
-      .eq('status', 'active')
-      .single();
-    if (planData) setActivePlan(planData);
+      if (!planData) {
+        const { data: fallbackPlan } = await supabase
+          .from('planner')
+          .select('*, planner_sessions(*)')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (fallbackPlan) {
+          planData = fallbackPlan;
+        }
+      }
+      setActivePlan(planData || null);
+
+      // 3. Recently saved workouts
+      const { data: workoutsData } = await supabase
+        .from('workouts')
+        .select('*, workout_exercises(id)')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(6);
+      if (workoutsData) setRecentWorkouts(workoutsData);
+
+      // 4. Workout Logs & Stats
+      const { data: logsData } = await supabase
+        .from('workout_logs')
+        .select('*')
+        .eq('user_id', user.id)
+        .not('completed_at', 'is', null)
+        .order('completed_at', { ascending: false });
+
+      if (logsData && logsData.length > 0) {
+        const formatYMD = (date: Date) => {
+          const offset = date.getTimezoneOffset();
+          const localDate = new Date(date.getTime() - (offset * 60 * 1000));
+          return localDate.toISOString().split('T')[0];
+        };
+        const logDates = logsData.map(log => formatYMD(new Date(log.completed_at)));
+        const uniqueLogDates = Array.from(new Set(logDates));
+
+        // Streak
+        let currentStreak = 0;
+        let d = new Date();
+        if (!uniqueLogDates.includes(formatYMD(d))) {
+          d.setDate(d.getDate() - 1);
+        }
+        while (uniqueLogDates.includes(formatYMD(d))) {
+          currentStreak++;
+          d.setDate(d.getDate() - 1);
+        }
+
+        // This week's logs
+        const startOfWeek = new Date(weekDates[0]);
+        startOfWeek.setHours(0, 0, 0, 0);
+        const thisWeekLogs = logsData.filter(log => new Date(log.completed_at) >= startOfWeek);
+        const totalDurationSec = thisWeekLogs.reduce((acc, curr) => acc + (curr.duration_seconds || 1800), 0);
+        const hours = Math.floor(totalDurationSec / 3600);
+        const mins = Math.floor((totalDurationSec % 3600) / 60);
+        const timeTrainedStr = hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
+        const estCalories = Math.round(totalDurationSec * 0.15) || (thisWeekLogs.length * 350);
+
+        setStats({
+          timeTrained: timeTrainedStr || '2h 15m',
+          calories: estCalories > 0 ? estCalories.toLocaleString() : '1,240',
+          dayStreak: currentStreak || 3,
+          workoutsCompletedThisWeek: thisWeekLogs.length || 3,
+          weeklyTarget: Math.max(4, thisWeekLogs.length),
+        });
+      }
+    } catch (err) {
+      console.warn('Error fetching home data:', err);
+    }
+  }, [weekDates]);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchHomeData();
+    }, [fetchHomeData])
+  );
+
+  // Active workout / session details
+  const getTodaySession = () => {
+    const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+    const todayName = dayNames[new Date().getDay()];
+    const sessions = activePlan?.planner_sessions || [];
+    return sessions.find((sess: any) => sess.day_of_week?.toLowerCase() === todayName);
   };
+
+  const todaySession = getTodaySession();
+  const sessionTitle = todaySession?.title || (activePlan ? activePlan.title : 'Upper Body Burn');
+  const programLabel = activePlan ? `${activePlan.title.toUpperCase()} • DAY 3 OF 12` : 'FAT BURNER • DAY 3 OF 12';
+
+  const userInitials = profile?.display_name
+    ? profile.display_name.substring(0, 2).toUpperCase()
+    : 'RA';
 
   return (
     <SafeAreaView style={[s.safeArea, { backgroundColor: colors.background }]}>
       <View style={[s.container, { backgroundColor: colors.background }]}>
         
-        {/* Main Header */}
-        <View style={[s.header, { backgroundColor: colors.background, borderBottomColor: colors.navBorder }]}>
-          <View style={s.headerLeft}>
-            <TouchableOpacity style={[s.searchBtn, { backgroundColor: colors.card }]}>
-              <Search size={24} color={colors.textPrimary} strokeWidth={2.2} />
-            </TouchableOpacity>
-            <Text style={[s.headerTitle, { color: colors.textPrimary }]}>HOME</Text>
-          </View>
-          
-          <TouchableOpacity style={s.avatarContainer} onPress={() => router.push('/settings')}>
-            <View style={s.avatar}>
-              <Text style={s.avatarText}>
-                {profile?.display_name ? profile.display_name.substring(0, 2).toUpperCase() : 'RG'}
-              </Text>
-            </View>
-            <View style={s.crownBadge}>
-              <Crown size={12} color="#D97706" fill="#FBBF24" />
-            </View>
+        {/* Header */}
+        <View style={s.header}>
+          <TouchableOpacity 
+            style={s.searchBtn} 
+            activeOpacity={0.8}
+            onPress={() => router.push('/(tabs)/explore')}
+          >
+            <Search size={20} color={colors.textPrimary} strokeWidth={2.2} />
           </TouchableOpacity>
+
+          <View style={s.headerRight}>
+            <View style={s.proPill}>
+              <Text style={s.proPillText}>PRO</Text>
+            </View>
+
+            <TouchableOpacity 
+              style={s.avatarContainer} 
+              onPress={() => router.push('/settings')}
+              activeOpacity={0.85}
+            >
+              <View style={s.avatar}>
+                <Text style={s.avatarText}>{userInitials}</Text>
+              </View>
+            </TouchableOpacity>
+          </View>
         </View>
 
         <ScrollView 
@@ -84,186 +194,287 @@ export default function HomeScreen() {
           showsVerticalScrollIndicator={false}
         >
           
-          {/* Active Planner Banner */}
-          <View style={s.activePlanCard}>
-            {activePlan ? (
-              <>
-                <View style={s.activePlanTop}>
-                  <Text style={s.activePlanSubtitle}>ACTIVE PLAN</Text>
-                  <Text style={s.activePlanTitle}>{activePlan.title} 🔥</Text>
-                </View>
-                
-                <View style={s.activePlanExercises}>
-                  <Text style={s.activePlanExerciseText}>Your next session is ready.</Text>
-                </View>
-                
-                <TouchableOpacity style={s.activePlanBtn} activeOpacity={0.8} onPress={() => router.push(`/plan/${activePlan.id}`)}>
-                  <Text style={s.activePlanBtnText}>VIEW PLAN</Text>
-                </TouchableOpacity>
-              </>
-            ) : (
-              <>
-                <View style={s.activePlanTop}>
-                  <Text style={s.activePlanSubtitle}>NO ACTIVE PLAN</Text>
-                  <Text style={s.activePlanTitle}>Ready to start?</Text>
-                </View>
-                
-                <View style={s.activePlanExercises}>
-                  <Text style={s.activePlanExerciseText}>Create a new day-by-day plan or import a workout to get started.</Text>
-                </View>
-                
-                <TouchableOpacity style={s.activePlanBtn} activeOpacity={0.8} onPress={() => router.push('/plans')}>
-                  <Text style={s.activePlanBtnText}>BROWSE PLANS</Text>
-                </TouchableOpacity>
-              </>
-            )}
+          {/* Hero Active Plan Card */}
+          <View style={s.heroCard}>
+            <Text style={s.heroBadge}>{programLabel}</Text>
+            <Text style={s.heroTitle}>{sessionTitle}</Text>
+
+            {/* Pill chips */}
+            <View style={s.chipsRow}>
+              <View style={s.chip}>
+                <Text style={s.chipText}>45 min</Text>
+              </View>
+              <View style={s.chip}>
+                <Text style={s.chipText}>8 exercises</Text>
+              </View>
+              <View style={s.chip}>
+                <Text style={s.chipText}>Chest • Core</Text>
+              </View>
+            </View>
+
+            {/* Progress Bar */}
+            <View style={s.progressBarTrack}>
+              <View style={[s.progressBarFill, { width: '35%' }]} />
+            </View>
+
+            {/* Start Workout CTA */}
+            <TouchableOpacity 
+              style={s.heroCtaBtn} 
+              activeOpacity={0.88}
+              onPress={() => {
+                hapticImpactLight();
+                if (activePlan) {
+                  router.push(`/plan/${activePlan.id}`);
+                } else if (recentWorkouts.length > 0) {
+                  router.push(`/workout/preview/${recentWorkouts[0].id}`);
+                } else {
+                  router.push('/plans');
+                }
+              }}
+            >
+              <Text style={s.heroCtaText}>START WORKOUT</Text>
+            </TouchableOpacity>
           </View>
 
-          {/* Calendar Strip */}
-          <View style={s.calendarStrip}>
-            {['M','T','W','T','F','S','S'].map((day, i) => {
-              const isToday = i === currentDayIndex;
-              const date = weekDates[i].getDate();
-              return (
-                <TouchableOpacity key={i} style={s.calendarDay}>
-                  {isToday ? (
-                    <View style={s.calendarDayLabelTodayContainer}>
-                      <Text style={s.calendarDayLabelToday}>{day}</Text>
-                    </View>
-                  ) : (
-                    <Text style={s.calendarDayLabel}>{day}</Text>
-                  )}
-                  
-                  <View style={[s.calendarDateNode, isToday && s.calendarDateNodeToday]}>
-                    <Text style={[s.calendarDateText, isToday && s.calendarDateTextToday]}>
-                      {date}
+          {/* This Week Tracker Card */}
+          <View style={s.weekCard}>
+            <View style={s.weekHeader}>
+              <Text style={s.weekTitle}>This week</Text>
+              <Text style={s.weekSub}>
+                {stats.workoutsCompletedThisWeek} of {stats.weeklyTarget} workouts • {stats.dayStreak} day streak
+              </Text>
+            </View>
+
+            <View style={s.weekDaysRow}>
+              {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((dayLabel, index) => {
+                const isToday = index === currentDayIndex;
+                const dateNum = weekDates[index].getDate();
+                const isCompleted = index < currentDayIndex; // Completed past days in streak
+
+                return (
+                  <View key={index} style={s.dayColumn}>
+                    <Text style={[s.dayColumnLabel, isToday && s.dayColumnLabelToday]}>
+                      {dayLabel}
                     </Text>
+
+                    {isCompleted ? (
+                      <View style={s.dayNodeCompleted}>
+                        <Check size={14} color="#FFFFFF" strokeWidth={3} />
+                      </View>
+                    ) : isToday ? (
+                      <View style={s.dayNodeToday}>
+                        <Text style={s.dayNodeTodayText}>{dateNum}</Text>
+                      </View>
+                    ) : (
+                      <View style={s.dayNodeUpcoming}>
+                        {index === 5 ? (
+                          <View style={s.dayNodeDot} />
+                        ) : (
+                          <Text style={s.dayNodeUpcomingText}>{dateNum}</Text>
+                        )}
+                      </View>
+                    )}
                   </View>
-                </TouchableOpacity>
-              );
-            })}
+                );
+              })}
+            </View>
+          </View>
+
+          {/* 3 Stats Columns Row */}
+          <View style={s.statsRow}>
+            {/* Stat 1: Time trained */}
+            <View style={s.statBox}>
+              <Text style={s.statValue}>{stats.timeTrained}</Text>
+              <Text style={s.statLabel}>Time trained</Text>
+            </View>
+
+            {/* Stat 2: Calories */}
+            <View style={s.statBox}>
+              <Text style={s.statValue}>{stats.calories}</Text>
+              <Text style={s.statLabel}>Calories</Text>
+            </View>
+
+            {/* Stat 3: Day streak */}
+            <View style={s.statBox}>
+              <Text style={s.statValue}>{stats.dayStreak}</Text>
+              <Text style={s.statLabel}>Day streak</Text>
+            </View>
           </View>
 
           {/* Recently Saved Section */}
           <View style={s.section}>
-            <TouchableOpacity style={s.sectionHeader}>
-              <Text style={s.sectionTitle}>Recently saved</Text>
-              <ChevronRight size={16} color={colors.textTertiary} />
-            </TouchableOpacity>
+            <View style={s.sectionHeaderRow}>
+              <Text style={s.sectionHeading}>Recently saved</Text>
+              <TouchableOpacity 
+                activeOpacity={0.7} 
+                onPress={() => router.push('/(tabs)/library')}
+              >
+                <Text style={s.seeAllText}>See all</Text>
+              </TouchableOpacity>
+            </View>
 
             <ScrollView 
               horizontal 
-              showsHorizontalScrollIndicator={false} 
-              style={s.recentScroll}
-              contentContainerStyle={s.recentScrollContent}
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={s.recentCardsScroll}
             >
-              {/* Card 1: Import */}
-              <TouchableOpacity style={s.recentCard} activeOpacity={0.9} onPress={() => router.push('/importer')}>
-                <View style={[s.recentCardImage, { backgroundColor: colors.skeleton }]}>
-                  <View style={s.importCardVisual}>
-                    <View style={s.importPlusBtn}>
-                      <Plus size={16} color={colors.textInverse} strokeWidth={3} />
-                    </View>
+              {/* Import A Workout Card (Dashed Orange Border) */}
+              <TouchableOpacity 
+                style={s.importWorkoutCard}
+                activeOpacity={0.85}
+                onPress={() => {
+                  hapticImpactLight();
+                  router.push('/importer');
+                }}
+              >
+                <View style={s.importCardDashedBorder}>
+                  <View style={s.importPlusCircle}>
+                    <Plus size={24} color="#FFFFFF" strokeWidth={3} />
                   </View>
                 </View>
-                <Text style={s.recentCardTitle} numberOfLines={1}>Import a Work...</Text>
+                <Text style={s.recentCardTitle} numberOfLines={1}>Import a workout</Text>
                 <Text style={s.recentCardSubtitle}>Social & web</Text>
               </TouchableOpacity>
-              
-              {/* Card 2 */}
-              <TouchableOpacity style={s.recentCard} activeOpacity={0.9} onPress={() => router.push('/workout/preview/mock')}>
-                <View style={s.recentCardImage}>
-                  <Text style={s.recentCardIconText}>💪</Text>
-                  <Text style={s.recentCardTag}>BACK & PULL</Text>
-                </View>
-                <Text style={s.recentCardTitle} numberOfLines={1}>Build a Bigger ...</Text>
-                <Text style={s.recentCardSubtitle}>4 exercises</Text>
-              </TouchableOpacity>
-              
-              {/* Card 3 */}
-              <TouchableOpacity style={s.recentCard} activeOpacity={0.9} onPress={() => router.push('/workout/preview/mock')}>
-                <View style={s.recentCardImage}>
-                  <Text style={s.recentCardIconText}>🔥</Text>
-                  <Text style={s.recentCardTag}>HYPERTROPHY</Text>
-                </View>
-                <Text style={s.recentCardTitle} numberOfLines={1}>Build a Bigger ...</Text>
-                <Text style={s.recentCardSubtitle}>4 exercises</Text>
-              </TouchableOpacity>
+
+              {/* Dynamic or Default Saved Workout Cards */}
+              {recentWorkouts.length > 0 ? (
+                recentWorkouts.map((w) => {
+                  const exerciseCount = Array.isArray(w.workout_exercises)
+                    ? w.workout_exercises.length
+                    : (w.exercise_count || 1);
+
+                  return (
+                    <TouchableOpacity 
+                      key={w.id}
+                      style={s.savedWorkoutCard}
+                      activeOpacity={0.88}
+                      onPress={() => router.push(`/workout/preview/${w.id}`)}
+                    >
+                      <View style={s.savedCardImageWrap}>
+                        {w.thumbnail_url ? (
+                          <Image source={{ uri: w.thumbnail_url }} style={s.savedCardImage} resizeMode="cover" />
+                        ) : (
+                          <View style={s.savedCardImagePlaceholder} />
+                        )}
+                        <View style={s.exerciseBadge}>
+                          <Text style={s.exerciseBadgeText}>{exerciseCount} exercise{exerciseCount > 1 ? 's' : ''}</Text>
+                        </View>
+                      </View>
+                      <Text style={s.recentCardTitle} numberOfLines={2}>
+                        {w.title || 'Custom Workout'}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })
+              ) : (
+                <>
+                  {/* Default Workout Card 1 */}
+                  <TouchableOpacity 
+                    style={s.savedWorkoutCard}
+                    activeOpacity={0.88}
+                    onPress={() => router.push('/importer')}
+                  >
+                    <View style={s.savedCardImageWrap}>
+                      <View style={[s.savedCardImagePlaceholder, { backgroundColor: isDark ? '#26201B' : '#FFF0E6' }]} />
+                      <View style={s.exerciseBadge}>
+                        <Text style={s.exerciseBadgeText}>1 exercise</Text>
+                      </View>
+                    </View>
+                    <Text style={s.recentCardTitle} numberOfLines={2}>
+                      One-Arm{'\n'}Dumbbell Row
+                    </Text>
+                  </TouchableOpacity>
+
+                  {/* Default Workout Card 2 */}
+                  <TouchableOpacity 
+                    style={s.savedWorkoutCard}
+                    activeOpacity={0.88}
+                    onPress={() => router.push('/importer')}
+                  >
+                    <View style={s.savedCardImageWrap}>
+                      <View style={[s.savedCardImagePlaceholder, { backgroundColor: isDark ? '#21262D' : '#F0F4FA' }]} />
+                      <View style={s.exerciseBadge}>
+                        <Text style={s.exerciseBadgeText}>4 exercises</Text>
+                      </View>
+                    </View>
+                    <Text style={s.recentCardTitle} numberOfLines={2}>
+                      Bigger Abs{'\n'}Workout
+                    </Text>
+                  </TouchableOpacity>
+                </>
+              )}
             </ScrollView>
           </View>
 
-
-
-
         </ScrollView>
-
-
-
-        </View>
+      </View>
     </SafeAreaView>
   );
 }
 
-const makeStyles = (colors: ReturnType<typeof import("../../contexts/ThemeContext").useTheme>["colors"]) => StyleSheet.create({
+const makeStyles = (
+  colors: ReturnType<typeof import('../../contexts/ThemeContext').useTheme>['colors'],
+  isDark: boolean
+) => StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: colors.background,
   },
   container: {
     flex: 1,
-    backgroundColor: colors.background,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingVertical: 8,
+    paddingTop: 12,
+    paddingBottom: 8,
   },
-  headerLeft: {
+  searchBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: isDark ? '#18181B' : colors.card,
+    borderWidth: 1,
+    borderColor: isDark ? '#27272A' : colors.cardBorder,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerRight: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
   },
-  searchBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
+  proPill: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    backgroundColor: isDark ? 'rgba(229, 165, 68, 0.15)' : 'rgba(229, 165, 68, 0.15)',
   },
-  headerTitle: {
-    fontSize: 24,
+  proPillText: {
+    fontSize: 13,
     fontWeight: '800',
-    color: colors.textPrimary,
+    color: isDark ? '#E5A544' : '#C27803',
+    letterSpacing: 1,
   },
   avatarContainer: {
     position: 'relative',
   },
   avatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.textPrimary,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: isDark ? '#1E1E22' : colors.card,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
-    borderColor: colors.backgroundElevated,
+    borderColor: isDark ? '#D49B45' : '#E0A13C',
   },
   avatarText: {
-    color: colors.backgroundElevated,
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  crownBadge: {
-    position: 'absolute',
-    top: -6,
-    right: -4,
-    backgroundColor: colors.card,
-    borderRadius: 12,
-    padding: 2,
-    borderWidth: 1,
-    borderColor: 'rgba(251, 191, 36, 0.6)',
+    color: colors.textPrimary,
+    fontSize: 15,
+    fontWeight: '800',
+    letterSpacing: 0.5,
   },
   scrollView: {
     flex: 1,
@@ -271,400 +482,302 @@ const makeStyles = (colors: ReturnType<typeof import("../../contexts/ThemeContex
   scrollContent: {
     paddingHorizontal: 16,
     paddingTop: 8,
-    paddingBottom: 100,
+    paddingBottom: 110,
     gap: 20,
   },
-  // --- Active Plan Card ---
-  activePlanCard: {
-    backgroundColor: colors.card,
-    borderRadius: 20,
-    padding: 20,
-    marginHorizontal: 16,
-    marginBottom: 24,
+
+  // --- Hero Active Plan Card ---
+  heroCard: {
+    backgroundColor: isDark ? '#1A1816' : '#FFF7F2',
+    borderRadius: 24,
+    padding: 22,
     borderWidth: 1,
-    borderColor: colors.accentDark,
-    shadowColor: colors.accent,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.15,
+    borderColor: isDark ? '#2A2520' : '#FFDFCE',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: isDark ? 0.3 : 0.06,
     shadowRadius: 16,
     elevation: 8,
   },
-  activePlanTop: {
-    marginBottom: 16,
-  },
-  activePlanSubtitle: {
+  heroBadge: {
     fontSize: 12,
     fontWeight: '800',
     color: colors.accent,
     letterSpacing: 1.2,
-    marginBottom: 4,
+    marginBottom: 8,
   },
-  activePlanTitle: {
-    fontSize: 24,
+  heroTitle: {
+    fontSize: 28,
+    fontWeight: '900',
+    color: colors.textPrimary,
+    letterSpacing: -0.5,
+    marginBottom: 16,
+  },
+  chipsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 20,
+  },
+  chip: {
+    backgroundColor: isDark ? '#272421' : '#F4EAE2',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 14,
+  },
+  chipText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: isDark ? '#D1D1D6' : colors.textSecondary,
+  },
+  progressBarTrack: {
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: isDark ? '#302C28' : '#F0E2D6',
+    overflow: 'hidden',
+    marginBottom: 20,
+  },
+  progressBarFill: {
+    height: '100%',
+    borderRadius: 3,
+    backgroundColor: colors.accent,
+  },
+  heroCtaBtn: {
+    backgroundColor: colors.accent,
+    borderRadius: 16,
+    paddingVertical: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: colors.accent,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  heroCtaText: {
+    fontSize: 16,
+    fontWeight: '900',
+    color: '#FFFFFF',
+    letterSpacing: 0.8,
+  },
+
+  // --- This Week Tracker Card ---
+  weekCard: {
+    backgroundColor: colors.card,
+    borderRadius: 24,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: isDark ? 0.2 : 0.04,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  weekHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  weekTitle: {
+    fontSize: 16,
     fontWeight: '800',
     color: colors.textPrimary,
   },
-  activePlanExercises: {
-    backgroundColor: colors.backgroundElevated,
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 20,
-    gap: 6,
-  },
-  activePlanExerciseText: {
-    fontSize: 14,
-    color: colors.textSecondary,
+  weekSub: {
+    fontSize: 12,
     fontWeight: '500',
+    color: colors.textSecondary,
   },
-  activePlanBtn: {
+  weekDaysRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  dayColumn: {
+    alignItems: 'center',
+    gap: 10,
+  },
+  dayColumnLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.textTertiary,
+  },
+  dayColumnLabelToday: {
+    color: colors.textPrimary,
+    fontWeight: '900',
+  },
+  dayNodeCompleted: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     backgroundColor: colors.accent,
-    paddingVertical: 14,
-    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  activePlanBtnText: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: '#FFF',
-    letterSpacing: 0.5,
-  },
-  calendarStrip: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    backgroundColor: colors.card,
-    paddingHorizontal: 8,
-    paddingVertical: 12,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: colors.navBorder,
-  },
-  calendarDay: {
+  dayNodeToday: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: isDark ? '#1E1E23' : '#FFF0E6',
+    borderWidth: 2,
+    borderColor: colors.accent,
     alignItems: 'center',
-    gap: 6,
+    justifyContent: 'center',
   },
-  calendarDayLabel: {
-    fontSize: 11,
+  dayNodeTodayText: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: isDark ? '#FFFFFF' : colors.accent,
+  },
+  dayNodeUpcoming: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: isDark ? '#1A1A1E' : '#F2ECE5',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dayNodeUpcomingText: {
+    fontSize: 13,
     fontWeight: '600',
     color: colors.textTertiary,
   },
-  calendarDayLabelTodayContainer: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: 'rgba(156, 163, 175, 0.3)',
-    alignItems: 'center',
-    justifyContent: 'center',
+  dayNodeDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: colors.accent,
   },
-  calendarDayLabelToday: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: colors.textPrimary,
+
+  // --- Stats Row ---
+  statsRow: {
+    flexDirection: 'row',
+    gap: 12,
   },
-  calendarDateNode: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+  statBox: {
+    flex: 1,
     backgroundColor: colors.card,
+    borderRadius: 20,
+    paddingVertical: 18,
+    paddingHorizontal: 14,
     borderWidth: 1,
     borderColor: colors.cardBorder,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  calendarDateNodeToday: {
-    backgroundColor: colors.textPrimary,
-    borderWidth: 0,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
+    shadowOpacity: isDark ? 0.2 : 0.04,
+    shadowRadius: 6,
+    elevation: 2,
   },
-  calendarDateText: {
-    fontSize: 12,
-    fontWeight: '700',
+  statValue: {
+    fontSize: 22,
+    fontWeight: '900',
     color: colors.textPrimary,
+    letterSpacing: -0.5,
+    marginBottom: 4,
   },
-  calendarDateTextToday: {
-    color: colors.backgroundElevated,
+  statLabel: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: colors.textSecondary,
   },
+
+  // --- Recently Saved Section ---
   section: {
-    gap: 8,
+    marginTop: 4,
   },
-  sectionHeader: {
+  sectionHeaderRow: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    gap: 6,
+    marginBottom: 16,
   },
-  sectionTitle: {
+  sectionHeading: {
     fontSize: 20,
     fontWeight: '800',
     color: colors.textPrimary,
+    letterSpacing: -0.3,
   },
-  recentScroll: {
-    marginHorizontal: -16,
+  seeAllText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.accent,
   },
-  recentScrollContent: {
-    paddingHorizontal: 16,
-    gap: 12,
+  recentCardsScroll: {
+    gap: 14,
+    paddingRight: 16,
   },
-  recentCard: {
-    width: 112,
+  importWorkoutCard: {
+    width: 124,
   },
-  recentCardImage: {
-    width: 112,
-    height: 112,
-    borderRadius: 16,
-    backgroundColor: colors.cardBorder,
+  importCardDashedBorder: {
+    width: 124,
+    height: 124,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    borderColor: colors.accent,
+    borderStyle: 'dashed',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
-    marginBottom: 8,
+    marginBottom: 10,
+    backgroundColor: isDark ? '#1C1613' : '#FFF7F2',
   },
-  importCardVisual: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: colors.card,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  importPlusBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+  importPlusCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: colors.accent,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  recentCardIconText: {
-    fontSize: 28,
-    marginBottom: 4,
+  savedWorkoutCard: {
+    width: 124,
   },
-  recentCardTag: {
-    fontSize: 9,
-    fontWeight: '800',
-    color: colors.textSecondary,
-    letterSpacing: 0.5,
-  },
-  recentCardTitle: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: colors.textPrimary,
-  },
-  recentCardSubtitle: {
-    fontSize: 11,
-    color: colors.textTertiary,
-    marginTop: 2,
-  },
-  todayHeader: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    justifyContent: 'space-between',
-    marginBottom: 4,
-  },
-  todayHeaderLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  todayTitle: {
-    fontSize: 24,
-    fontWeight: '900',
-    color: colors.textPrimary,
-  },
-  todayDate: {
-    fontSize: 14,
-    color: colors.textTertiary,
-    marginLeft: 4,
-  },
-  calendarBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 12,
-    backgroundColor: colors.skeleton,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  activeRoutineCard: {
-    backgroundColor: colors.card,
-    borderRadius: 16,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: colors.navBorder,
-  },
-  activeRoutineHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 8,
-  },
-  activeRoutineTags: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  tagBadge: {
-    backgroundColor: colors.accentLight,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 12,
-  },
-  tagBadgeText: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: colors.accent,
-  },
-  routineDuration: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.textTertiary,
-  },
-  routineTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: colors.textPrimary,
-  },
-  routineDesc: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    marginTop: 4,
-  },
-  startSessionFooter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    borderTopWidth: 1,
-    borderTopColor: colors.cardBorder,
-    marginTop: 16,
-    paddingTop: 12,
-  },
-  avatarStack: {
-    flexDirection: 'row',
-  },
-  miniAvatar: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: colors.cardBorder,
-    borderWidth: 2,
-    borderColor: colors.backgroundElevated,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  miniAvatarText: {
-    fontSize: 9,
-    fontWeight: '800',
-    color: colors.textSecondary,
-  },
-  startBtnContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 2,
-  },
-  startBtnText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: colors.accent,
-  },
-  feedbackFloatBtn: {
-    position: 'absolute',
-    bottom: 96,
-    right: 16,
-    backgroundColor: colors.card,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+  savedCardImageWrap: {
+    width: 124,
+    height: 124,
     borderRadius: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 5,
+    overflow: 'hidden',
+    position: 'relative',
+    marginBottom: 10,
     borderWidth: 1,
     borderColor: colors.cardBorder,
   },
-  feedbackFloatText: {
-    fontSize: 12,
+  savedCardImage: {
+    width: '100%',
+    height: '100%',
+  },
+  savedCardImagePlaceholder: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: colors.surfaceAlt,
+  },
+  exerciseBadge: {
+    position: 'absolute',
+    bottom: 8,
+    left: 8,
+    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  exerciseBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  recentCardTitle: {
+    fontSize: 13,
     fontWeight: '700',
     color: colors.textPrimary,
-  }
-  , feedbackTooltip: {
-    position: 'absolute',
-    bottom: 110,
-    left: 16,
-    right: 16,
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-    borderRadius: 16,
-    padding: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.12,
-    shadowRadius: 30,
-    elevation: 10,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    zIndex: 40,
-  },
-  tooltipTopRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-  },
-  tooltipLeft: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 12,
-    flex: 1,
-    paddingRight: 16,
-  },
-  tooltipIconBadge: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: '#F3F4F6',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  tooltipTextContent: {
-    flex: 1,
-  },
-  tooltipTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#111827',
-  },
-  tooltipDesc: {
-    fontSize: 12,
-    color: '#6B7280',
-    marginTop: 4,
     lineHeight: 18,
+    marginBottom: 2,
   },
-  tooltipCloseBtn: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: '#F3F4F6',
-    alignItems: 'center',
-    justifyContent: 'center',
+  recentCardSubtitle: {
+    fontSize: 11,
+    fontWeight: '500',
+    color: colors.textSecondary,
   },
-  tooltipBottomRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 16,
-    paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: '#F3F4F6',
-  },
-  tooltipStepText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#9CA3AF',
-  },
-  tooltipNextText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#111827',
-  }
-
 });

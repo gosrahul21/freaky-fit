@@ -54,7 +54,7 @@ export default function ImporterScreen() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url, user_id: user.id }),
       });
-
+      console.log("import response", response);
       if (!response.ok) {
         throw new Error('Failed to start extraction');
       }
@@ -157,7 +157,7 @@ export default function ImporterScreen() {
                 <View style={s.iconCircle}>
                   <Wand2 size={40} color="#FFFFFF" />
                 </View>
-                <Text style={s.title}>Extract Any Workout</Text>
+                <Text style={s.title}>Import Workout</Text>
                 <Text style={s.subtitle}>
                   Paste a link from Instagram, TikTok, or YouTube. Our AI will extract the exercises, sets, and reps automatically.
                 </Text>
@@ -265,7 +265,7 @@ const makeStyles = (colors: any) => StyleSheet.create({
     textAlign: 'center',
   },
   subtitle: {
-    fontSize: 15,
+    fontSize: 18,
     color: colors.textSecondary,
     textAlign: 'center',
     lineHeight: 22,
@@ -323,6 +323,7 @@ const makeStyles = (colors: any) => StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: colors.accent,
     paddingVertical: 18,
+    paddingHorizontal:10,
     borderRadius: 32,
     gap: 8,
     shadowColor: '#000',

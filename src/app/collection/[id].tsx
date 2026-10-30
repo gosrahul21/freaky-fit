@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, ActivityIndicator, Modal, FlatList, Alert } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { X, FolderPlus, Activity, ChevronRight, Plus, CheckCircle2, Circle } from 'lucide-react-native';
+import { X, FolderPlus, Activity, ChevronRight, Plus, CheckCircle2, Circle, Trash2 } from 'lucide-react-native';
 import { useTheme } from '../../contexts/ThemeContext';
 import { supabase } from '../../lib/supabase';
 
@@ -22,11 +22,7 @@ export default function CollectionDetailsScreen() {
   const [isAdding, setIsAdding] = useState(false);
   const [isFetchingExercises, setIsFetchingExercises] = useState(false);
 
-  useEffect(() => {
-    if (id) fetchCollectionData();
-  }, [id]);
-
-  const fetchCollectionData = async () => {
+  const fetchCollectionData = React.useCallback(async () => {
     setLoading(true);
     try {
       // 1. Fetch collection details
@@ -55,7 +51,21 @@ export default function CollectionDetailsScreen() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id]);
+
+  useEffect(() => {
+    let active = true;
+    if (id) {
+      void (async () => {
+        if (active) {
+          await fetchCollectionData();
+        }
+      })();
+    }
+    return () => {
+      active = false;
+    };
+  }, [id, fetchCollectionData]);
 
   const fetchAllWorkoutExercises = async () => {
     setIsFetchingExercises(true);
@@ -127,6 +137,28 @@ export default function CollectionDetailsScreen() {
     }
   };
 
+  const handleDeleteCollection = () => {
+    Alert.alert(
+      'Delete Collection',
+      'Are you sure you want to delete this collection? This action cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await supabase.from('collection_exercises').delete().eq('collection_id', id);
+              await supabase.from('collections').delete().eq('id', id);
+              router.back();
+            } catch (err: any) {
+              Alert.alert('Error', err.message || 'Failed to delete collection');
+            }
+          }
+        }
+      ]
+    );
+  };
 
   if (loading) {
     return (
@@ -152,9 +184,14 @@ export default function CollectionDetailsScreen() {
           <X size={24} color={colors.textPrimary} />
         </TouchableOpacity>
         <Text style={s.headerTitle} numberOfLines={1}>{collection.title}</Text>
-        <TouchableOpacity style={s.iconBtn} onPress={handleOpenAddModal}>
-          <Plus size={24} color={colors.accent} />
-        </TouchableOpacity>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+          <TouchableOpacity style={s.iconBtn} onPress={handleOpenAddModal}>
+            <Plus size={24} color={colors.accent} />
+          </TouchableOpacity>
+          <TouchableOpacity style={s.iconBtn} onPress={handleDeleteCollection}>
+            <Trash2 size={20} color="#ef4444" />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>

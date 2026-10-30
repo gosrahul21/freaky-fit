@@ -8,6 +8,10 @@ let isConfiguring = false;
  * Initializes RevenueCat if not already configured.
  */
 export async function initPurchases(): Promise<boolean> {
+  if (Platform.OS === 'web') {
+    return false;
+  }
+
   try {
     const configured = await Purchases.isConfigured();
     if (configured) return true;
@@ -55,8 +59,9 @@ export async function initPurchases(): Promise<boolean> {
  * Syncs the authenticated Supabase user ID with RevenueCat.
  */
 export async function syncPurchasesUser(userId?: string): Promise<void> {
+  if (Platform.OS === 'web' || !userId) return;
+
   try {
-    if (!userId) return;
     await initPurchases();
     const configured = await Purchases.isConfigured();
     if (!configured) return;
@@ -68,9 +73,20 @@ export async function syncPurchasesUser(userId?: string): Promise<void> {
 
 /**
  * Checks whether the current user has an active Pro subscription or free trial.
- * In RevenueCat, active free trials are included in `customerInfo.entitlements.active`.
+ * On web or during development, this always grants unrestricted Pro access.
  */
 export async function checkIsPro(userId?: string): Promise<boolean> {
+  // Web version is unrestricted - no paywall enforcement
+  if (Platform.OS === 'web') {
+    return true;
+  }
+
+  // Allow bypassing in development / emulator mode so testing is not blocked
+  if (__DEV__) {
+    console.log('[RevenueCat] Dev environment detected (__DEV__ = true) - bypassing Pro check');
+    return true;
+  }
+
   try {
     await initPurchases();
     const configured = await Purchases.isConfigured();
@@ -96,6 +112,10 @@ export async function checkIsPro(userId?: string): Promise<boolean> {
  * Restores purchases for the user (e.g. after reinstalling the app).
  */
 export async function restorePurchases(): Promise<boolean> {
+  if (Platform.OS === 'web') {
+    return true;
+  }
+
   try {
     await initPurchases();
     const configured = await Purchases.isConfigured();
@@ -114,6 +134,8 @@ export async function restorePurchases(): Promise<boolean> {
  * Logs out the user from RevenueCat on sign out.
  */
 export async function logoutPurchases(): Promise<void> {
+  if (Platform.OS === 'web') return;
+
   try {
     const configured = await Purchases.isConfigured();
     if (configured) {

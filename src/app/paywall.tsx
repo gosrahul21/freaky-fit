@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Dimensions, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Dimensions, ActivityIndicator, Alert, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTheme } from '../contexts/ThemeContext';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -25,8 +25,13 @@ export default function PaywallScreen() {
   const [isPurchasing, setIsPurchasing] = useState(false);
   const [isRestoring, setIsRestoring] = useState(false);
 
-  // Track paywall viewed & sync user if logged in
+  // If accessed on Web, immediately forward to /home since web is unrestricted
   useEffect(() => {
+    if (Platform.OS === 'web') {
+      router.replace('/home');
+      return;
+    }
+
     posthog.screen('Paywall');
     posthog.capture('paywall_viewed');
 
@@ -38,6 +43,8 @@ export default function PaywallScreen() {
   }, []);
 
   useEffect(() => {
+    if (Platform.OS === 'web') return;
+
     const fetchOfferings = async () => {
       try {
         const offerings = await Purchases.getOfferings();
@@ -231,6 +238,18 @@ export default function PaywallScreen() {
                   <Text style={styles.legalLink}>Privacy Policy</Text>
                 </TouchableOpacity>
               </View>
+
+              {__DEV__ && (
+                <TouchableOpacity 
+                  onPress={() => router.replace('/home')} 
+                  style={{ marginTop: 16, padding: 8, alignItems: 'center' }}
+                  activeOpacity={0.7}
+                >
+                  <Text style={{ color: colors.accent, fontSize: 13, fontWeight: '700' }}>
+                    [DEV ONLY] Bypass Paywall & Go to Home →
+                  </Text>
+                </TouchableOpacity>
+              )}
             </>
           )}
         </View>
