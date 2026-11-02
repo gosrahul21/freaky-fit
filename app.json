@@ -52,7 +52,8 @@
             "extraProguardRules": "-keepattributes Signature,NoAutoClose\n-dontwarn android.support.annotations.**\n-keep class com.revenuecat.** { *; }\n-dontwarn com.revenuecat.**\n-keep class com.android.billingclient.** { *; }\n-dontwarn com.android.billingclient.**\n-keep class com.posthog.** { *; }\n-dontwarn com.posthog.**\n-keep class androidx.startup.** { *; }"
           }
         }
-      ]
+      ],
+      "./plugins/withAndroidQueries"
     ],
     "experiments": {
       "typedRoutes": true,

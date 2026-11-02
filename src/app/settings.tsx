@@ -10,6 +10,7 @@ import {
   Alert,
   Linking,
   ActivityIndicator,
+  Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
@@ -228,26 +229,26 @@ export default function SettingsScreen() {
         <View style={s.section}>
           <Text style={s.sectionLabel}>ACCOUNT</Text>
           <View style={s.settingsCard}>
-            <TouchableOpacity style={s.settingsRow} onPress={() => openWebUrl(APP_LINKS.PRIVACY_POLICY)} activeOpacity={0.7}>
+            <TouchableOpacity style={s.settingsRow} onPress={() => router.push('/privacy')} activeOpacity={0.7}>
               <View style={s.settingsRowLeft}>
                 <View style={[s.iconBadge, { backgroundColor: '#1a1a2a' }]}>
                   <Shield size={18} color="#818CF8" />
                 </View>
                 <Text style={s.settingsRowTitle}>Privacy Policy</Text>
               </View>
-              <ExternalLink size={16} color={colors.textTertiary} />
+              <ChevronRight size={18} color={colors.textTertiary} />
             </TouchableOpacity>
 
             <View style={s.rowDivider} />
 
-            <TouchableOpacity style={s.settingsRow} onPress={() => openWebUrl(APP_LINKS.TERMS_OF_SERVICE)} activeOpacity={0.7}>
+            <TouchableOpacity style={s.settingsRow} onPress={() => router.push('/terms')} activeOpacity={0.7}>
               <View style={s.settingsRowLeft}>
                 <View style={[s.iconBadge, { backgroundColor: '#1a1a2a' }]}>
                   <FileText size={18} color="#818CF8" />
                 </View>
                 <Text style={s.settingsRowTitle}>Terms of Service</Text>
               </View>
-              <ExternalLink size={16} color={colors.textTertiary} />
+              <ChevronRight size={18} color={colors.textTertiary} />
             </TouchableOpacity>
           </View>
         </View>
@@ -287,7 +288,11 @@ export default function SettingsScreen() {
 
             <View style={s.rowDivider} />
 
-            <TouchableOpacity style={s.settingsRow} onPress={() => openWebUrl(APP_LINKS.WEBSITE + '#download')} activeOpacity={0.7}>
+            <TouchableOpacity 
+              style={s.settingsRow} 
+              onPress={() => openWebUrl(Platform.OS === 'ios' ? APP_LINKS.APP_STORE : APP_LINKS.PLAY_STORE)} 
+              activeOpacity={0.7}
+            >
               <View style={s.settingsRowLeft}>
                 <View style={[s.iconBadge, { backgroundColor: '#1a2010' }]}>
                   <Star size={18} color="#FCD34D" />

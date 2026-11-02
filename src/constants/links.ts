@@ -1,5 +1,6 @@
 import * as WebBrowser from 'expo-web-browser';
-import { Linking } from 'react-native';
+import * as Linking from 'expo-linking';
+import { Linking as RNLinking, Alert } from 'react-native';
 
 export const APP_LINKS = {
   DOMAIN: 'freakyfit.truemindlabs.com',
@@ -12,21 +13,42 @@ export const APP_LINKS = {
 };
 
 /**
- * Opens an external web URL inside an in-app browser with full-screen presentation,
- * falling back to the system browser if unavailable.
+ * Opens an external web URL inside an in-app browser or the system browser,
+ * with comprehensive fallback across expo-web-browser, expo-linking, and RN linking.
  */
 export const openWebUrl = async (url: string): Promise<void> => {
+  if (!url) return;
+  const cleanUrl = url.trim();
+
+  // 1. Try Expo Linking (opens default browser directly without CustomTabs dependency)
   try {
-    await WebBrowser.openBrowserAsync(url, {
-      presentationStyle: WebBrowser.WebBrowserPresentationStyle.FULL_SCREEN,
-      enableBarCollapsing: true,
-      toolbarColor: '#0A0A0A',
-    });
-  } catch {
-    try {
-      await Linking.openURL(url);
-    } catch (err) {
-      console.warn('Failed to open URL:', url, err);
+    const canOpen = await Linking.canOpenURL(cleanUrl).catch(() => false);
+    if (canOpen) {
+      await Linking.openURL(cleanUrl);
+      return;
     }
+  } catch (err) {
+    console.log('[openWebUrl] Linking.canOpenURL bypassed:', err);
+  }
+
+  // 2. Direct RN Linking attempt
+  try {
+    await RNLinking.openURL(cleanUrl);
+    return;
+  } catch (rnErr) {
+    console.log('[openWebUrl] RNLinking.openURL failed, trying WebBrowser:', rnErr);
+  }
+
+  // 3. Fallback to WebBrowser (Chrome Custom Tabs / Safari)
+  try {
+    await WebBrowser.openBrowserAsync(cleanUrl);
+    return;
+  } catch (browserErr) {
+    console.error('[openWebUrl] Failed to open URL with all mechanisms:', cleanUrl, browserErr);
+    Alert.alert(
+      'Unable to Open Link',
+      `Could not open the link:\n\n${cleanUrl}\n\nPlease ensure a web browser is installed on your device.`
+    );
   }
 };
+

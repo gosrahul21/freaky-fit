@@ -32,3 +32,12 @@ login as we are aready in login screen: save token/cookie in localstorage and fe
 pro / free trial entitlement verification after login, signup, & app start : done
 
 
+
+
+terms of service and privacy policy link not working in login page in production : done
+
+
+
+we see exercises on the screen we not even imported and on click of it it opens import screen, determine the issue 
+
+collection screen on library, on click of collection it is not opening collection's workout inside it

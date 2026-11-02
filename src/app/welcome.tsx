@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useTheme } from '../contexts/ThemeContext';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, Platform, ActivityIndicator, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Zap, Mail } from 'lucide-react-native';
 import { GoogleIcon, AppleIcon } from '../components/icons';
@@ -12,6 +12,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { APP_LINKS, openWebUrl } from '../constants/links';
 import { checkIsPro } from '../lib/purchases';
 import { identifyUser } from '../lib/posthog';
+import { getOAuthRedirectUrl, handleAuthRedirectUrl } from '../lib/auth';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -19,6 +20,7 @@ export default function WelcomeScreen() {
   const { colors } = useTheme();
   const s = makeStyles(colors);
   const router = useRouter();
+  const [googleLoading, setGoogleLoading] = useState(false);
 
   const handleContinue = async () => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -32,6 +34,9 @@ export default function WelcomeScreen() {
   };
 
   React.useEffect(() => {
+    if (Platform.OS === 'android') {
+      WebBrowser.warmUpAsync();
+    }
     const checkSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
@@ -41,15 +46,33 @@ export default function WelcomeScreen() {
       }
     };
     checkSession();
+
+    return () => {
+      if (Platform.OS === 'android') {
+        WebBrowser.coolDownAsync();
+      }
+    };
   }, []);
 
   const handleGoogleLogin = async () => {
     try {
-      const redirectUrl = Linking.createURL('');
+      setGoogleLoading(true);
+      const redirectUrl = getOAuthRedirectUrl();
       console.log('--- SUPABASE REDIRECT URL ---');
-      console.log('Make sure THIS exact URL (with a ** at the end) is in your Supabase Redirect URLs list:');
+      console.log('Ensure this URL (or with ** appended) is in your Supabase Redirect URLs list:');
       console.log(redirectUrl);
       console.log('-------------------------------');
+
+      // Setup a one-time link listener in case Android Custom Tabs dismisses upon receiving the deep link
+      let handled = false;
+      const sub = Linking.addEventListener('url', async (event) => {
+        if (!handled && (event.url.includes('code=') || event.url.includes('access_token=') || event.url.includes('error='))) {
+          handled = true;
+          sub.remove();
+          await handleAuthRedirectUrl(event.url);
+          setGoogleLoading(false);
+        }
+      });
 
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
@@ -60,97 +83,59 @@ export default function WelcomeScreen() {
       });
 
       if (error) {
-        console.error("Supabase Auth Error:", error.message);
+        sub.remove();
+        setGoogleLoading(false);
+        console.error('Supabase Auth Error:', error.message);
+        Alert.alert('Google Sign-In Error', error.message);
         return;
       }
 
       if (data?.url) {
-        const res = await WebBrowser.openAuthSessionAsync(data.url, redirectUrl);
-        
-        if (res.type === 'success') {
-          let sessionData: any = null;
-          let sessionError: any = null;
-          
+        let res: WebBrowser.WebBrowserAuthSessionResult | null = null;
+        try {
+          res = await WebBrowser.openAuthSessionAsync(data.url, redirectUrl);
+        } catch (wbError: any) {
+          console.warn('openAuthSessionAsync threw error, attempting direct browser fallback:', wbError);
           try {
-            const parsedUrl = new URL(res.url);
-            const code = parsedUrl.searchParams.get('code');
-            if (code) {
-              const result = await supabase.auth.exchangeCodeForSession(code);
-              sessionData = result.data;
-              sessionError = result.error;
-            } else {
-              // Parse hash fragment for implicit grant
-              const hashParams = new URLSearchParams(parsedUrl.hash.substring(1));
-              const accessToken = hashParams.get('access_token');
-              const refreshToken = hashParams.get('refresh_token');
-              if (accessToken && refreshToken) {
-                const result = await supabase.auth.setSession({
-                  access_token: accessToken,
-                  refresh_token: refreshToken,
-                });
-                sessionData = result.data;
-                sessionError = result.error;
-              } else {
-                const errorDesc = hashParams.get('error_description') || parsedUrl.searchParams.get('error_description');
-                sessionError = new Error(errorDesc || 'No tokens or code found in redirect URL');
-              }
-            }
-          } catch (e: any) {
-            sessionError = e;
-          }
-          
-          if (sessionError) {
-            console.error("Session extraction error:", sessionError.message);
-          } else if (sessionData.session) {
-            const userMeta = sessionData.session.user.user_metadata;
-            identifyUser(sessionData.session.user.id, {
-              email: sessionData.session.user.email,
-              name: userMeta?.full_name || sessionData.session.user.email?.split('@')[0],
-            });
-
-            // Check if they are a returning FreakyFit user
-            const { data: profile } = await supabase
-              .from('profiles')
-              .select('id')
-              .eq('id', sessionData.session.user.id)
-              .single();
-
-            const isPro = await checkIsPro(sessionData.session.user.id);
-
-            if (profile) {
-              console.log("Welcome back returning user!");
-              router.replace(isPro ? '/home' : '/paywall');
-            } else {
-              console.log("New user detected, creating profile!");
-              const userMeta = sessionData.session.user.user_metadata;
-              const { error: insertError } = await supabase
-                .from('profiles')
-                .insert([
-                  {
-                    id: sessionData.session.user.id,
-                    display_name: userMeta?.full_name || sessionData.session.user.email?.split('@')[0] || 'New User',
-                    avatar_url: userMeta?.avatar_url || null,
-                    gender: JSON.parse((await AsyncStorage.getItem('@onboarding_gender')) || 'null'),
-                    age: JSON.parse((await AsyncStorage.getItem('@onboarding_age')) || 'null'),
-                    height_cm: JSON.parse((await AsyncStorage.getItem('@onboarding_height_cm')) || 'null'),
-                    weight_kg: JSON.parse((await AsyncStorage.getItem('@onboarding_weight_kg')) || 'null'),
-                    primary_goal: JSON.parse((await AsyncStorage.getItem('@onboarding_primary_goal')) || 'null'),
-                    training_frequency: JSON.parse((await AsyncStorage.getItem('@onboarding_training_frequency')) || 'null'),
-                    target_muscles: JSON.parse((await AsyncStorage.getItem('@onboarding_target_muscles')) || 'null'),
-                    referral_source: await AsyncStorage.getItem('@onboarding_referral_source'),
-                    updated_at: new Date().toISOString(),
-                  }
-                ]);
-              if (insertError) {
-                console.error("Failed to create profile:", insertError.message);
-              }
-              router.replace(isPro ? '/home' : '/paywall');
-            }
+            await Linking.openURL(data.url);
+            return;
+          } catch (linkError: any) {
+            console.error('Direct Linking.openURL also failed:', linkError);
+            Alert.alert(
+              'Could not open browser',
+              'Please check if you have a web browser (e.g. Chrome) installed and enabled.'
+            );
+            return;
           }
         }
+
+        if (res && res.type === 'success' && res.url) {
+          handled = true;
+          sub.remove();
+          await handleAuthRedirectUrl(res.url);
+        } else if (res && (res.type === 'dismiss' || res.type === 'cancel')) {
+          // If browser dismissed, check if Android OS delivered redirect to initial URL
+          setTimeout(async () => {
+            if (!handled) {
+              const initial = await Linking.getInitialURL();
+              if (initial && (initial.includes('code=') || initial.includes('access_token='))) {
+                handled = true;
+                sub.remove();
+                await handleAuthRedirectUrl(initial);
+              }
+            }
+            sub.remove();
+            setGoogleLoading(false);
+          }, 1000);
+          return;
+        }
       }
-    } catch (e) {
-      console.error("OAuth Exception:", e);
+      sub.remove();
+    } catch (e: any) {
+      console.error('OAuth Exception:', e);
+      Alert.alert('Google Sign-In Error', e?.message || 'An unexpected error occurred during Google sign in.');
+    } finally {
+      setGoogleLoading(false);
     }
   };
 
@@ -182,16 +167,29 @@ export default function WelcomeScreen() {
         <View style={s.actionsSection}>
           
           {/* Continue with Google */}
-          <TouchableOpacity style={s.googleBtn} activeOpacity={0.8} onPress={handleGoogleLogin}>
-            <GoogleIcon size={20} />
-            <Text style={s.googleText}>Continue with Google</Text>
+          <TouchableOpacity 
+            style={[s.googleBtn, googleLoading && { opacity: 0.7 }]} 
+            activeOpacity={0.8} 
+            onPress={handleGoogleLogin}
+            disabled={googleLoading}
+          >
+            {googleLoading ? (
+              <ActivityIndicator size="small" color="#1E293B" />
+            ) : (
+              <>
+                <GoogleIcon size={20} />
+                <Text style={s.googleText}>Continue with Google</Text>
+              </>
+            )}
           </TouchableOpacity>
           
-          {/* Continue with Apple */}
-          <TouchableOpacity style={s.appleBtn} activeOpacity={0.8} onPress={handleContinue}>
-            <AppleIcon size={20} color="#FFFFFF" />
-            <Text style={s.appleText}>Continue with Apple</Text>
-          </TouchableOpacity>
+          {/* Continue with Apple (Hidden on Android devices) */}
+          {Platform.OS !== 'android' && (
+            <TouchableOpacity style={s.appleBtn} activeOpacity={0.8} onPress={handleContinue}>
+              <AppleIcon size={20} color="#FFFFFF" />
+              <Text style={s.appleText}>Continue with Apple</Text>
+            </TouchableOpacity>
+          )}
           
           {/* Divider */}
           <View style={s.dividerContainer}>
@@ -212,12 +210,24 @@ export default function WelcomeScreen() {
 
         {/* Bottom Legal Footer */}
         <View style={s.footerSection}>
-          <Text style={s.legalText}>
-            By continuing you agree to FreakyFit&apos;s{' '}
-            <Text style={s.linkText} onPress={() => openWebUrl(APP_LINKS.TERMS_OF_SERVICE)}>Terms of Service</Text> and{' '}
-            <Text style={s.linkText} onPress={() => openWebUrl(APP_LINKS.PRIVACY_POLICY)}>Privacy Policy</Text>.
-          </Text>
-          
+          <Text style={s.legalText}>By continuing you agree to FreakyFit&apos;s</Text>
+          <View style={s.legalLinksRow}>
+            <TouchableOpacity 
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} 
+              activeOpacity={0.7} 
+              onPress={() => router.push('/terms')}
+            >
+              <Text style={s.linkText}>Terms of Service</Text>
+            </TouchableOpacity>
+            <Text style={s.legalDot}>•</Text>
+            <TouchableOpacity 
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} 
+              activeOpacity={0.7} 
+              onPress={() => router.push('/privacy')}
+            >
+              <Text style={s.linkText}>Privacy Policy</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
       </ScrollView>
@@ -389,6 +399,18 @@ const makeStyles = (colors: ReturnType<typeof import("../contexts/ThemeContext")
     fontWeight: '600',
     color: colors.textPrimary,
     textDecorationLine: 'underline',
+    fontSize: 13,
+  },
+  legalLinksRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 2,
+    gap: 8,
+  },
+  legalDot: {
+    fontSize: 12,
+    color: colors.textTertiary,
   },
   loginRow: {
     flexDirection: 'row',

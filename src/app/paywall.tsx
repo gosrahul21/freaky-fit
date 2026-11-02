@@ -9,7 +9,6 @@ import Purchases, { PurchasesPackage } from 'react-native-purchases';
 import { usePostHog } from 'posthog-react-native';
 import { supabase } from '../lib/supabase';
 import { syncPurchasesUser, restorePurchases } from '../lib/purchases';
-import { APP_LINKS, openWebUrl } from '../constants/links';
 
 const { width } = Dimensions.get('window');
 
@@ -245,11 +244,11 @@ export default function PaywallScreen() {
               </Text>
 
               <View style={styles.legalRow}>
-                <TouchableOpacity onPress={() => openWebUrl(APP_LINKS.TERMS_OF_SERVICE)}>
+                <TouchableOpacity onPress={() => router.push('/terms')}>
                   <Text style={styles.legalLink}>Terms of Service</Text>
                 </TouchableOpacity>
                 <Text style={styles.legalDot}>•</Text>
-                <TouchableOpacity onPress={() => openWebUrl(APP_LINKS.PRIVACY_POLICY)}>
+                <TouchableOpacity onPress={() => router.push('/privacy')}>
                   <Text style={styles.legalLink}>Privacy Policy</Text>
                 </TouchableOpacity>
               </View>

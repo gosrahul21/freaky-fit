@@ -124,6 +124,16 @@ export default function LoginScreen() {
             <Text style={s.footerLink}>Sign up</Text>
           </TouchableOpacity>
         </View>
+
+        <View style={s.legalRow}>
+          <TouchableOpacity onPress={() => router.push('/terms')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <Text style={s.legalText}>Terms of Service</Text>
+          </TouchableOpacity>
+          <Text style={s.legalDot}>•</Text>
+          <TouchableOpacity onPress={() => router.push('/privacy')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <Text style={s.legalText}>Privacy Policy</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     </SafeAreaView>
   );
@@ -165,4 +175,20 @@ const makeStyles = (colors: any) => StyleSheet.create({
   },
   footerText: { color: colors.textSecondary, fontSize: 14 },
   footerLink: { color: colors.accent, fontSize: 14, fontWeight: '700' },
+  legalRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 20,
+    gap: 8,
+  },
+  legalText: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    textDecorationLine: 'underline',
+  },
+  legalDot: {
+    color: colors.textSecondary,
+    fontSize: 12,
+  },
 });
