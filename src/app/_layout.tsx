@@ -1,7 +1,8 @@
-import { Stack } from 'expo-router';
+import { Stack, usePathname, useRootNavigationState, useRouter } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
+import { ShareIntentProvider, useShareIntentContext } from 'expo-share-intent';
 import { ThemeProvider } from '../contexts/ThemeContext';
 import { StatusBar } from 'expo-status-bar';
 import { PostHogProvider } from 'posthog-react-native';
@@ -38,17 +39,63 @@ export default function RootLayout() {
   }, []);
 
   return (
-    <PostHogProvider client={posthog}>
-      <ThemeProvider>
-        <InnerLayout />
-      </ThemeProvider>
-    </PostHogProvider>
+    <ShareIntentProvider>
+      <PostHogProvider client={posthog}>
+        <ThemeProvider>
+          <InnerLayout />
+        </ThemeProvider>
+      </PostHogProvider>
+    </ShareIntentProvider>
   );
+}
+
+const URL_REGEX = /https?:\/\/[^\s]+/i;
+
+function extractSharedUrl(webUrl?: string | null, text?: string | null): string | null {
+  if (webUrl) {
+    const match = webUrl.match(URL_REGEX);
+    if (match) return match[0];
+  }
+  if (text) {
+    const match = text.match(URL_REGEX);
+    if (match) return match[0];
+  }
+  return null;
 }
 
 function InnerLayout() {
   // We import useTheme inside a child so it can read the context
   const { isDark } = require('../contexts/ThemeContext').useTheme();
+  const router = useRouter();
+  const pathname = usePathname();
+  const rootNavigationState = useRootNavigationState();
+  const { hasShareIntent, shareIntent, resetShareIntent } = useShareIntentContext();
+
+  useEffect(() => {
+    if (!hasShareIntent || !rootNavigationState?.key) return;
+
+    // Wait until the user is past splash/auth/onboarding/paywall before opening importer
+    const isBlockedRoute =
+      pathname === '/' ||
+      pathname === '/paywall' ||
+      pathname === '/welcome' ||
+      pathname.startsWith('/auth') ||
+      pathname.startsWith('/onboarding');
+    if (isBlockedRoute) return;
+
+    const sharedUrl = extractSharedUrl(shareIntent.webUrl, shareIntent.text);
+    if (!sharedUrl) {
+      resetShareIntent();
+      return;
+    }
+
+    if (pathname === '/importer') {
+      router.setParams({ sharedUrl });
+    } else {
+      router.push({ pathname: '/importer', params: { sharedUrl } });
+    }
+    resetShareIntent();
+  }, [hasShareIntent, shareIntent, pathname, rootNavigationState?.key, router, resetShareIntent]);
 
   useEffect(() => {
     const handleUrl = (event: { url: string }) => {

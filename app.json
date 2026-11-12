@@ -46,14 +46,25 @@
         "expo-build-properties",
         {
           "android": {
-            "enableMinifyInReleaseBuilds": false,
-            "enableProguardInReleaseBuilds": false,
-            "enableShrinkResourcesInReleaseBuilds": false,
+            "enableMinifyInReleaseBuilds": true,
+            "enableProguardInReleaseBuilds": true,
+            "enableShrinkResourcesInReleaseBuilds": true,
             "extraProguardRules": "-keepattributes Signature,NoAutoClose\n-dontwarn android.support.annotations.**\n-keep class com.revenuecat.** { *; }\n-dontwarn com.revenuecat.**\n-keep class com.android.billingclient.** { *; }\n-dontwarn com.android.billingclient.**\n-keep class com.posthog.** { *; }\n-dontwarn com.posthog.**\n-keep class androidx.startup.** { *; }"
           }
         }
       ],
-      "./plugins/withAndroidQueries"
+      "./plugins/withAndroidQueries",
+      [
+        "expo-share-intent",
+        {
+          "iosActivationRules": {
+            "NSExtensionActivationSupportsWebURLWithMaxCount": 1,
+            "NSExtensionActivationSupportsWebPageWithMaxCount": 1,
+            "NSExtensionActivationSupportsText": true
+          },
+          "androidIntentFilters": ["text/*"]
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

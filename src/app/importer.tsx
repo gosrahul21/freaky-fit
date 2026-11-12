@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   View, 
   Text, 
@@ -12,14 +12,54 @@ import {
   ScrollView 
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
-import { X, Link2, Check, Wand2 } from 'lucide-react-native';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { X, Link2, Check, Wand2, AlertCircle, RotateCcw } from 'lucide-react-native';
 import { InstagramIcon, YouTubeIcon, TikTokIcon } from '../components/icons';
 import { useTheme } from '../contexts/ThemeContext';
 import { hapticImpactLight, hapticSelection } from '../utils/haptics';
 import { supabase } from '../lib/supabase';
-import { BACKEND_URL } from '../lib/backend';
+import { BACKEND_URL, JobError, JobErrorCode, JobStatusResponse } from '../lib/backend';
 import { usePostHog } from 'posthog-react-native';
+
+interface ImportErrorState {
+  title: string;
+  message: string;
+  retryable: boolean;
+  code?: JobErrorCode;
+  stage?: JobError['stage'];
+}
+
+const JOB_ERROR_TITLES: Record<JobErrorCode, string> = {
+  AI_SERVICE_UNAVAILABLE: 'AI Temporarily Busy',
+  AI_RATE_LIMITED: 'AI Temporarily Busy',
+  AI_AUTH_ERROR: 'Extraction Unavailable',
+  VIDEO_UNAVAILABLE: 'Video Unavailable',
+  VIDEO_ACCESS_BLOCKED: 'Video Access Blocked',
+  INVALID_VIDEO_URL: 'Invalid Video Link',
+  VIDEO_DOWNLOAD_FAILED: 'Video Download Failed',
+  VIDEO_UPLOAD_FAILED: 'Video Upload Failed',
+  AI_EXTRACTION_FAILED: 'Extraction Failed',
+  DATABASE_ERROR: 'Save Failed',
+  PROCESSING_FAILED: 'Extraction Failed',
+};
+
+function formatJobError(statusData: JobStatusResponse): ImportErrorState {
+  const err = statusData.error;
+  const code = err?.code;
+  const title = (code && JOB_ERROR_TITLES[code]) || 'Extraction Failed';
+  const message =
+    err?.message ||
+    statusData.failedReason ||
+    'Something went wrong while processing your video.';
+
+  return {
+    title,
+    message,
+    retryable: err?.retryable !== false,
+    code,
+    stage: err?.stage,
+  };
+}
 
 const detectPlatform = (targetUrl: string) => {
   const lower = targetUrl.toLowerCase();
@@ -39,14 +79,37 @@ export default function ImporterScreen() {
   const insets = useSafeAreaInsets();
   const s = makeStyles(colors, isDark);
   const router = useRouter();
+  const { sharedUrl } = useLocalSearchParams<{ sharedUrl?: string }>();
   const posthog = usePostHog();
 
-  const [url, setUrl] = useState('youtube.com/shorts/cbum-biceps');
+  const [url, setUrl] = useState(
+    typeof sharedUrl === 'string' && sharedUrl.trim() ? sharedUrl.trim() : 'youtube.com/shorts/cbum-biceps'
+  );
+  const [prevSharedUrl, setPrevSharedUrl] = useState<string | undefined>(
+    typeof sharedUrl === 'string' ? sharedUrl : undefined
+  );
   const [isProcessing, setIsProcessing] = useState(false);
+  const [importError, setImportError] = useState<ImportErrorState | null>(null);
   const [fetchedMeta, setFetchedMeta] = useState<{ url: string; title?: string; thumbnail?: string } | null>(null);
+  const pollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isMountedRef = useRef(true);
+
+  if (typeof sharedUrl === 'string' && sharedUrl.trim() && sharedUrl !== prevSharedUrl) {
+    setPrevSharedUrl(sharedUrl);
+    setUrl(sharedUrl.trim());
+    setImportError(null);
+  }
 
   useEffect(() => {
+    isMountedRef.current = true;
     posthog.screen('Importer');
+    return () => {
+      isMountedRef.current = false;
+      if (pollTimeoutRef.current) {
+        clearTimeout(pollTimeoutRef.current);
+        pollTimeoutRef.current = null;
+      }
+    };
   }, [posthog]);
 
   // Dynamically fetch live title and thumbnail from the entered URL
@@ -176,9 +239,18 @@ export default function ImporterScreen() {
     };
   }, [url, fetchedMeta]);
 
+  const clearPollTimeout = () => {
+    if (pollTimeoutRef.current) {
+      clearTimeout(pollTimeoutRef.current);
+      pollTimeoutRef.current = null;
+    }
+  };
+
   const handleImport = async () => {
     if (!url.trim()) return;
     hapticImpactLight();
+    clearPollTimeout();
+    setImportError(null);
     setIsProcessing(true);
 
     const platform = detectPlatform(url);
@@ -201,20 +273,24 @@ export default function ImporterScreen() {
       });
       
       if (!response.ok) {
-        throw new Error('Failed to start extraction');
+        throw new Error('Could not start workout extraction. Please try again.');
       }
 
       const { job_id } = await response.json();
 
       // Poll for job status
       const pollStatus = async () => {
+        if (!isMountedRef.current) return;
+
         try {
           const statusRes = await fetch(`${apiUrl}/api/job-status/${job_id}`);
-          if (!statusRes.ok) throw new Error('Failed to fetch job status');
+          if (!statusRes.ok) throw new Error('Unable to check extraction status.');
           
-          const statusData = await statusRes.json();
+          const statusData: JobStatusResponse = await statusRes.json();
+          if (!isMountedRef.current) return;
 
           if (statusData.state === 'completed') {
+            clearPollTimeout();
             const durationSec = Math.round((Date.now() - startTime) / 1000);
             posthog.capture('video_import_succeeded', {
               platform,
@@ -225,39 +301,56 @@ export default function ImporterScreen() {
             setIsProcessing(false);
             router.replace('/library');
           } else if (statusData.state === 'failed') {
-            const errorMsg = statusData.failedReason || 'Extraction failed';
+            clearPollTimeout();
+            const formattedError = formatJobError(statusData);
             const durationSec = Math.round((Date.now() - startTime) / 1000);
             posthog.capture('video_import_failed', {
               platform,
               job_id,
-              error: errorMsg,
+              error: formattedError.message,
+              error_code: formattedError.code ?? null,
+              error_stage: formattedError.stage ?? null,
+              retryable: formattedError.retryable,
               duration_seconds: durationSec,
             });
-            throw new Error(errorMsg);
+            setIsProcessing(false);
+            setImportError(formattedError);
           } else {
-            setTimeout(pollStatus, 2000);
+            pollTimeoutRef.current = setTimeout(pollStatus, 2000);
           }
         } catch (err: any) {
           console.error("Polling error:", err);
+          clearPollTimeout();
+          if (!isMountedRef.current) return;
           setIsProcessing(false);
           posthog.capture('video_import_failed', {
             platform,
             error: err?.message || 'Polling error',
           });
-          alert('Error checking extraction status');
+          setImportError({
+            title: 'Connection Issue',
+            message: 'Lost connection while checking your video. Please try again.',
+            retryable: true,
+          });
         }
       };
 
-      setTimeout(pollStatus, 2000);
+      pollTimeoutRef.current = setTimeout(pollStatus, 2000);
 
     } catch (err: any) {
       console.error("Import error:", err);
+      clearPollTimeout();
+      if (!isMountedRef.current) return;
       setIsProcessing(false);
       posthog.capture('video_import_failed', {
         platform,
         error: err?.message || 'Failed to start extraction',
       });
-      alert('Failed to start extraction');
+      setImportError({
+        title: 'Could Not Start Import',
+        message: 'Something went wrong while starting your video import. Please try again.',
+        retryable: true,
+      });
     }
   };
 
@@ -327,7 +420,10 @@ export default function ImporterScreen() {
                 placeholder="Paste Instagram, TikTok, or YouTube link..."
                 placeholderTextColor={colors.textTertiary}
                 value={url}
-                onChangeText={setUrl}
+                onChangeText={(text) => {
+                  setUrl(text);
+                  if (importError) setImportError(null);
+                }}
                 autoCapitalize="none"
                 autoCorrect={false}
               />
@@ -338,6 +434,7 @@ export default function ImporterScreen() {
                   onPress={() => {
                     hapticSelection();
                     setUrl('');
+                    setImportError(null);
                   }}
                 >
                   <X size={13} color={colors.textPrimary} strokeWidth={2.5} />
@@ -350,6 +447,36 @@ export default function ImporterScreen() {
               <View style={s.detectedRow}>
                 <Check size={14} color="#34D399" strokeWidth={3} />
                 <Text style={s.detectedText}>{platformName} link detected</Text>
+              </View>
+            )}
+
+            {/* Extraction Error Card */}
+            {importError && (
+              <View style={s.errorCard}>
+                <View style={s.errorHeader}>
+                  <View style={s.errorIconWrap}>
+                    <AlertCircle size={18} color="#EF4444" strokeWidth={2.4} />
+                  </View>
+                  <View style={s.errorTextWrap}>
+                    <Text style={s.errorTitle}>{importError.title}</Text>
+                    <Text style={s.errorMessage}>{importError.message}</Text>
+                  </View>
+                </View>
+
+                {importError.retryable ? (
+                  <TouchableOpacity
+                    style={s.retryBtn}
+                    activeOpacity={0.85}
+                    onPress={handleImport}
+                  >
+                    <RotateCcw size={15} color="#FFFFFF" strokeWidth={2.4} />
+                    <Text style={s.retryBtnText}>Try Again</Text>
+                  </TouchableOpacity>
+                ) : (
+                  <Text style={s.errorHintText}>
+                    Please check or replace the video link above.
+                  </Text>
+                )}
               </View>
             )}
 
@@ -749,5 +876,64 @@ const makeStyles = (colors: ReturnType<typeof import('../contexts/ThemeContext')
     fontSize: 14,
     fontWeight: '700',
     color: colors.textPrimary,
+  },
+  errorCard: {
+    marginTop: 14,
+    backgroundColor: isDark ? 'rgba(239, 68, 68, 0.12)' : '#FEF2F2',
+    borderWidth: 1,
+    borderColor: isDark ? 'rgba(239, 68, 68, 0.35)' : '#FECACA',
+    borderRadius: 18,
+    padding: 14,
+    gap: 12,
+  },
+  errorHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+  },
+  errorIconWrap: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: isDark ? 'rgba(239, 68, 68, 0.2)' : '#FEE2E2',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 1,
+  },
+  errorTextWrap: {
+    flex: 1,
+    gap: 3,
+  },
+  errorTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: isDark ? '#FCA5A5' : '#991B1B',
+  },
+  errorMessage: {
+    fontSize: 13,
+    lineHeight: 19,
+    color: isDark ? '#FECACA' : '#B91C1C',
+    fontWeight: '500',
+  },
+  retryBtn: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#EF4444',
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: 14,
+  },
+  retryBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  errorHintText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: isDark ? '#FCA5A5' : '#B91C1C',
+    paddingLeft: 42,
   },
 });

@@ -1,5 +1,37 @@
-export const BACKEND_URL =
-  process.env.EXPO_PUBLIC_API_URL || 'https://video-extractor-qjgr.onrender.com';
+export type JobErrorCode =
+  | 'AI_SERVICE_UNAVAILABLE'
+  | 'AI_RATE_LIMITED'
+  | 'AI_AUTH_ERROR'
+  | 'VIDEO_UNAVAILABLE'
+  | 'VIDEO_ACCESS_BLOCKED'
+  | 'INVALID_VIDEO_URL'
+  | 'VIDEO_DOWNLOAD_FAILED'
+  | 'VIDEO_UPLOAD_FAILED'
+  | 'AI_EXTRACTION_FAILED'
+  | 'DATABASE_ERROR'
+  | 'PROCESSING_FAILED';
+
+export interface JobError {
+  code: JobErrorCode;
+  stage: 'download' | 'upload' | 'extract' | 'save' | 'unknown';
+  message: string;
+  retryable: boolean;
+  statusCode?: number;
+}
+
+export interface JobStatusResponse {
+  job_id: string;
+  state: 'waiting' | 'active' | 'completed' | 'failed';
+  result: { workout_id: string; workoutData: unknown } | null;
+  failedReason: string | null;
+  error: JobError | null;
+}
+
+export const BACKEND_URL = (
+  process.env.EXPO_PUBLIC_API_URL || 'https://video-extractor-qjgr.onrender.com'
+)
+  .trim()
+  .replace(/\/+$/, '');
 
 let lastPingTime = 0;
 const MIN_PING_INTERVAL_MS = 60 * 1000; // Throttle pings to once every minute
