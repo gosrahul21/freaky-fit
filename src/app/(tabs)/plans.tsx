@@ -1,12 +1,14 @@
 import { SafeAreaView } from 'react-native-safe-area-context';
 import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, RefreshControl } from 'react-native';
 import { Plus, Calendar, Share2, ChevronRight } from 'lucide-react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useTheme } from '../../contexts/ThemeContext';
-import { supabase } from '../../lib/supabase';
 import { hapticSelection, hapticImpactLight } from '../../utils/haptics';
 import { shareWorkoutPlan } from '../../utils/share';
+import { useAppDispatch, useAppSelector } from '../../store/hooks';
+import { fetchPlans, setActivePlan } from '../../store/slices/plansSlice';
+import { fetchUserProfile } from '../../store/slices/authSlice';
 
 interface DayConfig {
   key: string;
@@ -28,124 +30,75 @@ export default function PlansScreen() {
   const { colors, isDark } = useTheme();
   const s = makeStyles(colors, isDark);
   const router = useRouter();
+  const dispatch = useAppDispatch();
   
-  const [activePlan, setActivePlan] = useState<any>(null);
-  const [sessions, setSessions] = useState<any[]>([]);
-  const [allPlans, setAllPlans] = useState<any[]>([]);
-  const [profile, setProfile] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
+  const activePlan = useAppSelector((state) => state.plans.activePlan);
+  const allPlans = useAppSelector((state) => state.plans.plans);
+  const plansStatus = useAppSelector((state) => state.plans.status);
+  const profile = useAppSelector((state) => state.auth.profile);
 
-  const fetchPlansData = useCallback(async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+  const [refreshing, setRefreshing] = useState(false);
 
-      // 1. Fetch user profile for avatar/initials
-      const { data: profData } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .maybeSingle();
-      if (profData) setProfile(profData);
+  const loading = plansStatus === 'loading' && allPlans.length === 0;
 
-      // 2. Fetch all user plans
-      const { data: userPlans } = await supabase
-        .from('planner')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
-
-      const plansList = userPlans || [];
-
-      // Determine active plan
-      let currentActive = plansList.find((p: any) => p.status === 'active') || plansList[0] || null;
-
-      // If user has no plans, provide sample fallback plans matching mockup
-      if (plansList.length === 0) {
-        currentActive = {
-          id: 'sample-active',
-          title: 'Fat burner',
-          status: 'active',
-          duration: '12 days',
-          created_at: new Date().toISOString(),
-        };
-        const samplePlans = [
-          { id: 'sample-1', title: '2 week abs', duration: '14 days', status: 'inactive' },
-          { id: 'sample-2', title: 'Muscles Strength', duration: '8 weeks', status: 'inactive' },
-          { id: 'sample-3', title: 'This', duration: '1 week', status: 'inactive' },
-        ];
-        setActivePlan(currentActive);
-        setAllPlans(samplePlans);
-        setSessions([
-          { day_of_week: 'monday', title: 'Lower Body Blast' },
-          { day_of_week: 'tuesday', title: 'Core Shred' },
-          { day_of_week: 'thursday', title: 'Upper Body Burn' },
-          { day_of_week: 'friday', title: 'Full Body HIIT' },
-          { day_of_week: 'saturday', title: 'Active Recovery' },
-        ]);
-        setLoading(false);
-        return;
-      }
-
-      setActivePlan(currentActive);
-      setAllPlans(plansList);
-
-      // 3. If there is an active plan, fetch its sessions
-      if (currentActive && currentActive.id !== 'sample-active') {
-        const { data: sData } = await supabase
-          .from('planner_sessions')
-          .select('*, planner_session_exercises(*)')
-          .eq('planner_id', currentActive.id);
-        setSessions(sData || []);
-      }
-    } catch (err) {
-      console.warn('Error fetching plans data:', err);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const fetchPlansData = useCallback(
+    (force = false) => {
+      dispatch(fetchUserProfile(force ? { force: true } : undefined));
+      dispatch(fetchPlans(force ? { force: true } : undefined));
+    },
+    [dispatch]
+  );
 
   useFocusEffect(
     useCallback(() => {
-      fetchPlansData();
+      fetchPlansData(false);
     }, [fetchPlansData])
   );
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await Promise.all([
+      dispatch(fetchUserProfile({ force: true })),
+      dispatch(fetchPlans({ force: true })),
+    ]);
+    setRefreshing(false);
+  }, [dispatch]);
 
   const handleActivatePlan = async (planToActivate: any) => {
     try {
       hapticSelection();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      // If sample plan, simulate local activation
-      if (planToActivate.id?.startsWith('sample-')) {
-        setActivePlan(planToActivate);
-        setAllPlans((prev: any[]) =>
-          prev.map((p) => ({
-            ...p,
-            status: p.id === planToActivate.id ? 'active' : 'inactive',
-          }))
-        );
-        return;
+      if (!planToActivate.id?.startsWith('sample-')) {
+        await dispatch(setActivePlan(planToActivate.id));
       }
-
-      // Deactivate all plans
-      await supabase
-        .from('planner')
-        .update({ status: 'inactive' })
-        .eq('user_id', user.id);
-
-      // Activate selected plan
-      await supabase
-        .from('planner')
-        .update({ status: 'active' })
-        .eq('id', planToActivate.id);
-
-      fetchPlansData();
     } catch (e: any) {
       Alert.alert('Error', e.message || 'Failed to activate plan');
     }
   };
+
+  // If user has no plans, provide sample fallback plans matching mockup
+  const effectiveActivePlan = activePlan || {
+    id: 'sample-active',
+    title: 'Fat burner',
+    status: 'active',
+    duration: '12 days',
+    created_at: new Date().toISOString(),
+  };
+
+  const effectivePlans = allPlans.length > 0 ? allPlans : [
+    { id: 'sample-1', title: '2 week abs', duration: '14 days', status: 'inactive' },
+    { id: 'sample-2', title: 'Muscles Strength', duration: '8 weeks', status: 'inactive' },
+    { id: 'sample-3', title: 'This', duration: '1 week', status: 'inactive' },
+  ];
+
+  const sessions = (activePlan?.planner_sessions && activePlan.planner_sessions.length > 0)
+    ? activePlan.planner_sessions
+    : [
+        { day_of_week: 'monday', title: 'Lower Body Blast' },
+        { day_of_week: 'tuesday', title: 'Core Shred' },
+        { day_of_week: 'thursday', title: 'Upper Body Burn' },
+        { day_of_week: 'friday', title: 'Full Body HIIT' },
+        { day_of_week: 'saturday', title: 'Active Recovery' },
+      ];
 
   if (loading) {
     return (
@@ -168,6 +121,9 @@ export default function PlansScreen() {
   const todayWorkoutMeta = todaySession?.exercises_count 
     ? `45 min • ${todaySession.exercises_count} exercises` 
     : '45 min • 8 exercises';
+
+  const currentActivePlan = effectiveActivePlan;
+  const currentPlansList = effectivePlans;
 
   const userInitials = profile?.display_name
     ? profile.display_name.substring(0, 2).toUpperCase()
@@ -195,9 +151,20 @@ export default function PlansScreen() {
           </View>
         </View>
 
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.content}>
+        <ScrollView 
+          showsVerticalScrollIndicator={false} 
+          contentContainerStyle={s.content}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={colors.accent}
+              colors={[colors.accent]}
+            />
+          }
+        >
           {/* Active Training Split Card */}
-          {activePlan && (
+          {currentActivePlan && (
             <View style={s.activePlanCard}>
               {/* Card Header Row */}
               <View style={s.cardHeaderRow}>
@@ -205,14 +172,14 @@ export default function PlansScreen() {
                 <TouchableOpacity 
                   style={s.shareBtn} 
                   activeOpacity={0.7}
-                  onPress={() => shareWorkoutPlan(activePlan, sessions)}
+                  onPress={() => shareWorkoutPlan(currentActivePlan, sessions)}
                 >
                   <Share2 size={19} color={colors.textSecondary} />
                 </TouchableOpacity>
               </View>
 
               {/* Title & Progress Subtitle */}
-              <Text style={s.activePlanTitle}>{activePlan.title || 'Fat burner'}</Text>
+              <Text style={s.activePlanTitle}>{currentActivePlan.title || 'Fat burner'}</Text>
               <Text style={s.activePlanSubtitle}>
                 Day 3 of 12 • {workoutsThisWeek} workouts this week
               </Text>
@@ -272,8 +239,8 @@ export default function PlansScreen() {
                   activeOpacity={0.88}
                   onPress={() => {
                     hapticImpactLight();
-                    if (activePlan.id && !activePlan.id.startsWith('sample-')) {
-                      router.push(`/plan/${activePlan.id}`);
+                    if (currentActivePlan.id && !currentActivePlan.id.startsWith('sample-')) {
+                      router.push(`/plan/${currentActivePlan.id}`);
                     } else {
                       router.push('/(tabs)/home');
                     }
@@ -288,8 +255,8 @@ export default function PlansScreen() {
                 style={s.editRoutineRow}
                 activeOpacity={0.7}
                 onPress={() => {
-                  if (activePlan.id && !activePlan.id.startsWith('sample-')) {
-                    router.push(`/plan/${activePlan.id}`);
+                  if (currentActivePlan.id && !currentActivePlan.id.startsWith('sample-')) {
+                    router.push(`/plan/${currentActivePlan.id}`);
                   } else {
                     router.push('/plan-builder');
                   }
@@ -305,12 +272,12 @@ export default function PlansScreen() {
           <View style={s.yourPlansSection}>
             <View style={s.sectionHeaderRow}>
               <Text style={s.sectionTitle}>Your plans</Text>
-              <Text style={s.plansCountText}>{allPlans.length} saved</Text>
+              <Text style={s.plansCountText}>{currentPlansList.length} saved</Text>
             </View>
 
             {/* List of Saved Plans */}
-            {allPlans.map((plan: any) => {
-              const isActive = activePlan && activePlan.id === plan.id;
+            {currentPlansList.map((plan: any) => {
+              const isActive = currentActivePlan && currentActivePlan.id === plan.id;
               const durationText = plan.duration || '4 weeks';
 
               return (

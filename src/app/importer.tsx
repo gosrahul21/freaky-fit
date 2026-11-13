@@ -20,6 +20,8 @@ import { hapticImpactLight, hapticSelection } from '../utils/haptics';
 import { supabase } from '../lib/supabase';
 import { BACKEND_URL, JobError, JobErrorCode, JobStatusResponse } from '../lib/backend';
 import { usePostHog } from 'posthog-react-native';
+import { useAppDispatch } from '../store/hooks';
+import { invalidateWorkouts, fetchWorkouts } from '../store/slices/workoutsSlice';
 
 interface ImportErrorState {
   title: string;
@@ -82,6 +84,7 @@ export default function ImporterScreen() {
   const router = useRouter();
   const { sharedUrl } = useLocalSearchParams<{ sharedUrl?: string }>();
   const posthog = usePostHog();
+  const dispatch = useAppDispatch();
 
   const [url, setUrl] = useState(
     typeof sharedUrl === 'string' && sharedUrl.trim() ? sharedUrl.trim() : 'youtube.com/shorts/cbum-biceps'
@@ -345,6 +348,8 @@ export default function ImporterScreen() {
             });
 
             setIsProcessing(false);
+            dispatch(invalidateWorkouts());
+            dispatch(fetchWorkouts({ force: true }));
             router.replace('/library');
           } else if (statusData.state === 'failed') {
             clearPollTimeout();

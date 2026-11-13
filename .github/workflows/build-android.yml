@@ -40,6 +40,7 @@ jobs:
       EXPO_PUBLIC_REVENUECAT_APPLE_KEY: ${{ secrets.EXPO_PUBLIC_REVENUECAT_APPLE_KEY }}
       EXPO_PUBLIC_POSTHOG_API_KEY: ${{ secrets.EXPO_PUBLIC_POSTHOG_API_KEY }}
       EXPO_PUBLIC_POSTHOG_HOST: ${{ secrets.EXPO_PUBLIC_POSTHOG_HOST }}
+      GRADLE_OPTS: "-Dorg.gradle.jvmargs='-Xmx4096m -XX:MaxMetaspaceSize=1024m -XX:+HeapDumpOnOutOfMemoryError' -Dorg.gradle.daemon=false"
 
     steps:
       - name: 📥 Checkout repository
@@ -84,6 +85,11 @@ jobs:
       - name: ⚙️ Generate Native Android Code (Expo Prebuild)
         run: npx expo prebuild --platform android --clean
 
+      - name: 🚀 Optimize Gradle & JVM Memory
+        run: |
+          sed -i '/org.gradle.jvmargs/d' android/gradle.properties || true
+          echo "org.gradle.jvmargs=-Xmx4096m -XX:MaxMetaspaceSize=1024m -XX:+HeapDumpOnOutOfMemoryError" >> android/gradle.properties
+
       # -------------------------------------------------------------
       # DEVELOPMENT BUILD (Runs automatically on git push to main OR manual 'development')
       # -------------------------------------------------------------
@@ -92,7 +98,7 @@ jobs:
         run: |
           cd android
           chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon
+          ./gradlew assembleDebug --no-daemon -Dorg.gradle.jvmargs="-Xmx4096m -XX:MaxMetaspaceSize=1024m -XX:+HeapDumpOnOutOfMemoryError"
 
       - name: 📤 Upload Development APK Artifact
         if: ${{ github.event_name == 'push' || github.event.inputs.build_type == 'development' }}
@@ -121,6 +127,7 @@ jobs:
           cd android
           chmod +x gradlew
           ./gradlew bundleRelease --no-daemon \
+            -Dorg.gradle.jvmargs="-Xmx4096m -XX:MaxMetaspaceSize=1024m -XX:+HeapDumpOnOutOfMemoryError" \
             -Pandroid.injected.signing.store.file=$(pwd)/app/release.keystore \
             -Pandroid.injected.signing.store.password="${{ secrets.ANDROID_KEYSTORE_PASSWORD }}" \
             -Pandroid.injected.signing.key.alias="${{ secrets.ANDROID_KEY_ALIAS }}" \
@@ -132,6 +139,7 @@ jobs:
           cd android
           chmod +x gradlew
           ./gradlew assembleRelease --no-daemon \
+            -Dorg.gradle.jvmargs="-Xmx4096m -XX:MaxMetaspaceSize=1024m -XX:+HeapDumpOnOutOfMemoryError" \
             -Pandroid.injected.signing.store.file=$(pwd)/app/release.keystore \
             -Pandroid.injected.signing.store.password="${{ secrets.ANDROID_KEYSTORE_PASSWORD }}" \
             -Pandroid.injected.signing.key.alias="${{ secrets.ANDROID_KEY_ALIAS }}" \

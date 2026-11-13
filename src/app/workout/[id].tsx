@@ -6,6 +6,8 @@ import * as WebBrowser from 'expo-web-browser';
 import { useTheme } from '../../contexts/ThemeContext';
 import { hapticImpactLight, hapticSelection } from '../../utils/haptics';
 import { supabase } from '../../lib/supabase';
+import { useAppDispatch, useAppSelector } from '../../store/hooks';
+import { fetchWorkoutById } from '../../store/slices/workoutsSlice';
 
 // Initial state
 const INITIAL_WORKOUT = {
@@ -21,10 +23,44 @@ export default function WorkoutSessionScreen() {
   const { colors } = useTheme();
   const s = makeStyles(colors);
   const router = useRouter();
+  const dispatch = useAppDispatch();
+
+  const cachedWorkout = useAppSelector((state) => (id ? state.workouts.details[id as string] : null));
+
   const [workout, setWorkout] = useState<any>(INITIAL_WORKOUT);
   const [seconds, setSeconds] = useState(0);
   const [isRunning, setIsRunning] = useState(true);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!cachedWorkout);
+
+  useEffect(() => {
+    if (cachedWorkout && Array.isArray(cachedWorkout.workout_exercises)) {
+      const formattedExercises = cachedWorkout.workout_exercises.map((we: any, idx: number) => {
+        const setsCount = we.sets || 3;
+        const setsArray = Array.from({ length: setsCount }).map((_, i) => ({
+          id: `s${idx}-${i}`,
+          reps: String(we.reps || '10'),
+          weight: '',
+          completed: false,
+        }));
+        return {
+          id: we.id,
+          name: we.exercises?.name || 'Exercise',
+          notes: we.notes,
+          timestamp_start: we.timestamp_start,
+          timestamp_end: we.timestamp_end,
+          sets: setsArray,
+        };
+      });
+      setWorkout({
+        title: cachedWorkout.title,
+        source_url: cachedWorkout.source_url,
+        source_type: cachedWorkout.source_type,
+        thumbnail_url: cachedWorkout.thumbnail_url,
+        exercises: formattedExercises,
+      });
+      setLoading(false);
+    }
+  }, [cachedWorkout]);
 
   useEffect(() => {
     if (id) fetchWorkout();
@@ -43,8 +79,12 @@ export default function WorkoutSessionScreen() {
       return;
     }
 
+    if (id && !cachedWorkout) {
+      dispatch(fetchWorkoutById({ id: id as string }));
+    }
+
     try {
-      // Fetch workout details
+      // Fetch workout details if not cached
       const { data: wData } = await supabase
         .from('workouts')
         .select('*')

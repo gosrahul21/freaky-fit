@@ -8,31 +8,32 @@ import {
   StyleSheet, 
   ScrollView, 
   TouchableOpacity, 
-  Dimensions, 
   useWindowDimensions, 
   Modal, 
   TextInput, 
   Alert, 
-  Image 
+  Image,
+  ActivityIndicator,
+  RefreshControl
 } from 'react-native';
 import { 
   Search, 
   Plus, 
   Edit3, 
-  ChevronRight, 
   FolderPlus,
-  Folder,
-  Zap, 
   X, 
   Trash2, 
-  MoreVertical, 
-  Share2, 
-  Dumbbell
+  Wand2,
+  RotateCcw
 } from 'lucide-react-native';
 import { useRouter, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { supabase } from '../../lib/supabase';
 import { hapticImpactLight } from '../../utils/haptics';
 import { shareWorkout } from '../../utils/share';
+import { InstagramIcon, YouTubeIcon, TikTokIcon } from '../../components/icons';
+import { useAppDispatch, useAppSelector } from '../../store/hooks';
+import { fetchWorkouts, deleteWorkout } from '../../store/slices/workoutsSlice';
+import { fetchCollections, createCollection, deleteCollection } from '../../store/slices/collectionsSlice';
+import { fetchUserProfile } from '../../store/slices/authSlice';
 
 const FILTER_TAGS = ['All', 'Back', 'Arms', 'Abs', 'Recent'];
 
@@ -50,6 +51,14 @@ export default function LibraryScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const { width: screenWidth } = useWindowDimensions();
+  const dispatch = useAppDispatch();
+
+  const workouts = useAppSelector((state) => state.workouts.items);
+  const collections = useAppSelector((state) => state.collections.items);
+  const workoutsStatus = useAppSelector((state) => state.workouts.status);
+  const collectionsStatus = useAppSelector((state) => state.collections.status);
+  const user = useAppSelector((state) => state.auth.user);
+  const profile = useAppSelector((state) => state.auth.profile);
 
   const CARD_GAP = 12;
   const PADDING_HORIZONTAL = 16;
@@ -57,9 +66,10 @@ export default function LibraryScreen() {
 
   const [activeTab, setActiveTab] = useState<'workouts' | 'collections'>('workouts');
   const [selectedTag, setSelectedTag] = useState('All');
-  const [workouts, setWorkouts] = useState<any[]>([]);
-  const [collections, setCollections] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+
+  const loading =
+    (workoutsStatus === 'loading' && workouts.length === 0) ||
+    (collectionsStatus === 'loading' && collections.length === 0);
 
   const [isCollectionModalVisible, setCollectionModalVisible] = useState(false);
   const [newCollectionTitle, setNewCollectionTitle] = useState('');
@@ -68,7 +78,25 @@ export default function LibraryScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchActive, setIsSearchActive] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
-  const [userName, setUserName] = useState('RA');
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = React.useCallback(async () => {
+    setRefreshing(true);
+    await Promise.all([
+      dispatch(fetchUserProfile({ force: true })),
+      dispatch(fetchWorkouts({ force: true })),
+      dispatch(fetchCollections({ force: true })),
+    ]);
+    setRefreshing(false);
+  }, [dispatch]);
+
+  const userName = profile?.display_name
+    ? profile.display_name.substring(0, 2).toUpperCase()
+    : user?.user_metadata?.full_name
+      ? user.user_metadata.full_name.substring(0, 2).toUpperCase()
+      : user?.email
+        ? user.email.substring(0, 2).toUpperCase()
+        : 'RA';
 
   const getPlatformInfo = (w: any) => {
     const url = (w?.source_url || '').toLowerCase();
@@ -98,56 +126,24 @@ export default function LibraryScreen() {
     return CARD_GRADIENTS[index % CARD_GRADIENTS.length].defaultCategory;
   };
 
-  const fetchData = React.useCallback(async () => {
-    setLoading(true);
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      setLoading(false);
-      return;
-    }
-    
-    // User Initials
-    const initials = user.user_metadata?.full_name
-      ? user.user_metadata.full_name.substring(0, 2).toUpperCase()
-      : (user.email ? user.email.substring(0, 2).toUpperCase() : 'RA');
-    setUserName(initials);
-
-    // Workouts
-    const { data: workoutsData } = await supabase
-      .from('workouts')
-      .select('*, workout_exercises(id)')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false });
-    
-    // Collections with exercises
-    const { data: collectionsData } = await supabase
-      .from('collections')
-      .select('*, collection_exercises(id)')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false });
-
-    if (workoutsData) setWorkouts(workoutsData);
-    if (collectionsData) setCollections(collectionsData);
-    setLoading(false);
-  }, []);
+  const fetchData = React.useCallback(
+    (force = false) => {
+      dispatch(fetchUserProfile(force ? { force: true } : undefined));
+      dispatch(fetchWorkouts(force ? { force: true } : undefined));
+      dispatch(fetchCollections(force ? { force: true } : undefined));
+    },
+    [dispatch]
+  );
 
   useFocusEffect(
     React.useCallback(() => {
-      let active = true;
-      void (async () => {
-        if (active) {
-          await fetchData();
-          if (params.action === 'create_collection') {
-            setActiveTab('collections');
-            setCollectionModalVisible(true);
-            router.setParams({ action: '' });
-          }
-        }
-      })();
-      return () => {
-        active = false;
-      };
-    }, [params.action, params._ts, router, fetchData])
+      fetchData(false);
+      if (params.action === 'create_collection') {
+        setActiveTab('collections');
+        setCollectionModalVisible(true);
+        router.setParams({ action: '' });
+      }
+    }, [params.action, router, fetchData, setCollectionModalVisible])
   );
 
   const handleCreateCollection = async () => {
@@ -157,25 +153,10 @@ export default function LibraryScreen() {
     }
     setIsCreatingCollection(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        setIsCreatingCollection(false);
-        Alert.alert('Sign In Required', 'Please sign in to create and save collections.', [
-          { text: 'Sign In', onPress: () => router.push('/auth/login') },
-          { text: 'Cancel', style: 'cancel' }
-        ]);
-        return;
-      }
-      
-      const { data, error } = await supabase
-        .from('collections')
-        .insert([{ title: newCollectionTitle.trim(), user_id: user.id }])
-        .select();
-        
-      if (error) {
-        Alert.alert('Error', error.message);
-      } else if (data && data.length > 0) {
-        setCollections(prev => [data[0], ...prev]);
+      const res = await dispatch(createCollection({ title: newCollectionTitle.trim() }));
+      if (createCollection.rejected.match(res)) {
+        Alert.alert('Error', (res.payload as string) || 'Failed to create collection');
+      } else {
         setCollectionModalVisible(false);
         setNewCollectionTitle('');
       }
@@ -198,13 +179,9 @@ export default function LibraryScreen() {
           onPress: async () => {
             try {
               if (type === 'collection') {
-                await supabase.from('collection_exercises').delete().eq('collection_id', id);
-                await supabase.from('collections').delete().eq('id', id);
-                setCollections(prev => prev.filter(c => c.id !== id));
+                await dispatch(deleteCollection(id));
               } else if (type === 'workout') {
-                await supabase.from('workout_exercises').delete().eq('workout_id', id);
-                await supabase.from('workouts').delete().eq('id', id);
-                setWorkouts(prev => prev.filter(w => w.id !== id));
+                await dispatch(deleteWorkout(id));
               }
             } catch (err: any) {
               console.error('Delete error:', err);
@@ -234,7 +211,7 @@ export default function LibraryScreen() {
           onPress: () => {
             if (item.type === 'workout') {
               const w = workouts.find(x => x.id === item.id) || item;
-              shareWorkout(w);
+              shareWorkout(w as any);
             }
           }
         },
@@ -260,43 +237,8 @@ export default function LibraryScreen() {
 
   const filteredCollections = collections.filter(c => c.title.toLowerCase().includes(searchQuery.toLowerCase()));
 
-  // Render dummy cards when library is empty so it looks full & matches preview
-  const displayWorkouts = filteredWorkouts.length > 0 ? filteredWorkouts : [
-    {
-      id: 'mock-1',
-      title: 'One-Arm Dumbbell Row',
-      source_type: 'Instagram',
-      source_url: 'https://instagram.com',
-      exercise_count: 1,
-      target_muscle: 'Back',
-    },
-    {
-      id: 'mock-2',
-      title: 'Bigger Abs Workout',
-      source_type: 'YouTube',
-      source_url: 'https://youtube.com',
-      exercise_count: 4,
-      target_muscle: 'Abs',
-    },
-    {
-      id: 'mock-3',
-      title: 'CBUM Bigger Biceps',
-      source_type: 'YouTube',
-      source_url: 'https://youtube.com',
-      exercise_count: 3,
-      target_muscle: 'Arms',
-    },
-    {
-      id: 'mock-4',
-      title: 'Morning Belly Fat Burner',
-      source_type: 'YouTube',
-      source_url: 'https://youtube.com',
-      exercise_count: 4,
-      target_muscle: 'Core',
-    },
-  ];
-
-  const workoutsCount = workouts.length > 0 ? workouts.length : 4;
+  const displayWorkouts = filteredWorkouts;
+  const workoutsCount = workouts.length;
 
   return (
     <SafeAreaView style={[s.safeArea, { backgroundColor: colors.background }]}>
@@ -384,301 +326,402 @@ export default function LibraryScreen() {
         <ScrollView 
           contentContainerStyle={s.contentScroll} 
           showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={colors.accent}
+              colors={[colors.accent]}
+            />
+          }
         >
           {activeTab === 'workouts' && (
-            <>
-              {/* Section Header: e.g. "4 workouts" + "+ Import" Button */}
-              <View style={s.workoutsTopRow}>
-                <Text style={s.workoutsCountHeading}>
-                  {workoutsCount} workouts
+            loading ? (
+              <View style={s.loadingContainer}>
+                <ActivityIndicator size="large" color={colors.accent} />
+                <Text style={s.loadingText}>Loading workouts...</Text>
+              </View>
+            ) : workouts.length === 0 ? (
+              <View style={s.emptyContainer}>
+                <View style={s.emptyIconCircle}>
+                  <Wand2 size={36} color="#000000" strokeWidth={2.4} />
+                </View>
+                <Text style={s.emptyTitle}>No workouts yet</Text>
+                <Text style={s.emptySubtitle}>
+                  Turn any video from Instagram Reels, TikTok, or YouTube into structured workout sets &amp; reps.
                 </Text>
-
-                <TouchableOpacity 
-                  style={s.importCtaBtn} 
+                <TouchableOpacity
+                  style={s.emptyActionBtn}
                   activeOpacity={0.88}
                   onPress={() => {
                     hapticImpactLight();
                     router.push('/importer');
                   }}
                 >
-                  <Text style={s.importCtaBtnText}>+ Import</Text>
+                  <Plus size={18} color="#000000" strokeWidth={3} />
+                  <Text style={s.emptyActionBtnText}>Import your first workout</Text>
+                </TouchableOpacity>
+
+                <View style={s.emptyPlatformsRow}>
+                  <View style={s.emptyPlatformBadge}>
+                    <InstagramIcon size={16} />
+                    <Text style={s.emptyPlatformBadgeText}>Instagram</Text>
+                  </View>
+                  <View style={s.emptyPlatformBadge}>
+                    <YouTubeIcon size={16} />
+                    <Text style={s.emptyPlatformBadgeText}>YouTube</Text>
+                  </View>
+                  <View style={s.emptyPlatformBadge}>
+                    <TikTokIcon size={14} />
+                    <Text style={s.emptyPlatformBadgeText}>TikTok</Text>
+                  </View>
+                </View>
+              </View>
+            ) : filteredWorkouts.length === 0 ? (
+              <View style={s.emptyContainer}>
+                <View style={[s.emptyIconCircle, { backgroundColor: isDark ? '#26262B' : '#F3F4F6' }]}>
+                  <Search size={32} color={colors.textSecondary} strokeWidth={2.2} />
+                </View>
+                <Text style={s.emptyTitle}>No workouts found</Text>
+                <Text style={s.emptySubtitle}>
+                  {searchQuery ? `No workouts match "${searchQuery}"` : `No workouts tagged with "${selectedTag}"`}
+                </Text>
+                <TouchableOpacity
+                  style={[s.emptyActionBtn, { backgroundColor: isDark ? '#26262B' : '#E5E7EB' }]}
+                  activeOpacity={0.88}
+                  onPress={() => {
+                    hapticImpactLight();
+                    setSearchQuery('');
+                    setSelectedTag('All');
+                  }}
+                >
+                  <RotateCcw size={16} color={colors.textPrimary} strokeWidth={2.4} />
+                  <Text style={[s.emptyActionBtnText, { color: colors.textPrimary }]}>Clear filters</Text>
                 </TouchableOpacity>
               </View>
-
-              {/* Filter Chips Carousel: All | Back | Arms | Abs | Recent */}
-              <ScrollView 
-                horizontal 
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={s.filterRow}
-              >
-                {FILTER_TAGS.map((tag) => {
-                  const isSelected = selectedTag === tag;
-                  return (
-                    <TouchableOpacity
-                      key={tag}
-                      style={[s.filterChip, isSelected && s.filterChipSelected]}
-                      activeOpacity={0.8}
-                      onPress={() => {
-                        hapticImpactLight();
-                        setSelectedTag(tag);
-                      }}
-                    >
-                      <Text style={[s.filterChipText, isSelected && s.filterChipTextSelected]}>
-                        {tag}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </ScrollView>
-
-              {/* 2-Column Workout Cards Grid */}
-              <View style={s.gridContainer}>
-                {displayWorkouts.map((w, index) => {
-                  const exerciseCount = Array.isArray(w.workout_exercises)
-                    ? w.workout_exercises.length
-                    : (w.exercise_count || 1);
-                  const platform = getPlatformInfo(w);
-                  const muscleTag = getMuscleTag(w, index);
-                  const gradient = CARD_GRADIENTS[index % CARD_GRADIENTS.length];
-                  const isMock = String(w.id).startsWith('mock-');
-
-                  return (
-                    <TouchableOpacity
-                      key={w.id}
-                      style={[
-                        s.workoutCard, 
-                        { width: cardWidth, backgroundColor: isDark ? gradient.bg : gradient.lightBg }
-                      ]}
-                      activeOpacity={0.88}
-                      onPress={() => {
-                        if (isEditMode && !isMock) {
-                          handleDelete(w.id, 'workout');
-                        } else if (!isMock) {
-                          router.push(`/workout/preview/${w.id}`);
-                        } else {
-                          router.push('/importer');
-                        }
-                      }}
-                      onLongPress={() => !isMock && showItemOptions({ id: w.id, title: w.title, type: 'workout' })}
-                    >
-                      {/* Thumbnail image if exists */}
-                      {w.thumbnail_url && (
-                        <Image source={{ uri: w.thumbnail_url }} style={s.workoutBgImage} resizeMode="cover" />
-                      )}
-
-                      {/* Smooth dark gradient scrim so white text is crystal clear without needing a background box */}
-                      <LinearGradient
-                        colors={['rgba(0, 0, 0, 0)', 'rgba(0, 0, 0, 0.2)', 'rgba(0, 0, 0, 0.88)']}
-                        locations={[0, 0.45, 1]}
-                        style={s.cardGradientOverlay}
-                      />
-
-                      {/* Card Top Row: Platform Badge + Edit delete btn */}
-                      <View style={s.cardTopRow}>
-                        <View style={s.platformPill}>
-                          <View style={[s.platformDot, { backgroundColor: platform.dotColor }]} />
-                          <Text style={s.platformText}>{platform.name}</Text>
-                        </View>
-
-                        {isEditMode && (
-                          <TouchableOpacity
-                            style={s.cardMoreBtn}
-                            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                            onPress={() => {
-                              if (!isMock) {
-                                handleDelete(w.id, 'workout');
-                              }
-                            }}
-                          >
-                            <Trash2 size={15} color="#EF4444" />
-                          </TouchableOpacity>
-                        )}
-                      </View>
-
-                      {/* Card Bottom Content: Title + Muscle & Exercise Badges */}
-                      <View style={s.cardBottom}>
-                        <Text style={s.cardTitle} numberOfLines={2}>
-                          {w.title}
-                        </Text>
-
-                        <View style={s.cardTagsRow}>
-                          <View style={s.muscleBadge}>
-                            <Text style={s.muscleBadgeText}>{muscleTag}</Text>
-                          </View>
-
-                          <View style={s.exerciseCountBadge}>
-                            <Text style={s.exerciseCountText}>
-                              {exerciseCount} exercise{exerciseCount > 1 ? 's' : ''}
-                            </Text>
-                          </View>
-                        </View>
-                      </View>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-
-              {/* Bottom Dashed "Import a workout" Banner Card */}
-              <TouchableOpacity
-                style={s.bottomImportBanner}
-                activeOpacity={0.85}
-                onPress={() => {
-                  hapticImpactLight();
-                  router.push('/importer');
-                }}
-              >
-                <View style={s.bottomImportPlus}>
-                  <Plus size={24} color="#FFFFFF" strokeWidth={3} />
-                </View>
-                <View style={s.bottomImportTextContainer}>
-                  <Text style={s.bottomImportTitle}>Import a workout</Text>
-                  <Text style={s.bottomImportSubtitle}>
-                    Paste a link from Instagram or YouTube
+            ) : (
+              <>
+                {/* Section Header: e.g. "X workouts" + "+ Import" Button */}
+                <View style={s.workoutsTopRow}>
+                  <Text style={s.workoutsCountHeading}>
+                    {workoutsCount} {workoutsCount === 1 ? 'workout' : 'workouts'}
                   </Text>
+
+                  <TouchableOpacity 
+                    style={s.importCtaBtn} 
+                    activeOpacity={0.88}
+                    onPress={() => {
+                      hapticImpactLight();
+                      router.push('/importer');
+                    }}
+                  >
+                    <Text style={s.importCtaBtnText}>+ Import</Text>
+                  </TouchableOpacity>
                 </View>
-              </TouchableOpacity>
-            </>
+
+                {/* Filter Chips Carousel: All | Back | Arms | Abs | Recent */}
+                <ScrollView 
+                  horizontal 
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={s.filterRow}
+                >
+                  {FILTER_TAGS.map((tag) => {
+                    const isSelected = selectedTag === tag;
+                    return (
+                      <TouchableOpacity
+                        key={tag}
+                        style={[s.filterChip, isSelected && s.filterChipSelected]}
+                        activeOpacity={0.8}
+                        onPress={() => {
+                          hapticImpactLight();
+                          setSelectedTag(tag);
+                        }}
+                      >
+                        <Text style={[s.filterChipText, isSelected && s.filterChipTextSelected]}>
+                          {tag}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+
+                {/* 2-Column Workout Cards Grid */}
+                <View style={s.gridContainer}>
+                  {displayWorkouts.map((w, index) => {
+                    const exerciseCount = Array.isArray(w.workout_exercises)
+                      ? w.workout_exercises.length
+                      : (w.exercise_count || 1);
+                    const platform = getPlatformInfo(w);
+                    const muscleTag = getMuscleTag(w, index);
+                    const gradient = CARD_GRADIENTS[index % CARD_GRADIENTS.length];
+
+                    return (
+                      <TouchableOpacity
+                        key={w.id}
+                        style={[
+                          s.workoutCard, 
+                          { width: cardWidth, backgroundColor: isDark ? gradient.bg : gradient.lightBg }
+                        ]}
+                        activeOpacity={0.88}
+                        onPress={() => {
+                          if (isEditMode) {
+                            handleDelete(w.id, 'workout');
+                          } else {
+                            router.push(`/workout/preview/${w.id}`);
+                          }
+                        }}
+                        onLongPress={() => showItemOptions({ id: w.id, title: w.title, type: 'workout' })}
+                      >
+                        {/* Thumbnail image if exists */}
+                        {w.thumbnail_url && (
+                          <Image source={{ uri: w.thumbnail_url }} style={s.workoutBgImage} resizeMode="cover" />
+                        )}
+
+                        {/* Smooth dark gradient scrim so white text is crystal clear without needing a background box */}
+                        <LinearGradient
+                          colors={['rgba(0, 0, 0, 0)', 'rgba(0, 0, 0, 0.2)', 'rgba(0, 0, 0, 0.88)']}
+                          locations={[0, 0.45, 1]}
+                          style={s.cardGradientOverlay}
+                        />
+
+                        {/* Card Top Row: Platform Badge + Edit delete btn */}
+                        <View style={s.cardTopRow}>
+                          <View style={s.platformPill}>
+                            <View style={[s.platformDot, { backgroundColor: platform.dotColor }]} />
+                            <Text style={s.platformText}>{platform.name}</Text>
+                          </View>
+
+                          {isEditMode && (
+                            <TouchableOpacity
+                              style={s.cardMoreBtn}
+                              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                              onPress={() => handleDelete(w.id, 'workout')}
+                            >
+                              <Trash2 size={15} color="#EF4444" />
+                            </TouchableOpacity>
+                          )}
+                        </View>
+
+                        {/* Card Bottom Content: Title + Muscle & Exercise Badges */}
+                        <View style={s.cardBottom}>
+                          <Text style={s.cardTitle} numberOfLines={2}>
+                            {w.title}
+                          </Text>
+
+                          <View style={s.cardTagsRow}>
+                            <View style={s.muscleBadge}>
+                              <Text style={s.muscleBadgeText}>{muscleTag}</Text>
+                            </View>
+
+                            <View style={s.exerciseCountBadge}>
+                              <Text style={s.exerciseCountText}>
+                                {exerciseCount} exercise{exerciseCount > 1 ? 's' : ''}
+                              </Text>
+                            </View>
+                          </View>
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+
+                {/* Bottom Dashed "Import a workout" Banner Card */}
+                <TouchableOpacity
+                  style={s.bottomImportBanner}
+                  activeOpacity={0.85}
+                  onPress={() => {
+                    hapticImpactLight();
+                    router.push('/importer');
+                  }}
+                >
+                  <View style={s.bottomImportPlus}>
+                    <Plus size={24} color="#FFFFFF" strokeWidth={3} />
+                  </View>
+                  <View style={s.bottomImportTextContainer}>
+                    <Text style={s.bottomImportTitle}>Import a workout</Text>
+                    <Text style={s.bottomImportSubtitle}>
+                      Paste a link from Instagram or YouTube
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              </>
+            )
           )}
 
           {/* Collections Tab */}
           {activeTab === 'collections' && (
-            <View style={s.collectionsContainer}>
-              {/* Header: e.g. "2 collections" + "+ New" Button */}
-              <View style={s.workoutsTopRow}>
-                <Text style={s.workoutsCountHeading}>
-                  {collections.length > 0 ? `${collections.length} collections` : '2 collections'}
+            loading ? (
+              <View style={s.loadingContainer}>
+                <ActivityIndicator size="large" color={colors.accent} />
+                <Text style={s.loadingText}>Loading collections...</Text>
+              </View>
+            ) : collections.length === 0 ? (
+              <View style={s.emptyContainer}>
+                <View style={s.emptyIconCircle}>
+                  <FolderPlus size={36} color="#000000" strokeWidth={2.4} />
+                </View>
+                <Text style={s.emptyTitle}>No collections yet</Text>
+                <Text style={s.emptySubtitle}>
+                  Organize your workouts into custom collections for easy access.
                 </Text>
-
-                <TouchableOpacity 
-                  style={s.importCtaBtn} 
+                <TouchableOpacity
+                  style={s.emptyActionBtn}
                   activeOpacity={0.88}
                   onPress={() => {
                     hapticImpactLight();
                     setCollectionModalVisible(true);
                   }}
                 >
-                  <Text style={s.importCtaBtnText}>+ New</Text>
+                  <Plus size={18} color="#000000" strokeWidth={3} />
+                  <Text style={s.emptyActionBtnText}>Create Collection</Text>
                 </TouchableOpacity>
-              </View>
 
-              {/* Collections Grid (2-column layout matching screenshot) */}
-              <View style={s.collectionsGrid}>
-                {(filteredCollections.length > 0 ? filteredCollections : [
-                  { id: 'mock-c1', title: 'Biceps collection', count: 3, colors: ['#3A2C21', '#28323C', '#2A292E', '#3D2F45'] },
-                  { id: 'mock-c2', title: 'Leg collection', count: 2, colors: ['#23342B', '#392C23', '#25262B', '#2C2B2D'] }
-                ]).map((c: any, index: number) => {
-                  const exerciseCount = c.collection_exercises?.length ?? c.count ?? 2;
-                  const isMock = String(c.id).startsWith('mock-');
-                  const quadColors = c.colors || (isDark ? [
-                    ['#3A2C21', '#28323C', '#2A292E', '#3D2F45'],
-                    ['#23342B', '#392C23', '#25262B', '#2C2B2D'],
-                  ][index % 2] : [
-                    ['#FFE5D3', '#E0EDFA', '#EFEBF5', '#FCE7F3'],
-                    ['#DCFCE7', '#FEF3C7', '#F1F5F9', '#F3E8FF'],
-                  ][index % 2]);
-
-                  return (
-                    <TouchableOpacity
-                      key={c.id}
-                      style={[s.collectionCard, { width: cardWidth }]}
-                      activeOpacity={0.88}
-                      onPress={() => {
-                        if (isEditMode && !isMock) {
-                          handleDelete(c.id, 'collection');
-                        } else if (!isMock) {
-                          router.push(`/collection/${c.id}`);
-                        } else {
-                          setCollectionModalVisible(true);
-                        }
-                      }}
-                      onLongPress={() => !isMock && showItemOptions({ id: c.id, title: c.title, type: 'collection' })}
-                    >
-                      {/* 2x2 Quadrant Artwork Thumbnail Grid */}
-                      <View style={s.collectionQuadGrid}>
-                        <View style={[s.quadCell, { backgroundColor: quadColors[0] }]} />
-                        <View style={[s.quadCell, { backgroundColor: quadColors[1] }]} />
-                        <View style={[s.quadCell, { backgroundColor: quadColors[2] }]} />
-                        <View style={[s.quadCell, { backgroundColor: quadColors[3] }]} />
-                      </View>
-
-                      {/* Collection Details Row */}
-                      <View style={s.collectionCardBottom}>
-                        <View style={{ flex: 1 }}>
-                          <Text style={s.collectionCardTitle} numberOfLines={1}>
-                            {c.title}
-                          </Text>
-                          <Text style={s.collectionCardCount}>
-                            {exerciseCount} workout{exerciseCount === 1 ? '' : 's'}
-                          </Text>
-                        </View>
-
-                        {isEditMode && (
-                          <TouchableOpacity
-                            style={s.cardMoreBtn}
-                            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                            onPress={() => {
-                              if (!isMock) {
-                                handleDelete(c.id, 'collection');
-                              }
-                            }}
-                          >
-                            <Trash2 size={15} color="#EF4444" />
-                          </TouchableOpacity>
-                        )}
-                      </View>
-                    </TouchableOpacity>
-                  );
-                })}
-
-                {/* Dashed "New collection" Card (same width as other cards) */}
-                <TouchableOpacity
-                  style={[s.newCollectionDashedCard, { width: cardWidth }]}
-                  activeOpacity={0.85}
-                  onPress={() => {
-                    hapticImpactLight();
-                    setCollectionModalVisible(true);
-                  }}
-                >
-                  <View style={s.newCollectionFolderCircle}>
-                    <FolderPlus size={22} color="#FFFFFF" strokeWidth={2.5} />
-                  </View>
-                  <Text style={s.newCollectionDashedTitle}>New collection</Text>
-                </TouchableOpacity>
-              </View>
-
-              {/* QUICK START SECTION */}
-              <View style={s.quickStartSection}>
-                <Text style={s.quickStartHeading}>QUICK START</Text>
-                <View style={s.quickStartChipsRow}>
-                  {['+ Push', '+ Pull', '+ Core', '+ Full body'].map((pillText) => (
-                    <TouchableOpacity
-                      key={pillText}
-                      style={s.quickStartChip}
-                      activeOpacity={0.8}
-                      onPress={async () => {
-                        hapticImpactLight();
-                        const title = pillText.replace('+ ', '');
-                        try {
-                          const { data: { user } } = await supabase.auth.getUser();
-                          if (!user) return;
-                          const { data, error } = await supabase
-                            .from('collections')
-                            .insert([{ title, user_id: user.id }])
-                            .select();
-                          if (!error && data && data.length > 0) {
-                            setCollections(prev => [data[0], ...prev]);
+                {/* QUICK START SECTION */}
+                <View style={[s.quickStartSection, { marginTop: 28, width: '100%' }]}>
+                  <Text style={s.quickStartHeading}>QUICK START</Text>
+                  <View style={s.quickStartChipsRow}>
+                    {['+ Push', '+ Pull', '+ Core', '+ Full body'].map((pillText) => (
+                      <TouchableOpacity
+                        key={pillText}
+                        style={s.quickStartChip}
+                        activeOpacity={0.8}
+                        onPress={async () => {
+                          hapticImpactLight();
+                          const title = pillText.replace('+ ', '');
+                          try {
+                            await dispatch(createCollection({ title }));
+                          } catch (e) {
+                            console.warn(e);
                           }
-                        } catch (e) {
-                          console.warn(e);
-                        }
-                      }}
-                    >
-                      <Text style={s.quickStartChipText}>{pillText}</Text>
-                    </TouchableOpacity>
-                  ))}
+                        }}
+                      >
+                        <Text style={s.quickStartChipText}>{pillText}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
                 </View>
               </View>
-            </View>
+            ) : (
+              <View style={s.collectionsContainer}>
+                {/* Header: e.g. "X collections" + "+ New" Button */}
+                <View style={s.workoutsTopRow}>
+                  <Text style={s.workoutsCountHeading}>
+                    {collections.length} {collections.length === 1 ? 'collection' : 'collections'}
+                  </Text>
+
+                  <TouchableOpacity 
+                    style={s.importCtaBtn} 
+                    activeOpacity={0.88}
+                    onPress={() => {
+                      hapticImpactLight();
+                      setCollectionModalVisible(true);
+                    }}
+                  >
+                    <Text style={s.importCtaBtnText}>+ New</Text>
+                  </TouchableOpacity>
+                </View>
+
+                {/* Collections Grid */}
+                <View style={s.collectionsGrid}>
+                  {filteredCollections.map((c: any, index: number) => {
+                    const exerciseCount = c.collection_exercises?.length ?? c.count ?? 0;
+                    const quadColors = c.colors || (isDark ? [
+                      ['#3A2C21', '#28323C', '#2A292E', '#3D2F45'],
+                      ['#23342B', '#392C23', '#25262B', '#2C2B2D'],
+                    ][index % 2] : [
+                      ['#FFE5D3', '#E0EDFA', '#EFEBF5', '#FCE7F3'],
+                      ['#DCFCE7', '#FEF3C7', '#F1F5F9', '#F3E8FF'],
+                    ][index % 2]);
+
+                    return (
+                      <TouchableOpacity
+                        key={c.id}
+                        style={[s.collectionCard, { width: cardWidth }]}
+                        activeOpacity={0.88}
+                        onPress={() => {
+                          if (isEditMode) {
+                            handleDelete(c.id, 'collection');
+                          } else {
+                            router.push(`/collection/${c.id}`);
+                          }
+                        }}
+                        onLongPress={() => showItemOptions({ id: c.id, title: c.title, type: 'collection' })}
+                      >
+                        {/* 2x2 Quadrant Artwork Thumbnail Grid */}
+                        <View style={s.collectionQuadGrid}>
+                          <View style={[s.quadCell, { backgroundColor: quadColors[0] }]} />
+                          <View style={[s.quadCell, { backgroundColor: quadColors[1] }]} />
+                          <View style={[s.quadCell, { backgroundColor: quadColors[2] }]} />
+                          <View style={[s.quadCell, { backgroundColor: quadColors[3] }]} />
+                        </View>
+
+                        {/* Collection Details Row */}
+                        <View style={s.collectionCardBottom}>
+                          <View style={{ flex: 1 }}>
+                            <Text style={s.collectionCardTitle} numberOfLines={1}>
+                              {c.title}
+                            </Text>
+                            <Text style={s.collectionCardCount}>
+                              {exerciseCount} exercise{exerciseCount === 1 ? '' : 's'}
+                            </Text>
+                          </View>
+
+                          {isEditMode && (
+                            <TouchableOpacity
+                              style={s.cardMoreBtn}
+                              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                              onPress={() => handleDelete(c.id, 'collection')}
+                            >
+                              <Trash2 size={15} color="#EF4444" />
+                            </TouchableOpacity>
+                          )}
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  })}
+
+                  {/* Dashed "New collection" Card */}
+                  <TouchableOpacity
+                    style={[s.newCollectionDashedCard, { width: cardWidth }]}
+                    activeOpacity={0.85}
+                    onPress={() => {
+                      hapticImpactLight();
+                      setCollectionModalVisible(true);
+                    }}
+                  >
+                    <View style={s.newCollectionFolderCircle}>
+                      <FolderPlus size={22} color="#FFFFFF" strokeWidth={2.5} />
+                    </View>
+                    <Text style={s.newCollectionDashedTitle}>New collection</Text>
+                  </TouchableOpacity>
+                </View>
+
+                {/* QUICK START SECTION */}
+                <View style={s.quickStartSection}>
+                  <Text style={s.quickStartHeading}>QUICK START</Text>
+                  <View style={s.quickStartChipsRow}>
+                    {['+ Push', '+ Pull', '+ Core', '+ Full body'].map((pillText) => (
+                      <TouchableOpacity
+                        key={pillText}
+                        style={s.quickStartChip}
+                        activeOpacity={0.8}
+                        onPress={async () => {
+                          hapticImpactLight();
+                          const title = pillText.replace('+ ', '');
+                          try {
+                            await dispatch(createCollection({ title }));
+                          } catch (e) {
+                            console.warn(e);
+                          }
+                        }}
+                      >
+                        <Text style={s.quickStartChipText}>{pillText}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+              </View>
+            )
           )}
         </ScrollView>
       </View>
@@ -1071,6 +1114,97 @@ const makeStyles = (
   bottomImportSubtitle: {
     fontSize: 12,
     fontWeight: '500',
+    color: colors.textSecondary,
+  },
+
+  // Loading & Empty States
+  loadingContainer: {
+    paddingVertical: 80,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 14,
+  },
+  loadingText: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    fontWeight: '600',
+  },
+  emptyContainer: {
+    paddingVertical: 50,
+    paddingHorizontal: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+  },
+  emptyIconCircle: {
+    width: 76,
+    height: 76,
+    borderRadius: 38,
+    backgroundColor: colors.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+    shadowColor: colors.accent,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.35,
+    shadowRadius: 12,
+    elevation: 6,
+  },
+  emptyTitle: {
+    fontSize: 22,
+    fontWeight: '900',
+    color: colors.textPrimary,
+    textAlign: 'center',
+    letterSpacing: -0.4,
+  },
+  emptySubtitle: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 20,
+    maxWidth: 290,
+    marginBottom: 8,
+  },
+  emptyActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: colors.accent,
+    paddingHorizontal: 24,
+    paddingVertical: 14,
+    borderRadius: 24,
+    shadowColor: colors.accent,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 10,
+    elevation: 4,
+  },
+  emptyActionBtnText: {
+    color: '#000000',
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  emptyPlatformsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginTop: 16,
+  },
+  emptyPlatformBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: isDark ? '#1C1C20' : '#F3F4F6',
+    borderWidth: 1,
+    borderColor: isDark ? '#2C2C32' : '#E5E7EB',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 16,
+  },
+  emptyPlatformBadgeText: {
+    fontSize: 12,
+    fontWeight: '600',
     color: colors.textSecondary,
   },
 

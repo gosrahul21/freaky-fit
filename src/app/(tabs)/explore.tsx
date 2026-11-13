@@ -1,32 +1,36 @@
 import { SafeAreaView } from 'react-native-safe-area-context';
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput } from 'react-native';
-import { Search, Filter, Play, Plus, Dumbbell } from 'lucide-react-native';
+import React, { useState, useCallback } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, RefreshControl } from 'react-native';
+import { Search, Filter, Plus, Dumbbell } from 'lucide-react-native';
+import { useFocusEffect } from 'expo-router';
 import { useTheme } from '../../contexts/ThemeContext';
 import { hapticSelection } from '../../utils/haptics';
-
-import { supabase } from '../../lib/supabase';
+import { useAppDispatch, useAppSelector } from '../../store/hooks';
+import { fetchExercises } from '../../store/slices/exercisesSlice';
 
 const MUSCLES = ['All', 'Chest', 'Back', 'Legs', 'Shoulders', 'Arms', 'Core'];
 
 export default function ExploreScreen() {
   const { colors } = useTheme();
   const s = makeStyles(colors);
+  const dispatch = useAppDispatch();
   const [search, setSearch] = useState('');
   const [activeMuscle, setActiveMuscle] = useState('All');
+  const [refreshing, setRefreshing] = useState(false);
 
-  const [exercises, setExercises] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const exercises = useAppSelector((state) => state.exercises.items);
 
-  React.useEffect(() => {
-    const fetchExercises = async () => {
-      setLoading(true);
-      const { data } = await supabase.from('exercises').select('*');
-      if (data) setExercises(data);
-      setLoading(false);
-    };
-    fetchExercises();
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      dispatch(fetchExercises());
+    }, [dispatch])
+  );
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await dispatch(fetchExercises({ force: true }));
+    setRefreshing(false);
+  }, [dispatch]);
 
   const filtered = exercises.filter(e => 
     e.name?.toLowerCase().includes(search.toLowerCase()) && 
@@ -75,7 +79,18 @@ export default function ExploreScreen() {
         </View>
 
         {/* List */}
-        <ScrollView style={s.listContainer} contentContainerStyle={s.listContent}>
+        <ScrollView 
+          style={s.listContainer} 
+          contentContainerStyle={s.listContent}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={colors.accent}
+              colors={[colors.accent]}
+            />
+          }
+        >
           {filtered.map(ex => (
             <TouchableOpacity key={ex.id} style={s.exerciseCard} activeOpacity={0.8}>
               <View style={s.exImagePlaceholder}>

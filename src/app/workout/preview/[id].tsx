@@ -32,6 +32,9 @@ import * as WebBrowser from 'expo-web-browser';
 import { supabase } from '../../../lib/supabase';
 import { shareWorkout } from '../../../utils/share';
 import Svg, { Path, Ellipse, Line, Defs, LinearGradient as SvgLinearGradient, Stop, Rect } from 'react-native-svg';
+import { useAppDispatch, useAppSelector } from '../../../store/hooks';
+import { fetchWorkoutById } from '../../../store/slices/workoutsSlice';
+import { fetchCollections } from '../../../store/slices/collectionsSlice';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -41,10 +44,14 @@ export default function WorkoutDetailsScreen() {
   const s = makeStyles(colors, isDark);
   const router = useRouter();
   const { id } = useLocalSearchParams();
+  const dispatch = useAppDispatch();
+
+  const cachedWorkout = useAppSelector((state) => (id ? state.workouts.details[id as string] : null));
+  const cachedCollections = useAppSelector((state) => state.collections.items);
   
-  const [workout, setWorkout] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  const [collections, setCollections] = useState<any[]>([]);
+  const [workout, setWorkout] = useState<any>(cachedWorkout || null);
+  const [loading, setLoading] = useState(!cachedWorkout);
+  const [collections, setCollections] = useState<any[]>(cachedCollections);
   const [showCollectionModal, setShowCollectionModal] = useState(false);
   const [selectedExerciseId, setSelectedExerciseId] = useState<string | null>(null);
   const [newCollectionName, setNewCollectionName] = useState('');
@@ -80,30 +87,29 @@ export default function WorkoutDetailsScreen() {
 
   useEffect(() => {
     let isCurrent = true;
+
+    if (cachedWorkout) {
+      setWorkout(cachedWorkout);
+      const exList = (cachedWorkout.workout_exercises || []) as any[];
+      if (exList.length > 0) {
+        setExpandedExerciseId((prev) => prev || exList[0].id);
+      }
+      setLoading(false);
+    }
+
     async function loadData() {
       try {
-        const { data: wData } = await supabase
-          .from('workouts')
-          .select('*, workout_exercises(*, exercises(*))')
-          .eq('id', id)
-          .single();
-
-        if (wData && isCurrent) {
-          wData.workout_exercises = (wData.workout_exercises || []).sort((a: any, b: any) => a.order_index - b.order_index);
-          setWorkout(wData);
-          if (wData.workout_exercises?.length > 0) {
-            setExpandedExerciseId(wData.workout_exercises[0].id);
+        if (id) {
+          const action = await dispatch(fetchWorkoutById({ id: id as string }));
+          if (fetchWorkoutById.fulfilled.match(action) && isCurrent) {
+            setWorkout(action.payload);
+            const exList = (action.payload.workout_exercises || []) as any[];
+            if (exList.length > 0) {
+              setExpandedExerciseId((prev) => prev || exList[0].id);
+            }
           }
         }
-
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user && isCurrent) {
-          const { data: cData } = await supabase
-            .from('collections')
-            .select('*')
-            .eq('user_id', user.id);
-          if (cData && isCurrent) setCollections(cData);
-        }
+        dispatch(fetchCollections());
       } finally {
         if (isCurrent) {
           setLoading(false);
@@ -111,13 +117,18 @@ export default function WorkoutDetailsScreen() {
       }
     }
 
-    if (id) {
-      loadData();
-    }
+    loadData();
+
     return () => {
       isCurrent = false;
     };
-  }, [id]);
+  }, [id, cachedWorkout, dispatch]);
+
+  useEffect(() => {
+    if (cachedCollections.length > 0) {
+      setCollections(cachedCollections);
+    }
+  }, [cachedCollections]);
 
   const handleSaveToCollection = async (collectionId: string) => {
     if (selectedExerciseId) {

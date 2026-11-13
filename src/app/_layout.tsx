@@ -3,7 +3,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
 import { ShareIntentProvider, useShareIntentContext } from 'expo-share-intent';
-import { ThemeProvider } from '../contexts/ThemeContext';
+import { ThemeProvider, useTheme } from '../contexts/ThemeContext';
 import { StatusBar } from 'expo-status-bar';
 import { PostHogProvider } from 'posthog-react-native';
 import { posthog } from '../lib/posthog';
@@ -12,6 +12,10 @@ import { AppState, AppStateStatus } from 'react-native';
 import { initPurchases } from '../lib/purchases';
 import { pingBackendHealth } from '../lib/backend';
 import { handleAuthRedirectUrl } from '../lib/auth';
+import { Provider } from 'react-redux';
+import { store } from '../store';
+import { setAuthSession, clearAuth, fetchUserProfile } from '../store/slices/authSlice';
+import { supabase } from '../lib/supabase';
 
 WebBrowser.maybeCompleteAuthSession();
 SplashScreen.preventAutoHideAsync();
@@ -27,6 +31,21 @@ export default function RootLayout() {
     // Ping backend to wake up Render on app open
     pingBackendHealth();
 
+    // Initial user fetch into Redux store
+    store.dispatch(fetchUserProfile());
+
+    // Listen to Supabase auth changes and keep Redux in sync
+    const { data: { subscription: authSub } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        if (session?.user) {
+          store.dispatch(setAuthSession({ user: session.user, session }));
+          store.dispatch(fetchUserProfile());
+        } else if (event === 'SIGNED_OUT') {
+          store.dispatch(clearAuth());
+        }
+      }
+    );
+
     const subscription = AppState.addEventListener('change', (nextAppState: AppStateStatus) => {
       if (nextAppState === 'active') {
         pingBackendHealth();
@@ -34,18 +53,21 @@ export default function RootLayout() {
     });
 
     return () => {
+      authSub.unsubscribe();
       subscription.remove();
     };
   }, []);
 
   return (
-    <ShareIntentProvider>
-      <PostHogProvider client={posthog}>
-        <ThemeProvider>
-          <InnerLayout />
-        </ThemeProvider>
-      </PostHogProvider>
-    </ShareIntentProvider>
+    <Provider store={store}>
+      <ShareIntentProvider>
+        <PostHogProvider client={posthog}>
+          <ThemeProvider>
+            <InnerLayout />
+          </ThemeProvider>
+        </PostHogProvider>
+      </ShareIntentProvider>
+    </Provider>
   );
 }
 
@@ -64,8 +86,7 @@ function extractSharedUrl(webUrl?: string | null, text?: string | null): string 
 }
 
 function InnerLayout() {
-  // We import useTheme inside a child so it can read the context
-  const { isDark } = require('../contexts/ThemeContext').useTheme();
+  const { isDark } = useTheme();
   const router = useRouter();
   const pathname = usePathname();
   const rootNavigationState = useRootNavigationState();

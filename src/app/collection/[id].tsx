@@ -4,16 +4,24 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { X, FolderPlus, Activity, ChevronRight, Plus, CheckCircle2, Circle, Trash2 } from 'lucide-react-native';
 import { useTheme } from '../../contexts/ThemeContext';
 import { supabase } from '../../lib/supabase';
+import { useAppDispatch, useAppSelector } from '../../store/hooks';
+import { fetchCollectionById, deleteCollection } from '../../store/slices/collectionsSlice';
 
 export default function CollectionDetailsScreen() {
   const { id } = useLocalSearchParams();
   const { colors } = useTheme();
   const s = makeStyles(colors);
   const router = useRouter();
+  const dispatch = useAppDispatch();
 
-  const [collection, setCollection] = useState<any>(null);
-  const [exercises, setExercises] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const cachedDetail = useAppSelector((state) => (id ? state.collections.details[id as string] : null));
+
+  const [localCollection, setLocalCollection] = useState<any>(null);
+  const [localExercises, setLocalExercises] = useState<any[]>([]);
+  const [loading, setLoading] = useState(!cachedDetail);
+
+  const collection = cachedDetail?.collection || localCollection;
+  const exercises = cachedDetail?.exercises || localExercises;
 
   // Add Exercise Modal State
   const [showAddModal, setShowAddModal] = useState(false);
@@ -22,43 +30,27 @@ export default function CollectionDetailsScreen() {
   const [isAdding, setIsAdding] = useState(false);
   const [isFetchingExercises, setIsFetchingExercises] = useState(false);
 
-  const fetchCollectionData = React.useCallback(async () => {
-    setLoading(true);
+  const fetchCollectionData = React.useCallback(async (force = false) => {
+    if (!id) return;
     try {
-      // 1. Fetch collection details
-      const { data: cData, error: cErr } = await supabase
-        .from('collections')
-        .select('*')
-        .eq('id', id)
-        .single();
-      
-      if (cErr) throw cErr;
-      setCollection(cData);
-
-      // 2. Fetch collection exercises
-      const { data: eData, error: eErr } = await supabase
-        .from('collection_exercises')
-        .select('*, workout_exercises(*, exercises(*))')
-        .eq('collection_id', id)
-        .order('added_at', { ascending: false });
-
-      if (eErr) throw eErr;
-      
-      const flatExercises = (eData || []).map((ce: any) => ce.workout_exercises);
-      setExercises(flatExercises);
+      const res = await dispatch(fetchCollectionById({ id: id as string, force }));
+      if (fetchCollectionById.fulfilled.match(res)) {
+        setLocalCollection(res.payload.collection);
+        setLocalExercises(res.payload.exercises);
+      }
     } catch (err) {
       console.error(err);
     } finally {
       setLoading(false);
     }
-  }, [id]);
+  }, [id, dispatch]);
 
   useEffect(() => {
     let active = true;
     if (id) {
       void (async () => {
         if (active) {
-          await fetchCollectionData();
+          await fetchCollectionData(false);
         }
       })();
     }
@@ -148,8 +140,9 @@ export default function CollectionDetailsScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
-              await supabase.from('collection_exercises').delete().eq('collection_id', id);
-              await supabase.from('collections').delete().eq('id', id);
+              if (id) {
+                await dispatch(deleteCollection(id as string));
+              }
               router.back();
             } catch (err: any) {
               Alert.alert('Error', err.message || 'Failed to delete collection');

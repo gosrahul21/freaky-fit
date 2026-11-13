@@ -36,28 +36,41 @@ import { APP_LINKS, openWebUrl } from '../constants/links';
 
 import { logoutPurchases, checkIsPro, restorePurchases } from '../lib/purchases';
 import { resetUser } from '../lib/posthog';
+import { useAppDispatch, useAppSelector } from '../store/hooks';
+import { clearAuth } from '../store/slices/authSlice';
+import { clearWorkouts } from '../store/slices/workoutsSlice';
+import { clearCollections } from '../store/slices/collectionsSlice';
+import { clearPlans } from '../store/slices/plansSlice';
+import { clearLogs } from '../store/slices/logsSlice';
 
 export default function SettingsScreen() {
   const router = useRouter();
-  const { colors, isDark, toggleMode, mode } = useTheme();
+  const { colors, isDark, toggleMode } = useTheme();
+  const dispatch = useAppDispatch();
+
+  const user = useAppSelector((state) => state.auth.user);
+  const profile = useAppSelector((state) => state.auth.profile);
 
   const s = makeStyles(colors);
 
-  const [userEmail, setUserEmail] = useState<string | null>(null);
-  const [userName, setUserName] = useState<string | null>(null);
+  const userEmail = user?.email || null;
+  const userName = profile?.display_name || user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'User';
+
   const [isProUser, setIsProUser] = useState<boolean>(false);
   const [isRestoring, setIsRestoring] = useState<boolean>(false);
 
   useEffect(() => {
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (session?.user) {
-        setUserEmail(session.user.email || null);
-        setUserName(session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'User');
-        const pro = await checkIsPro(session.user.id);
-        setIsProUser(pro);
-      }
-    });
-  }, []);
+    if (user?.id) {
+      checkIsPro(user.id).then(setIsProUser);
+    } else {
+      supabase.auth.getSession().then(async ({ data: { session } }) => {
+        if (session?.user?.id) {
+          const pro = await checkIsPro(session.user.id);
+          setIsProUser(pro);
+        }
+      });
+    }
+  }, [user?.id]);
 
   const handleRestore = async () => {
     try {
@@ -83,6 +96,11 @@ export default function SettingsScreen() {
         await supabase.auth.signOut();
         await logoutPurchases();
         resetUser();
+        dispatch(clearAuth());
+        dispatch(clearWorkouts());
+        dispatch(clearCollections());
+        dispatch(clearPlans());
+        dispatch(clearLogs());
         router.replace('/welcome');
       }},
     ]);

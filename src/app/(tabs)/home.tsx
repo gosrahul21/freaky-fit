@@ -1,29 +1,29 @@
 import { SafeAreaView } from 'react-native-safe-area-context';
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, Image } from 'react-native';
-import { Search, ChevronRight, Plus, Check } from 'lucide-react-native';
+import React, { useState, useMemo, useCallback } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, RefreshControl } from 'react-native';
+import { Search, Plus, Check } from 'lucide-react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useTheme } from '../../contexts/ThemeContext';
-import { supabase } from '../../lib/supabase';
 import { hapticImpactLight } from '../../utils/haptics';
-
-const { width } = Dimensions.get('window');
+import { useAppDispatch, useAppSelector } from '../../store/hooks';
+import { fetchUserProfile } from '../../store/slices/authSlice';
+import { fetchPlans } from '../../store/slices/plansSlice';
+import { fetchWorkouts } from '../../store/slices/workoutsSlice';
+import { fetchWorkoutLogs } from '../../store/slices/logsSlice';
 
 export default function HomeScreen() {
   const { colors, isDark } = useTheme();
   const s = makeStyles(colors, isDark);
   const router = useRouter();
+  const dispatch = useAppDispatch();
 
-  const [profile, setProfile] = useState<any>(null);
-  const [activePlan, setActivePlan] = useState<any>(null);
-  const [recentWorkouts, setRecentWorkouts] = useState<any[]>([]);
-  const [stats, setStats] = useState({
-    timeTrained: '2h 15m',
-    calories: '1,240',
-    dayStreak: 3,
-    workoutsCompletedThisWeek: 3,
-    weeklyTarget: 4,
-  });
+  const profile = useAppSelector((state) => state.auth.profile);
+  const activePlan = useAppSelector((state) => state.plans.activePlan);
+  const allWorkouts = useAppSelector((state) => state.workouts.items);
+  const recentWorkouts = allWorkouts.slice(0, 6);
+  const logsData = useAppSelector((state) => state.logs.logs);
+
+  const [refreshing, setRefreshing] = useState(false);
 
   const getWeekDates = () => {
     const dates = [];
@@ -38,108 +38,79 @@ export default function HomeScreen() {
   };
   const { dates: weekDates, currentDayIndex } = getWeekDates();
 
-  const fetchHomeData = React.useCallback(async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      // 1. Profile
-      const { data: profileData } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .single();
-      if (profileData) setProfile(profileData);
-
-      // 2. Active Plan
-      let { data: planData } = await supabase
-        .from('planner')
-        .select('*, planner_sessions(*)')
-        .eq('user_id', user.id)
-        .eq('status', 'active')
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (!planData) {
-        const { data: fallbackPlan } = await supabase
-          .from('planner')
-          .select('*, planner_sessions(*)')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .maybeSingle();
-        if (fallbackPlan) {
-          planData = fallbackPlan;
-        }
-      }
-      setActivePlan(planData || null);
-
-      // 3. Recently saved workouts
-      const { data: workoutsData } = await supabase
-        .from('workouts')
-        .select('*, workout_exercises(id)')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
-        .limit(6);
-      if (workoutsData) setRecentWorkouts(workoutsData);
-
-      // 4. Workout Logs & Stats
-      const { data: logsData } = await supabase
-        .from('workout_logs')
-        .select('*')
-        .eq('user_id', user.id)
-        .not('completed_at', 'is', null)
-        .order('completed_at', { ascending: false });
-
-      if (logsData && logsData.length > 0) {
-        const formatYMD = (date: Date) => {
-          const offset = date.getTimezoneOffset();
-          const localDate = new Date(date.getTime() - (offset * 60 * 1000));
-          return localDate.toISOString().split('T')[0];
-        };
-        const logDates = logsData.map(log => formatYMD(new Date(log.completed_at)));
-        const uniqueLogDates = Array.from(new Set(logDates));
-
-        // Streak
-        let currentStreak = 0;
-        let d = new Date();
-        if (!uniqueLogDates.includes(formatYMD(d))) {
-          d.setDate(d.getDate() - 1);
-        }
-        while (uniqueLogDates.includes(formatYMD(d))) {
-          currentStreak++;
-          d.setDate(d.getDate() - 1);
-        }
-
-        // This week's logs
-        const startOfWeek = new Date(weekDates[0]);
-        startOfWeek.setHours(0, 0, 0, 0);
-        const thisWeekLogs = logsData.filter(log => new Date(log.completed_at) >= startOfWeek);
-        const totalDurationSec = thisWeekLogs.reduce((acc, curr) => acc + (curr.duration_seconds || 1800), 0);
-        const hours = Math.floor(totalDurationSec / 3600);
-        const mins = Math.floor((totalDurationSec % 3600) / 60);
-        const timeTrainedStr = hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
-        const estCalories = Math.round(totalDurationSec * 0.15) || (thisWeekLogs.length * 350);
-
-        setStats({
-          timeTrained: timeTrainedStr || '2h 15m',
-          calories: estCalories > 0 ? estCalories.toLocaleString() : '1,240',
-          dayStreak: currentStreak || 3,
-          workoutsCompletedThisWeek: thisWeekLogs.length || 3,
-          weeklyTarget: Math.max(4, thisWeekLogs.length),
-        });
-      }
-    } catch (err) {
-      console.warn('Error fetching home data:', err);
-    }
-  }, [weekDates]);
+  const loadData = useCallback((force = false) => {
+    dispatch(fetchUserProfile(force ? { force: true } : undefined));
+    dispatch(fetchPlans(force ? { force: true } : undefined));
+    dispatch(fetchWorkouts(force ? { force: true } : undefined));
+    dispatch(fetchWorkoutLogs(force ? { force: true } : undefined));
+  }, [dispatch]);
 
   useFocusEffect(
-    React.useCallback(() => {
-      fetchHomeData();
-    }, [fetchHomeData])
+    useCallback(() => {
+      loadData(false);
+    }, [loadData])
   );
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await Promise.all([
+      dispatch(fetchUserProfile({ force: true })),
+      dispatch(fetchPlans({ force: true })),
+      dispatch(fetchWorkouts({ force: true })),
+      dispatch(fetchWorkoutLogs({ force: true })),
+    ]);
+    setRefreshing(false);
+  }, [dispatch]);
+
+  const stats = useMemo(() => {
+    if (!logsData || logsData.length === 0) {
+      return {
+        timeTrained: '2h 15m',
+        calories: '1,240',
+        dayStreak: 3,
+        workoutsCompletedThisWeek: 3,
+        weeklyTarget: 4,
+      };
+    }
+    const formatYMD = (date: Date) => {
+      const offset = date.getTimezoneOffset();
+      const localDate = new Date(date.getTime() - (offset * 60 * 1000));
+      return localDate.toISOString().split('T')[0];
+    };
+    const logDates = logsData
+      .filter((l) => l.completed_at)
+      .map((log) => formatYMD(new Date(log.completed_at!)));
+    const uniqueLogDates = Array.from(new Set(logDates));
+
+    // Streak
+    let currentStreak = 0;
+    let d = new Date();
+    if (!uniqueLogDates.includes(formatYMD(d))) {
+      d.setDate(d.getDate() - 1);
+    }
+    while (uniqueLogDates.includes(formatYMD(d))) {
+      currentStreak++;
+      d.setDate(d.getDate() - 1);
+    }
+
+    // This week's logs
+    const startOfWeek = new Date(weekDates[0]);
+    startOfWeek.setHours(0, 0, 0, 0);
+    const thisWeekLogs = logsData.filter((log) => log.completed_at && new Date(log.completed_at) >= startOfWeek);
+    const totalDurationSec = thisWeekLogs.reduce((acc, curr) => acc + (curr.duration_seconds || 1800), 0);
+    const hours = Math.floor(totalDurationSec / 3600);
+    const mins = Math.floor((totalDurationSec % 3600) / 60);
+    const timeTrainedStr = hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
+    const estCalories = Math.round(totalDurationSec * 0.15) || (thisWeekLogs.length * 350);
+
+    return {
+      timeTrained: timeTrainedStr || '2h 15m',
+      calories: estCalories > 0 ? estCalories.toLocaleString() : '1,240',
+      dayStreak: currentStreak || 3,
+      workoutsCompletedThisWeek: thisWeekLogs.length || 3,
+      weeklyTarget: Math.max(4, thisWeekLogs.length),
+    };
+  }, [logsData, weekDates]);
 
   // Active workout / session details
   const getTodaySession = () => {
@@ -192,6 +163,14 @@ export default function HomeScreen() {
           style={s.scrollView} 
           contentContainerStyle={s.scrollContent}
           showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={colors.accent}
+              colors={[colors.accent]}
+            />
+          }
         >
           
           {/* Hero Active Plan Card */}

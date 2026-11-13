@@ -1,53 +1,38 @@
 import { SafeAreaView } from 'react-native-safe-area-context';
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions } from 'react-native';
-import { Flame, Trophy, TrendingUp, Calendar, CalendarDays, Home as HomeIcon, Bookmark, Plus, Activity, Compass } from 'lucide-react-native';
-import { useRouter } from 'expo-router';
+import React, { useState, useCallback } from 'react';
+import { View, Text, StyleSheet, ScrollView, RefreshControl } from 'react-native';
+import { Flame, Trophy, TrendingUp, Activity } from 'lucide-react-native';
+import { useFocusEffect } from 'expo-router';
 import { useTheme } from '../../contexts/ThemeContext';
-import { supabase } from '../../lib/supabase';
-
-const { width } = Dimensions.get('window');
+import { useAppDispatch, useAppSelector } from '../../store/hooks';
+import { fetchWorkoutLogs } from '../../store/slices/logsSlice';
 
 export default function StreaksScreen() {
   const { colors } = useTheme();
   const s = makeStyles(colors);
-  const router = useRouter();
+  const dispatch = useAppDispatch();
 
-  const [logs, setLogs] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const logs = useAppSelector((state) => state.logs.logs);
+  const [refreshing, setRefreshing] = useState(false);
 
-  const fetchLogs = React.useCallback(async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      
-      const { data, error } = await supabase
-        .from('workout_logs')
-        .select('*')
-        .eq('user_id', user.id)
-        .not('completed_at', 'is', null)
-        .order('completed_at', { ascending: false });
-        
-      if (error) throw error;
-      setLogs(data || []);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const loadLogs = useCallback(
+    (force = false) => {
+      dispatch(fetchWorkoutLogs(force ? { force: true } : undefined));
+    },
+    [dispatch]
+  );
 
-  React.useEffect(() => {
-    let active = true;
-    void (async () => {
-      if (active) {
-        await fetchLogs();
-      }
-    })();
-    return () => {
-      active = false;
-    };
-  }, [fetchLogs]);
+  useFocusEffect(
+    useCallback(() => {
+      loadLogs(false);
+    }, [loadLogs])
+  );
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await dispatch(fetchWorkoutLogs({ force: true }));
+    setRefreshing(false);
+  }, [dispatch]);
 
   // Calculations
   const formatYMD = (date: Date) => {
@@ -55,7 +40,9 @@ export default function StreaksScreen() {
     const localDate = new Date(date.getTime() - (offset * 60 * 1000));
     return localDate.toISOString().split('T')[0];
   };
-  const logDates = logs.map(log => formatYMD(new Date(log.completed_at)));
+  const logDates = logs
+    .filter((log) => Boolean(log.completed_at))
+    .map((log) => formatYMD(new Date(log.completed_at!)));
   const uniqueLogDates = Array.from(new Set(logDates)); // Already sorted descending
 
   // 1. Current Streak
@@ -116,7 +103,18 @@ export default function StreaksScreen() {
     <SafeAreaView style={[s.safeArea, { backgroundColor: colors.background }]}>
       <View style={[s.container, { backgroundColor: colors.background }]}>
         
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.content}>
+        <ScrollView 
+          showsVerticalScrollIndicator={false} 
+          contentContainerStyle={s.content}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={colors.accent}
+              colors={[colors.accent]}
+            />
+          }
+        >
           
           <View style={{ height: 16 }} />
           
@@ -199,7 +197,9 @@ export default function StreaksScreen() {
                   </View>
                   <View style={s.milestoneTextContainer}>
                     <Text style={s.milestoneTitle}>{logs.length} Workouts Total</Text>
-                    <Text style={s.milestoneDesc}>Since {formatYMD(new Date(logs[logs.length-1].completed_at))}</Text>
+                    <Text style={s.milestoneDesc}>
+                      Since {logs[logs.length - 1]?.completed_at ? formatYMD(new Date(logs[logs.length - 1].completed_at!)) : 'Day 1'}
+                    </Text>
                   </View>
                 </View>
               </>
