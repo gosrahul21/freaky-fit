@@ -28,7 +28,7 @@ export interface JobStatusResponse {
 }
 
 export const BACKEND_URL = (
-  process.env.EXPO_PUBLIC_API_URL || 'https://video-extractor-qjgr.onrender.com'
+  'https://n7ynlrw7h3jmscqkjauaopdmca0pcnwd.lambda-url.ap-southeast-2.on.aws'
 )
   .trim()
   .replace(/\/+$/, '');

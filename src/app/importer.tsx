@@ -253,11 +253,16 @@ export default function ImporterScreen() {
     setImportError(null);
     setIsProcessing(true);
 
-    const platform = detectPlatform(url);
+    const trimmedUrl = url.trim();
+    const normalizedUrl = trimmedUrl.startsWith('http://') || trimmedUrl.startsWith('https://')
+      ? trimmedUrl
+      : `https://${trimmedUrl}`;
+
+    const platform = detectPlatform(normalizedUrl);
     const startTime = Date.now();
     posthog.capture('video_import_started', {
       platform,
-      url,
+      url: normalizedUrl,
     });
     
     try {
@@ -268,25 +273,59 @@ export default function ImporterScreen() {
       
       const response = await fetch(`${apiUrl}/api/extract-workout`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: url.trim(), user_id: user.id }),
+        headers: { 
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: JSON.stringify({ url: normalizedUrl, user_id: user.id }),
       });
-      
-      if (!response.ok) {
-        throw new Error('Could not start workout extraction. Please try again.');
+
+      const rawText = await response.text();
+      let responseData: any = null;
+      try {
+        responseData = JSON.parse(rawText);
+      } catch {
+        if (__DEV__) {
+          console.warn('[Importer] Non-JSON response from /api/extract-workout:', response.status, rawText);
+        }
+        throw new Error(
+          rawText.trim().length > 0 && rawText.length < 120 && !rawText.includes('<')
+            ? rawText.trim()
+            : 'Server returned an unexpected response. Please try again.'
+        );
       }
 
-      const { job_id } = await response.json();
+      if (!response.ok || !responseData?.job_id) {
+        const errorMsg = responseData?.error || responseData?.message || 'Could not start workout extraction. Please try again.';
+        throw new Error(errorMsg);
+      }
+
+      const { job_id } = responseData;
 
       // Poll for job status
       const pollStatus = async () => {
         if (!isMountedRef.current) return;
 
         try {
-          const statusRes = await fetch(`${apiUrl}/api/job-status/${job_id}`);
-          if (!statusRes.ok) throw new Error('Unable to check extraction status.');
+          const statusRes = await fetch(`${apiUrl}/api/job-status/${job_id}`, {
+            headers: { 'Accept': 'application/json' },
+          });
+
+          const rawStatusText = await statusRes.text();
+          let statusData: JobStatusResponse | null = null;
+          try {
+            statusData = JSON.parse(rawStatusText);
+          } catch {
+            if (__DEV__) {
+              console.warn('[Importer] Non-JSON response from /api/job-status:', statusRes.status, rawStatusText);
+            }
+            throw new Error('Unable to read extraction status.');
+          }
+
+          if (!statusRes.ok || !statusData) {
+            throw new Error('Unable to check extraction status.');
+          }
           
-          const statusData: JobStatusResponse = await statusRes.json();
           if (!isMountedRef.current) return;
 
           if (statusData.state === 'completed') {
@@ -348,7 +387,7 @@ export default function ImporterScreen() {
       });
       setImportError({
         title: 'Could Not Start Import',
-        message: 'Something went wrong while starting your video import. Please try again.',
+        message: err?.message || 'Something went wrong while starting your video import. Please try again.',
         retryable: true,
       });
     }
