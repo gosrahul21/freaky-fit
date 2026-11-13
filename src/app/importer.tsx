@@ -34,6 +34,7 @@ const JOB_ERROR_TITLES: Record<JobErrorCode, string> = {
   AI_RATE_LIMITED: 'AI Temporarily Busy',
   AI_AUTH_ERROR: 'Extraction Unavailable',
   VIDEO_UNAVAILABLE: 'Video Unavailable',
+  VIDEO_TOO_LONG:"Video Too Long",
   VIDEO_ACCESS_BLOCKED: 'Video Access Blocked',
   INVALID_VIDEO_URL: 'Invalid Video Link',
   VIDEO_DOWNLOAD_FAILED: 'Video Download Failed',
@@ -266,8 +267,10 @@ export default function ImporterScreen() {
     });
     
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Not authenticated");
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) throw new Error("Not authenticated");
+      const token = session.access_token;
+      const user = session.user;
 
       const apiUrl = BACKEND_URL;
       
@@ -276,6 +279,7 @@ export default function ImporterScreen() {
         headers: { 
           'Content-Type': 'application/json',
           'Accept': 'application/json',
+          'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify({ url: normalizedUrl, user_id: user.id }),
       });
@@ -308,7 +312,10 @@ export default function ImporterScreen() {
 
         try {
           const statusRes = await fetch(`${apiUrl}/api/job-status/${job_id}`, {
-            headers: { 'Accept': 'application/json' },
+            headers: { 
+              'Accept': 'application/json',
+              'Authorization': `Bearer ${token}`,
+            },
           });
 
           const rawStatusText = await statusRes.text();

@@ -2,6 +2,7 @@ export type JobErrorCode =
   | 'AI_SERVICE_UNAVAILABLE'
   | 'AI_RATE_LIMITED'
   | 'AI_AUTH_ERROR'
+  | 'VIDEO_TOO_LONG'
   | 'VIDEO_UNAVAILABLE'
   | 'VIDEO_ACCESS_BLOCKED'
   | 'INVALID_VIDEO_URL'
@@ -28,10 +29,10 @@ export interface JobStatusResponse {
 }
 
 export const BACKEND_URL = (
-  'https://n7ynlrw7h3jmscqkjauaopdmca0pcnwd.lambda-url.ap-southeast-2.on.aws'
-)
-  .trim()
-  .replace(/\/+$/, '');
+  (process.env.EXPO_BASE_URL ||
+    'https://n7ynlrw7h3jmscqkjauaopdmca0pcnwd.lambda-url.ap-southeast-2.on.aws')
+    .trim()
+    .replace(/\/+$/, ''));
 
 let lastPingTime = 0;
 const MIN_PING_INTERVAL_MS = 60 * 1000; // Throttle pings to once every minute
